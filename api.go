@@ -45,13 +45,10 @@ func (s *APISERVER) handleGetContainers(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APISERVER) handleGetContainerById(w http.ResponseWriter, r *http.Request) error {
-	idStr := mux.Vars(r)["id"]
-	id, err := strconv.Atoi(idStr)
+	id, err := getID(r)
 	if err != nil {
-		return fmt.Errorf("invalid id provided %s", idStr)
+		return err
 	}
-	fmt.Println(id)
-
 	container, err := s.store.GetContainerByID(id)
 	if err != nil {
 		return err
@@ -83,12 +80,16 @@ func (s *APISERVER) handleUpdateContainer(w http.ResponseWriter, r *http.Request
 }
 
 func (s *APISERVER) handleDeleteContainer(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
 
-	// TODO: Implement delete logic
-	fmt.Printf("Delete container: %s\n", id)
-	return nil
+	if err := s.store.DeleteContainer(id); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
@@ -109,4 +110,13 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 			WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
 		}
 	}
+}
+
+func getID(r *http.Request) (int, error) {
+	idStr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return id, fmt.Errorf("invalid id provided %s", idStr)
+	}
+	return id, nil
 }

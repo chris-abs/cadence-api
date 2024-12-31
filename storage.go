@@ -12,6 +12,7 @@ type Storage interface {
 	DeleteContainer(int) error
 	UpdateContainer(*Container) error
 	GetContainers() ([]*Container, error)
+
 	GetContainerByID(int) (*Container, error)
 }
 
@@ -50,7 +51,8 @@ func (s *PostgresStore) UpdateContainer(container *Container) error {
 }
 
 func (s *PostgresStore) DeleteContainer(id int) error {
-	return nil
+	_, err := s.db.Query("DELETE FROM container WHERE ID = $1", id)
+	return err
 }
 
 func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
