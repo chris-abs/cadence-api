@@ -54,7 +54,20 @@ func (s *PostgresStore) DeleteContainer(id int) error {
 }
 
 func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
-	return nil, nil
+	rows, err := s.db.Query(`
+        SELECT id, name, qr_code, number, location, user_id, created_at, updated_at 
+        FROM container 
+        WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		return scanIntoContainer(rows)
+	}
+
+	return nil, fmt.Errorf("container %d not found", id)
 }
 
 func (s *PostgresStore) GetContainers() ([]*Container, error) {
@@ -69,17 +82,7 @@ func (s *PostgresStore) GetContainers() ([]*Container, error) {
 
 	containers := []*Container{}
 	for rows.Next() {
-		container := new(Container)
-		err := rows.Scan(
-			&container.ID,
-			&container.Name,
-			&container.QRCode,
-			&container.Number,
-			&container.Location,
-			&container.UserId,
-			&container.CreatedAt,
-			&container.UpdatedAt,
-		)
+		container, err := scanIntoContainer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning container row: %v", err)
 		}
@@ -91,6 +94,21 @@ func (s *PostgresStore) GetContainers() ([]*Container, error) {
 	}
 
 	return containers, nil
+}
+
+func scanIntoContainer(rows *sql.Rows) (*Container, error) {
+	container := new(Container)
+	err := rows.Scan(
+		&container.ID,
+		&container.Name,
+		&container.QRCode,
+		&container.Number,
+		&container.Location,
+		&container.UserId,
+		&container.CreatedAt,
+		&container.UpdatedAt,
+	)
+	return container, err
 }
 
 func NewPostgressStore() (*PostgresStore, error) {

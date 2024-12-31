@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
@@ -24,7 +25,6 @@ func NewAPIServer(listenAddr string, store Storage) *APISERVER {
 func (s *APISERVER) Run() {
 	router := mux.NewRouter()
 
-	// Define routes with specific HTTP methods
 	router.HandleFunc("/containers", makeHTTPHandleFunc(s.handleGetContainers)).Methods("GET")
 	router.HandleFunc("/containers", makeHTTPHandleFunc(s.handleCreateContainer)).Methods("POST")
 	router.HandleFunc("/containers/{id}", makeHTTPHandleFunc(s.handleGetContainerById)).Methods("GET")
@@ -45,12 +45,18 @@ func (s *APISERVER) handleGetContainers(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APISERVER) handleGetContainerById(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	idStr := mux.Vars(r)["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return fmt.Errorf("invalid id provided %s", idStr)
+	}
+	fmt.Println(id)
 
-	// TODO: Convert id to int and implement the get by ID logic
-	fmt.Printf("Get container by ID: %s\n", id)
-	return nil
+	container, err := s.store.GetContainerByID(id)
+	if err != nil {
+		return err
+	}
+	return WriteJSON(w, http.StatusOK, container)
 }
 
 func (s *APISERVER) handleCreateContainer(w http.ResponseWriter, r *http.Request) error {
@@ -94,7 +100,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
 type ApiError struct {
-	Error string
+	Error string `json:"error"`
 }
 
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
