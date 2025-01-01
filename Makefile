@@ -1,8 +1,26 @@
+.PHONY: build run test clean
+
+# Build variables
+BINARY_NAME=storage
+BINARY_DIR=bin
+CMD_DIR=cmd/api
+
 build:
-	@go build -o bin/storage
+	@echo "Building..."
+	@go build -o $(BINARY_DIR)/$(BINARY_NAME) ./$(CMD_DIR)
 
 run: build
-	@./bin/storage
+	@echo "Running..."
+	@./$(BINARY_DIR)/$(BINARY_NAME)
 
 test:
-	@go test -v ./..
+	@echo "Running tests..."
+	@go test -v ./internal/... ./pkg/...
+
+clean:
+	@echo "Cleaning..."
+	@rm -rf $(BINARY_DIR)
+
+# Development helpers
+dev:
+	@go run ./$(CMD_DIR)
