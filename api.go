@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -99,12 +101,47 @@ func (s *APISERVER) handleCreateContainer(w http.ResponseWriter, r *http.Request
 }
 
 func (s *APISERVER) handleUpdateContainer(w http.ResponseWriter, r *http.Request) error {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	id, err := getID(r)
+	if err != nil {
+		return fmt.Errorf("invalid container ID: %v", err)
+	}
 
-	// TODO: Implement update logic
-	fmt.Printf("Update container: %s\n", id)
-	return nil
+	container, err := s.store.GetContainerByID(id)
+	if err != nil {
+		return fmt.Errorf("container not found: %v", err)
+	}
+
+	updateRequest := make(map[string]interface{})
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		return fmt.Errorf("invalid request body: %v", err)
+	}
+
+	containerValue := reflect.ValueOf(container).Elem()
+
+	for key, value := range updateRequest {
+		field := containerValue.FieldByNameFunc(func(fieldName string) bool {
+			return strings.EqualFold(fieldName, key)
+		})
+		if !field.IsValid() {
+			continue
+		}
+		if field.CanSet() {
+			field.Set(reflect.ValueOf(value))
+		}
+	}
+
+	container.UpdatedAt = time.Now().UTC()
+
+	if err := s.store.UpdateContainer(container); err != nil {
+		return fmt.Errorf("error updating container: %v", err)
+	}
+
+	updatedContainer, err := s.store.GetContainerByID(id)
+	if err != nil {
+		return fmt.Errorf("error fetching updated container: %v", err)
+	}
+
+	return WriteJSON(w, http.StatusOK, updatedContainer)
 }
 
 func (s *APISERVER) handleDeleteContainer(w http.ResponseWriter, r *http.Request) error {

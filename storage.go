@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -54,6 +55,23 @@ func (s *PostgresStore) CreateContainer(container *Container) error {
 }
 
 func (s *PostgresStore) UpdateContainer(container *Container) error {
+	query := `
+        UPDATE container
+        SET name = $2, location = $3, qr_code_image = $4, updated_at = $5
+        WHERE id = $1
+    `
+	_, err := s.db.Exec(
+		query,
+		container.ID,
+		container.Name,
+		container.Location,
+		container.QRCodeImage,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return fmt.Errorf("error updating container: %v", err)
+	}
+
 	return nil
 }
 
@@ -176,7 +194,7 @@ func NewPostgressStore() (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) Init() error {
-	// DROPS TABLE CREATING A NEW CONTAINER
+	// DROPS TABLE WHEN CREATING A NEW CONTAINER
 	// _, err := s.db.Exec(`DROP TABLE IF EXISTS container;`)
 	// if err != nil {
 	// 	return fmt.Errorf("error dropping table: %v", err)
