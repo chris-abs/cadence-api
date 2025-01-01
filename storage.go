@@ -12,8 +12,8 @@ type Storage interface {
 	DeleteContainer(int) error
 	UpdateContainer(*Container) error
 	GetContainers() ([]*Container, error)
-
 	GetContainerByID(int) (*Container, error)
+	GetContainerByQR(string) (*Container, error)
 }
 
 type PostgresStore struct {
@@ -26,7 +26,12 @@ func (s *PostgresStore) CreateContainer(container *Container) error {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
 
-	resp, err := s.db.Query(
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %v", err)
+	}
+
+	resp, err := tx.Query(
 		query,
 		container.ID,
 		container.Name,
@@ -40,11 +45,12 @@ func (s *PostgresStore) CreateContainer(container *Container) error {
 	)
 
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
+	defer resp.Close()
 
-	fmt.Printf("%+v\n", resp)
-	return nil
+	return tx.Commit()
 }
 
 func (s *PostgresStore) UpdateContainer(container *Container) error {
@@ -57,10 +63,17 @@ func (s *PostgresStore) DeleteContainer(id int) error {
 }
 
 func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
-	rows, err := s.db.Query(`
+	stmt, err := s.db.Prepare(`
         SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
         FROM container 
-        WHERE id = $1`, id)
+        WHERE id = $1
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing statement: %v", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(id)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +86,42 @@ func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
 	return nil, fmt.Errorf("container %d not found", id)
 }
 
+func (s *PostgresStore) GetContainerByQR(qrCode string) (*Container, error) {
+	stmt, err := s.db.Prepare(`
+        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
+        FROM container 
+        WHERE qr_code = $1
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing statement: %v", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(qrCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		return scanIntoContainer(rows)
+	}
+
+	return nil, fmt.Errorf("container with QR code %s not found", qrCode)
+}
+
 func (s *PostgresStore) GetContainers() ([]*Container, error) {
-	rows, err := s.db.Query(`
+	stmt, err := s.db.Prepare(`
         SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
         FROM container
+        ORDER BY created_at DESC
     `)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing statement: %v", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
 	if err != nil {
 		return nil, fmt.Errorf("error querying containers: %v", err)
 	}
@@ -145,7 +189,7 @@ func (s *PostgresStore) createContainerTable() error {
         CREATE TABLE IF NOT EXISTS container (
             id SERIAL PRIMARY KEY,
             name VARCHAR(50),
-            qr_code VARCHAR(100),           
+            qr_code VARCHAR(100) UNIQUE,           
             qr_code_image TEXT,             
             number INTEGER,         
             location VARCHAR(50),
@@ -153,6 +197,8 @@ func (s *PostgresStore) createContainerTable() error {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
     `
 	_, err := s.db.Exec(query)
 	return err

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -31,6 +32,8 @@ func (s *APISERVER) Run() {
 	router.HandleFunc("/containers/{id}", makeHTTPHandleFunc(s.handleDeleteContainer)).Methods("DELETE")
 	router.HandleFunc("/containers/{id}", makeHTTPHandleFunc(s.handleUpdateContainer)).Methods("PUT")
 
+	router.HandleFunc("/containers/qr/{qrcode}", makeHTTPHandleFunc(s.handleGetContainerByQR)).Methods("GET")
+
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
@@ -53,6 +56,31 @@ func (s *APISERVER) handleGetContainerById(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		return err
 	}
+	return WriteJSON(w, http.StatusOK, container)
+}
+
+func (s *APISERVER) handleGetContainerByQR(w http.ResponseWriter, r *http.Request) error {
+	vars := mux.Vars(r)
+	qrCode := vars["qrcode"]
+
+	if qrCode == "" {
+		return fmt.Errorf("QR code parameter is required")
+	}
+
+	qrCode = strings.TrimSpace(qrCode)
+
+	if !strings.HasPrefix(qrCode, "STQRAGE-CONTAINER-") {
+		return fmt.Errorf("invalid QR code format")
+	}
+
+	container, err := s.store.GetContainerByQR(qrCode)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return WriteJSON(w, http.StatusNotFound, ApiError{Error: err.Error()})
+		}
+		return err
+	}
+
 	return WriteJSON(w, http.StatusOK, container)
 }
 
