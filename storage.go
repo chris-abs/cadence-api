@@ -22,8 +22,8 @@ type PostgresStore struct {
 
 func (s *PostgresStore) CreateContainer(container *Container) error {
 	query := `
-        INSERT INTO container (id, name, qr_code, number, location, user_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
 
 	resp, err := s.db.Query(
@@ -31,6 +31,7 @@ func (s *PostgresStore) CreateContainer(container *Container) error {
 		container.ID,
 		container.Name,
 		container.QRCode,
+		container.QRCodeImage,
 		container.Number,
 		container.Location,
 		container.UserId,
@@ -57,7 +58,7 @@ func (s *PostgresStore) DeleteContainer(id int) error {
 
 func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
 	rows, err := s.db.Query(`
-        SELECT id, name, qr_code, number, location, user_id, created_at, updated_at 
+        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
         FROM container 
         WHERE id = $1`, id)
 	if err != nil {
@@ -74,7 +75,7 @@ func (s *PostgresStore) GetContainerByID(id int) (*Container, error) {
 
 func (s *PostgresStore) GetContainers() ([]*Container, error) {
 	rows, err := s.db.Query(`
-        SELECT id, name, qr_code, number, location, user_id, created_at, updated_at 
+        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
         FROM container
     `)
 	if err != nil {
@@ -104,6 +105,7 @@ func scanIntoContainer(rows *sql.Rows) (*Container, error) {
 		&container.ID,
 		&container.Name,
 		&container.QRCode,
+		&container.QRCodeImage,
 		&container.Number,
 		&container.Location,
 		&container.UserId,
@@ -130,22 +132,28 @@ func NewPostgressStore() (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) Init() error {
+	// DROPS TABLE CREATING A NEW CONTAINER
+	// _, err := s.db.Exec(`DROP TABLE IF EXISTS container;`)
+	// if err != nil {
+	// 	return fmt.Errorf("error dropping table: %v", err)
+	// }
 	return s.createContainerTable()
 }
 
 func (s *PostgresStore) createContainerTable() error {
 	query := `
-		CREATE TABLE IF NOT EXISTS container (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(50),
-			qr_code VARCHAR(50),
-			number INTEGER,         
-			location VARCHAR(50),
-			user_id INTEGER,        
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		);
-	`
+        CREATE TABLE IF NOT EXISTS container (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(50),
+            qr_code VARCHAR(100),           
+            qr_code_image TEXT,             
+            number INTEGER,         
+            location VARCHAR(50),
+            user_id INTEGER,        
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `
 	_, err := s.db.Exec(query)
 	return err
 }
