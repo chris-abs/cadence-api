@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -14,18 +16,19 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(container *Container) error {
+func (r *Repository) Create(container *Container, itemIDs []int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
 	query := `
         INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
 
-	tx, err := r.db.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
-
-	resp, err := tx.Query(
+	var containerID int
+	err = tx.QueryRow(
 		query,
 		container.ID,
 		container.Name,
@@ -36,36 +39,79 @@ func (r *Repository) Create(container *Container) error {
 		container.UserID,
 		container.CreatedAt,
 		container.UpdatedAt,
-	)
+	).Scan(&containerID)
 
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
-	defer resp.Close()
+
+	if len(itemIDs) > 0 {
+		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = ANY($2)", containerID, pq.Array(itemIDs))
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
 
 	return tx.Commit()
 }
 
-func (r *Repository) Update(container *Container) error {
-	query := `
-        UPDATE container
-        SET name = $2, location = $3, qr_code_image = $4, updated_at = $5
-        WHERE id = $1
-    `
-	_, err := r.db.Exec(
-		query,
-		container.ID,
-		container.Name,
-		container.Location,
-		container.QRCodeImage,
-		time.Now().UTC(),
-	)
+func (r *Repository) Update(container *Container, itemIDs []int) error {
+	tx, err := r.db.Begin()
 	if err != nil {
-		return fmt.Errorf("error updating container: %v", err)
+		return err
 	}
 
-	return nil
+	query := `
+        UPDATE container
+        SET name = $2, location = $3, updated_at = $4
+        WHERE id = $1
+    `
+	_, err = tx.Exec(query, container.ID, container.Name, container.Location, time.Now().UTC())
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE item SET container_id = NULL WHERE container_id = $1", container.ID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if len(itemIDs) > 0 {
+		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = ANY($2)", container.ID, pq.Array(itemIDs))
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+func (r *Repository) UpdateContainerItems(containerID int, itemIDs []int) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE item SET container_id = NULL WHERE container_id = $1", containerID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, itemID := range itemIDs {
+		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = $2", containerID, itemID)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
 
 func (r *Repository) Delete(id int) error {

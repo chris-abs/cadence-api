@@ -23,10 +23,15 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/containers", h.handleGetContainers).Methods("GET")
 	router.HandleFunc("/containers", h.handleCreateContainer).Methods("POST")
+
 	router.HandleFunc("/containers/{id}", h.handleGetContainerByID).Methods("GET")
 	router.HandleFunc("/containers/{id}", h.handleDeleteContainer).Methods("DELETE")
 	router.HandleFunc("/containers/{id}", h.handleUpdateContainer).Methods("PUT")
+
 	router.HandleFunc("/containers/qr/{qrcode}", h.handleGetContainerByQR).Methods("GET")
+
+	router.HandleFunc("/containers/{id}/items", h.handleUpdateContainerItems).Methods("PUT")
+
 }
 
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
@@ -105,19 +110,38 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var updateReq map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&updateReq); err != nil {
+	var req UpdateContainerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	container, err := h.service.UpdateContainer(id, updateReq)
+	container, err := h.service.UpdateContainer(id, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
 	writeJSON(w, http.StatusOK, container)
+}
+
+func (h *Handler) handleUpdateContainerItems(w http.ResponseWriter, r *http.Request) {
+	containerID, err := getIDFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var itemIDs []int
+	if err := json.NewDecoder(r.Body).Decode(&itemIDs); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := h.service.UpdateContainerItems(containerID, itemIDs); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"containerId": containerID, "itemIds": itemIDs})
 }
 
 func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {

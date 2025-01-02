@@ -3,9 +3,9 @@ package container
 import (
 	"fmt"
 	"math/rand"
-	"reflect"
 	"time"
 
+	"github.com/chrisabs/storage/internal/item"
 	"github.com/chrisabs/storage/pkg/utils"
 )
 
@@ -23,7 +23,8 @@ func (s *Service) CreateContainer(req *CreateContainerRequest) (*Container, erro
 	containerID := rand.Intn(10000)
 	qrString, qrImage, err := utils.GenerateQRCode(containerID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate QR code: %v", err)
+		qrString = fmt.Sprintf("STQRAGE-CONTAINER-%d", containerID)
+		qrImage = ""
 	}
 
 	container := &Container{
@@ -33,16 +34,17 @@ func (s *Service) CreateContainer(req *CreateContainerRequest) (*Container, erro
 		QRCodeImage: qrImage,
 		Number:      rand.Intn(1000),
 		Location:    req.Location,
-		UserID:      rand.Intn(10000), // TODO This should be replaced with actual user ID
+		Items:       []item.Item{},
+		UserID:      rand.Intn(10000),
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if err := s.repo.Create(container); err != nil {
+	if err := s.repo.Create(container, req.ItemIDs); err != nil {
 		return nil, fmt.Errorf("failed to create container: %v", err)
 	}
 
-	return container, nil
+	return s.repo.GetByID(container.ID)
 }
 
 func (s *Service) GetContainerByID(id int) (*Container, error) {
@@ -57,30 +59,24 @@ func (s *Service) GetAllContainers() ([]*Container, error) {
 	return s.repo.GetAll()
 }
 
-func (s *Service) UpdateContainer(id int, updates map[string]interface{}) (*Container, error) {
+func (s *Service) UpdateContainer(id int, req *UpdateContainerRequest) (*Container, error) {
 	container, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("container not found: %v", err)
 	}
 
-	// Use reflection to update fields
-	containerValue := reflect.ValueOf(container).Elem()
-	for key, value := range updates {
-		field := containerValue.FieldByNameFunc(func(fieldName string) bool {
-			return fieldName == key
-		})
-		if field.IsValid() && field.CanSet() {
-			field.Set(reflect.ValueOf(value))
-		}
-	}
+	container.Name = req.Name
+	container.Location = req.Location
 
-	container.UpdatedAt = time.Now().UTC()
-
-	if err := s.repo.Update(container); err != nil {
+	if err := s.repo.Update(container, req.ItemIDs); err != nil {
 		return nil, fmt.Errorf("failed to update container: %v", err)
 	}
 
 	return container, nil
+}
+
+func (s *Service) UpdateContainerItems(containerID int, itemIDs []int) error {
+	return s.repo.UpdateContainerItems(containerID, itemIDs)
 }
 
 func (s *Service) DeleteContainer(id int) error {
