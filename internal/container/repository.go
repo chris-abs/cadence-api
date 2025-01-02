@@ -192,36 +192,64 @@ func (r *Repository) GetByQR(qrCode string) (*Container, error) {
 }
 
 func (r *Repository) GetAll() ([]*Container, error) {
-	stmt, err := r.db.Prepare(`
-        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
+	query := `
+        SELECT id, name, qr_code, qr_code_image, number, 
+               location, user_id, created_at, updated_at 
         FROM container
-        ORDER BY created_at DESC
-    `)
-	if err != nil {
-		return nil, fmt.Errorf("error preparing statement: %v", err)
-	}
-	defer stmt.Close()
+        ORDER BY created_at DESC`
 
-	rows, err := stmt.Query()
+	containers, err := r.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying containers: %v", err)
 	}
-	defer rows.Close()
+	defer containers.Close()
 
-	containers := []*Container{}
-	for rows.Next() {
-		container, err := scanIntoContainer(rows)
+	var results []*Container
+	for containers.Next() {
+		container := new(Container)
+		err := containers.Scan(
+			&container.ID, &container.Name, &container.QRCode,
+			&container.QRCodeImage, &container.Number, &container.Location,
+			&container.UserID, &container.CreatedAt, &container.UpdatedAt,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("error scanning container row: %v", err)
+			return nil, fmt.Errorf("error scanning container: %v", err)
 		}
-		containers = append(containers, container)
+
+		itemsQuery := `
+            SELECT id, name, description, image_url, quantity, 
+                   container_id, created_at, updated_at
+            FROM item 
+            WHERE container_id = $1`
+
+		items, err := r.db.Query(itemsQuery, container.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error querying items for container %d: %v", container.ID, err)
+		}
+		defer items.Close()
+
+		var containerItems []item.Item
+		for items.Next() {
+			var item item.Item
+			err := items.Scan(
+				&item.ID, &item.Name, &item.Description, &item.ImageURL,
+				&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+			)
+			if err != nil {
+				return nil, fmt.Errorf("error scanning item: %v", err)
+			}
+			containerItems = append(containerItems, item)
+		}
+
+		container.Items = containerItems
+		results = append(results, container)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %v", err)
+	if err = containers.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating containers: %v", err)
 	}
 
-	return containers, nil
+	return results, nil
 }
 
 func scanIntoContainer(rows *sql.Rows) (*Container, error) {
