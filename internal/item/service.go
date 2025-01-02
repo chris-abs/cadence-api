@@ -29,11 +29,12 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*Item, error) {
 		ContainerID: req.ContainerID,
 	}
 
-	if err := s.repo.Create(item, req.TagIDs); err != nil {
+	itemID, err := s.repo.Create(item, req.TagIDs)
+	if err != nil {
 		return nil, fmt.Errorf("failed to create item: %v", err)
 	}
 
-	return s.repo.GetByID(item.ID)
+	return s.repo.GetByID(itemID)
 }
 
 func (s *Service) UpdateItem(id int, req *CreateItemRequest) (*Item, error) {

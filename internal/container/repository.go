@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/storage/internal/item"
 	"github.com/lib/pq"
 )
 
@@ -120,27 +121,50 @@ func (r *Repository) Delete(id int) error {
 }
 
 func (r *Repository) GetByID(id int) (*Container, error) {
-	stmt, err := r.db.Prepare(`
-        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
-        FROM container 
-        WHERE id = $1
-    `)
-	if err != nil {
-		return nil, fmt.Errorf("error preparing statement: %v", err)
-	}
-	defer stmt.Close()
+	query := `
+        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+               c.location, c.user_id, c.created_at, c.updated_at
+        FROM container c
+        WHERE c.id = $1`
 
-	rows, err := stmt.Query(id)
+	container := new(Container)
+	err := r.db.QueryRow(query, id).Scan(
+		&container.ID, &container.Name, &container.QRCode,
+		&container.QRCodeImage, &container.Number, &container.Location,
+		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	itemsQuery := `
+        SELECT id, name, description, image_url, quantity, 
+               container_id, created_at, updated_at
+        FROM item 
+        WHERE container_id = $1`
+
+	rows, err := r.db.Query(itemsQuery, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var items []item.Item
 	for rows.Next() {
-		return scanIntoContainer(rows)
+		var item item.Item
+		err := rows.Scan(
+			&item.ID, &item.Name, &item.Description, &item.ImageURL,
+			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
 	}
 
-	return nil, fmt.Errorf("container %d not found", id)
+	container.Items = items
+	return container, nil
 }
 
 func (r *Repository) GetByQR(qrCode string) (*Container, error) {

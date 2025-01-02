@@ -8,10 +8,19 @@ type Item struct {
 	Description string    `json:"description"`
 	ImageURL    string    `json:"imageUrl"`
 	Quantity    int       `json:"quantity"`
-	ContainerID int       `json:"containerId,omitempty"`
+	ContainerID *int      `json:"containerId,omitempty"`
 	Tags        []Tag     `json:"tags"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type CreateItemRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ImageURL    string `json:"imageUrl"`
+	Quantity    int    `json:"quantity"`
+	ContainerID *int   `json:"containerId,omitempty"`
+	TagIDs      []int  `json:"tagIds"`
 }
 
 type Tag struct {
@@ -20,13 +29,4 @@ type Tag struct {
 	Items     []Item    `json:"items"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-type CreateItemRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ImageURL    string `json:"imageUrl"`
-	Quantity    int    `json:"quantity"`
-	ContainerID int    `json:"containerId,omitempty"`
-	TagIDs      []int  `json:"tagIds"`
 }

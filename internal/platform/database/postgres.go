@@ -50,7 +50,7 @@ func (db *PostgresDB) createItemTables() error {
             description TEXT,
             image_url TEXT,
             quantity INTEGER,
-            container_id INTEGER REFERENCES container(id) ON DELETE CASCADE,
+            container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -65,6 +65,16 @@ func (db *PostgresDB) createItemTables() error {
         CREATE INDEX IF NOT EXISTS idx_item_tag_item ON item_tag(item_id);
         CREATE INDEX IF NOT EXISTS idx_item_tag_tag ON item_tag(tag_id);
     `
+	// DROP item TABLE FOR TESTING
+	// dropQuery := `
+	//     DROP TABLE IF EXISTS item_tag;
+	//     DROP TABLE IF EXISTS item;
+	//     DROP TABLE IF EXISTS tag;
+	// `
+	// if _, err := db.Exec(dropQuery); err != nil {
+	// 	return fmt.Errorf("error dropping table: %v", err)
+	// }
+
 	_, err := db.Exec(query)
 	return err
 }
