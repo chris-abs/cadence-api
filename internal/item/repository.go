@@ -87,6 +87,37 @@ func (r *Repository) GetByID(id int) (*Item, error) {
 
 // }
 
+func (r *Repository) GetByUserID(userID int) ([]*Item, error) {
+	query := `
+        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+               i.container_id, i.created_at, i.updated_at
+        FROM item i
+        JOIN container c ON i.container_id = c.id
+        WHERE c.user_id = $1
+        ORDER BY i.created_at DESC`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying items: %v", err)
+	}
+	defer rows.Close()
+
+	var items []*Item
+	for rows.Next() {
+		item := new(Item)
+		err := rows.Scan(
+			&item.ID, &item.Name, &item.Description, &item.ImageURL,
+			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning item: %v", err)
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
 func (r *Repository) GetAll() ([]*Item, error) {
 	query := `
         SELECT i.id, i.name, i.description, i.image_url, i.quantity, i.container_id, i.created_at, i.updated_at

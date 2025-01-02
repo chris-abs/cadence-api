@@ -2,11 +2,11 @@ package container
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/chrisabs/storage/internal/middleware"
 	"github.com/gorilla/mux"
 )
 
@@ -21,19 +21,22 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/containers", h.handleGetContainers).Methods("GET")
-	router.HandleFunc("/containers", h.handleCreateContainer).Methods("POST")
-
-	router.HandleFunc("/containers/{id}", h.handleGetContainerByID).Methods("GET")
-	router.HandleFunc("/containers/{id}", h.handleDeleteContainer).Methods("DELETE")
-	router.HandleFunc("/containers/{id}", h.handleUpdateContainer).Methods("PUT")
-
-	router.HandleFunc("/containers/qr/{qrcode}", h.handleGetContainerByQR).Methods("GET")
-
+	router.HandleFunc("/containers", middleware.AuthMiddleware(h.handleGetContainers)).Methods("GET")
+	router.HandleFunc("/containers", middleware.AuthMiddleware(h.handleCreateContainer)).Methods("POST")
+	router.HandleFunc("/containers/{id}", middleware.AuthMiddleware(h.handleGetContainerByID)).Methods("GET")
+	router.HandleFunc("/containers/{id}", middleware.AuthMiddleware(h.handleDeleteContainer)).Methods("DELETE")
+	router.HandleFunc("/containers/{id}", middleware.AuthMiddleware(h.handleUpdateContainer)).Methods("PUT")
+	router.HandleFunc("/containers/qr/{qrcode}", middleware.AuthMiddleware(h.handleGetContainerByQR)).Methods("GET")
 }
 
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
-	containers, err := h.service.GetAllContainers()
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
+	containers, err := h.service.GetContainersByUserID(userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -41,70 +44,75 @@ func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, containers)
 }
 
-func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request) {
-	id, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	container, err := h.service.GetContainerByID(id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	writeJSON(w, http.StatusOK, container)
-}
-
-func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	qrCode := vars["qrcode"]
-
-	if qrCode == "" {
-		writeError(w, http.StatusBadRequest, "QR code parameter is required")
-		return
-	}
-
-	qrCode = strings.TrimSpace(qrCode)
-	if !strings.HasPrefix(qrCode, "STQRAGE-CONTAINER-") {
-		writeError(w, http.StatusBadRequest, "invalid QR code format")
-		return
-	}
-
-	container, err := h.service.GetContainerByQR(qrCode)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			writeError(w, http.StatusNotFound, err.Error())
-			return
-		}
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	writeJSON(w, http.StatusOK, container)
-}
-
 func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
 	var req CreateContainerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	container, err := h.service.CreateContainer(&req)
+	container, err := h.service.CreateContainer(userID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
 	writeJSON(w, http.StatusCreated, container)
 }
 
-func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) {
-	id, err := getIDFromRequest(r)
+func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
+	containerID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	container, err := h.service.GetContainerByID(containerID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if container.UserID != userID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, container)
+}
+
+func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
+	containerID, err := getIDFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	container, err := h.service.GetContainerByID(containerID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if container.UserID != userID {
+		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 
@@ -114,36 +122,76 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	container, err := h.service.UpdateContainer(id, &req)
+	updatedContainer, err := h.service.UpdateContainer(containerID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, container)
+	writeJSON(w, http.StatusOK, updatedContainer)
 }
 
 func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {
-	id, err := getIDFromRequest(r)
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
+	containerID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.service.DeleteContainer(id); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
+	container, err := h.service.GetContainerByID(containerID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"deleted": id})
+	if container.UserID != userID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	if err := h.service.DeleteContainer(containerID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"deleted": containerID})
+}
+
+func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.Atoi(r.Header.Get("UserId"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid user ID")
+		return
+	}
+
+	vars := mux.Vars(r)
+	qrCode := strings.TrimSpace(vars["qrcode"])
+	if qrCode == "" {
+		writeError(w, http.StatusBadRequest, "QR code is required")
+		return
+	}
+
+	container, err := h.service.GetContainerByQR(qrCode)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if container.UserID != userID {
+		writeError(w, http.StatusForbidden, "access denied")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, container)
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
 	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		return 0, fmt.Errorf("invalid id provided")
-	}
-	return id, nil
+	return strconv.Atoi(vars["id"])
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

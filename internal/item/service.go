@@ -16,6 +16,10 @@ func (s *Service) GetItemByID(id int) (*Item, error) {
 	return s.repo.GetByID(id)
 }
 
+func (s *Service) GetItemsByUserID(userID int) ([]*Item, error) {
+	return s.repo.GetByUserID(userID)
+}
+
 func (s *Service) GetAllItems() ([]*Item, error) {
 	return s.repo.GetAll()
 }

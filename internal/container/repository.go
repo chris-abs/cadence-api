@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/item"
-	"github.com/lib/pq"
+	"github.com/chrisabs/storage/internal/models"
 )
 
 type Repository struct {
@@ -17,16 +16,16 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(container *Container, itemIDs []int) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
+func (r *Repository) Create(container *models.Container) error {
 	query := `
         INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
+
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %v", err)
+	}
 
 	var containerID int
 	err = tx.QueryRow(
@@ -44,96 +43,29 @@ func (r *Repository) Create(container *Container, itemIDs []int) error {
 
 	if err != nil {
 		tx.Rollback()
-		return err
-	}
-
-	if len(itemIDs) > 0 {
-		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = ANY($2)", containerID, pq.Array(itemIDs))
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+		return fmt.Errorf("error creating container: %v", err)
 	}
 
 	return tx.Commit()
 }
 
-func (r *Repository) Update(container *Container, itemIDs []int) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	query := `
-        UPDATE container
-        SET name = $2, location = $3, updated_at = $4
-        WHERE id = $1
-    `
-	_, err = tx.Exec(query, container.ID, container.Name, container.Location, time.Now().UTC())
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE item SET container_id = NULL WHERE container_id = $1", container.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if len(itemIDs) > 0 {
-		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = ANY($2)", container.ID, pq.Array(itemIDs))
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-func (r *Repository) UpdateContainerItems(containerID int, itemIDs []int) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec("UPDATE item SET container_id = NULL WHERE container_id = $1", containerID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	for _, itemID := range itemIDs {
-		_, err = tx.Exec("UPDATE item SET container_id = $1 WHERE id = $2", containerID, itemID)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-func (r *Repository) Delete(id int) error {
-	_, err := r.db.Query("DELETE FROM container WHERE id = $1", id)
-	return err
-}
-
-func (r *Repository) GetByID(id int) (*Container, error) {
+func (r *Repository) GetByID(id int) (*models.Container, error) {
 	query := `
         SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.created_at, c.updated_at
         FROM container c
         WHERE c.id = $1`
 
-	container := new(Container)
+	container := new(models.Container)
 	err := r.db.QueryRow(query, id).Scan(
 		&container.ID, &container.Name, &container.QRCode,
 		&container.QRCodeImage, &container.Number, &container.Location,
 		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
 	)
 
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("container not found")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +82,9 @@ func (r *Repository) GetByID(id int) (*Container, error) {
 	}
 	defer rows.Close()
 
-	var items []item.Item
+	var items []models.Item
 	for rows.Next() {
-		var item item.Item
+		var item models.Item
 		err := rows.Scan(
 			&item.ID, &item.Name, &item.Description, &item.ImageURL,
 			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
@@ -167,47 +99,24 @@ func (r *Repository) GetByID(id int) (*Container, error) {
 	return container, nil
 }
 
-func (r *Repository) GetByQR(qrCode string) (*Container, error) {
-	stmt, err := r.db.Prepare(`
-        SELECT id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at 
-        FROM container 
-        WHERE qr_code = $1
-    `)
-	if err != nil {
-		return nil, fmt.Errorf("error preparing statement: %v", err)
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(qrCode)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		return scanIntoContainer(rows)
-	}
-
-	return nil, fmt.Errorf("container with QR code %s not found", qrCode)
-}
-
-func (r *Repository) GetAll() ([]*Container, error) {
+func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 	query := `
-        SELECT id, name, qr_code, qr_code_image, number, 
-               location, user_id, created_at, updated_at 
+        SELECT id, name, qr_code, qr_code_image, number, location, 
+               user_id, created_at, updated_at 
         FROM container
+        WHERE user_id = $1
         ORDER BY created_at DESC`
 
-	containers, err := r.db.Query(query)
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error querying containers: %v", err)
 	}
-	defer containers.Close()
+	defer rows.Close()
 
-	var results []*Container
-	for containers.Next() {
-		container := new(Container)
-		err := containers.Scan(
+	var containers []*models.Container
+	for rows.Next() {
+		container := new(models.Container)
+		err := rows.Scan(
 			&container.ID, &container.Name, &container.QRCode,
 			&container.QRCodeImage, &container.Number, &container.Location,
 			&container.UserID, &container.CreatedAt, &container.UpdatedAt,
@@ -215,55 +124,80 @@ func (r *Repository) GetAll() ([]*Container, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error scanning container: %v", err)
 		}
-
-		itemsQuery := `
-            SELECT id, name, description, image_url, quantity, 
-                   container_id, created_at, updated_at
-            FROM item 
-            WHERE container_id = $1`
-
-		items, err := r.db.Query(itemsQuery, container.ID)
-		if err != nil {
-			return nil, fmt.Errorf("error querying items for container %d: %v", container.ID, err)
-		}
-		defer items.Close()
-
-		var containerItems []item.Item
-		for items.Next() {
-			var item item.Item
-			err := items.Scan(
-				&item.ID, &item.Name, &item.Description, &item.ImageURL,
-				&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("error scanning item: %v", err)
-			}
-			containerItems = append(containerItems, item)
-		}
-
-		container.Items = containerItems
-		results = append(results, container)
+		containers = append(containers, container)
 	}
 
-	if err = containers.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating containers: %v", err)
-	}
-
-	return results, nil
+	return containers, nil
 }
 
-func scanIntoContainer(rows *sql.Rows) (*Container, error) {
-	container := new(Container)
-	err := rows.Scan(
-		&container.ID,
-		&container.Name,
-		&container.QRCode,
-		&container.QRCodeImage,
-		&container.Number,
-		&container.Location,
-		&container.UserID,
-		&container.CreatedAt,
-		&container.UpdatedAt,
+func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
+	query := `
+        SELECT id, name, qr_code, qr_code_image, number, location, 
+               user_id, created_at, updated_at 
+        FROM container
+        WHERE qr_code = $1`
+
+	container := new(models.Container)
+	err := r.db.QueryRow(query, qrCode).Scan(
+		&container.ID, &container.Name, &container.QRCode,
+		&container.QRCodeImage, &container.Number, &container.Location,
+		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
 	)
-	return container, err
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("container not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return container, nil
+}
+
+func (r *Repository) Update(container *models.Container) error {
+	query := `
+        UPDATE container
+        SET name = $2, location = $3, updated_at = $4
+        WHERE id = $1`
+
+	result, err := r.db.Exec(
+		query,
+		container.ID,
+		container.Name,
+		container.Location,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return fmt.Errorf("error updating container: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking update result: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("container not found")
+	}
+
+	return nil
+}
+
+func (r *Repository) Delete(id int) error {
+	query := `DELETE FROM container WHERE id = $1`
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting container: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking delete result: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("container not found")
+	}
+
+	return nil
 }
