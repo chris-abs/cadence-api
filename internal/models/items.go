@@ -13,11 +13,3 @@ type Item struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
-
-type Tag struct {
-	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Items     []Item    `json:"items"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}

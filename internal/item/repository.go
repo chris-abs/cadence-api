@@ -16,59 +16,45 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(item *Item, tagIDs []int) (int, error) {
+func (r *Repository) Create(item *models.Item) error {
 	tx, err := r.db.Begin()
 	if err != nil {
-		return 0, err
+		return fmt.Errorf("error starting transaction: %v", err)
 	}
+	defer tx.Rollback()
 
-	var itemID int
-	query := `
+	itemQuery := `
         INSERT INTO item (name, description, image_url, quantity, container_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`
 
+	var itemID int
 	err = tx.QueryRow(
-		query,
+		itemQuery,
 		item.Name,
 		item.Description,
 		item.ImageURL,
 		item.Quantity,
 		item.ContainerID,
-		time.Now().UTC(),
-		time.Now().UTC(),
+		item.CreatedAt,
+		item.UpdatedAt,
 	).Scan(&itemID)
 
 	if err != nil {
-		tx.Rollback()
-		return 0, err
+		return fmt.Errorf("error creating item: %v", err)
 	}
 
-	if len(tagIDs) > 0 {
-		for _, tagID := range tagIDs {
-			_, err = tx.Exec("INSERT INTO item_tag (item_id, tag_id) VALUES ($1, $2)", itemID, tagID)
-			if err != nil {
-				tx.Rollback()
-				return 0, err
-			}
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
-		return 0, err
-	}
-
-	return itemID, nil
+	return tx.Commit()
 }
 
-func (r *Repository) GetByID(id int) (*Item, error) {
+func (r *Repository) GetByID(id int) (*models.Item, error) {
 	query := `
         SELECT id, name, description, image_url, quantity, 
                container_id, created_at, updated_at
-        FROM item 
+        FROM item
         WHERE id = $1`
 
-	item := new(Item)
+	item := new(models.Item)
 	err := r.db.QueryRow(query, id).Scan(
 		&item.ID, &item.Name, &item.Description, &item.ImageURL,
 		&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
@@ -77,19 +63,14 @@ func (r *Repository) GetByID(id int) (*Item, error) {
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("item not found")
 	}
-	return item, err
+	if err != nil {
+		return nil, err
+	}
+
+	return item, nil
 }
 
-// func (r *Repository) GetItemTags(itemID int) ([]Tag, error) {
-//     query := `
-//         SELECT t.id, t.name, t.created_at, t.updated_at
-//         FROM tag t
-//         JOIN item_tag it ON t.id = it.tag_id
-//         WHERE it.item_id = $1`
-
-// }
-
-func (r *Repository) GetByUserID(userID int) ([]*Item, error) {
+func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
 	query := `
         SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
                i.container_id, i.created_at, i.updated_at
@@ -100,44 +81,13 @@ func (r *Repository) GetByUserID(userID int) ([]*Item, error) {
 
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("error querying items: %v", err)
-	}
-	defer rows.Close()
-
-	var items []*Item
-	for rows.Next() {
-		item := new(Item)
-		err := rows.Scan(
-			&item.ID, &item.Name, &item.Description, &item.ImageURL,
-			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning item: %v", err)
-		}
-		items = append(items, item)
-	}
-
-	return items, nil
-}
-
-func (r *Repository) GetAll(userID int) ([]*models.Item, error) {
-	query := `
-        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
-               i.container_id, i.created_at, i.updated_at
-        FROM item i
-        LEFT JOIN container c ON i.container_id = c.id
-        WHERE c.user_id = $1 OR i.container_id IS NULL
-        ORDER BY i.created_at DESC`
-
-	rows, err := r.db.Query(query, userID)
-	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var items []*models.Item
 	for rows.Next() {
-		item := &models.Item{}
+		item := new(models.Item)
 		err := rows.Scan(
 			&item.ID, &item.Name, &item.Description, &item.ImageURL,
 			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
@@ -151,48 +101,54 @@ func (r *Repository) GetAll(userID int) ([]*models.Item, error) {
 	return items, nil
 }
 
-func (r *Repository) Update(item *Item, tagIDs []int) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return err
-	}
-
+func (r *Repository) Update(item *models.Item) error {
 	query := `
         UPDATE item
-        SET name = $2, description = $3, image_url = $4, quantity = $5,
-            container_id = $6, updated_at = $7
+        SET name = $2, description = $3, image_url = $4,
+            quantity = $5, container_id = $6, updated_at = $7
         WHERE id = $1`
 
-	_, err = tx.Exec(
+	result, err := r.db.Exec(
 		query,
-		item.ID, item.Name, item.Description, item.ImageURL,
-		item.Quantity, item.ContainerID, time.Now().UTC(),
+		item.ID,
+		item.Name,
+		item.Description,
+		item.ImageURL,
+		item.Quantity,
+		item.ContainerID,
+		time.Now().UTC(),
 	)
-
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("error updating item: %v", err)
 	}
 
-	// Update tags
-	_, err = tx.Exec("DELETE FROM item_tag WHERE item_id = $1", item.ID)
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		tx.Rollback()
-		return err
+		return fmt.Errorf("error checking update result: %v", err)
 	}
 
-	for _, tagID := range tagIDs {
-		_, err = tx.Exec("INSERT INTO item_tag (item_id, tag_id) VALUES ($1, $2)", item.ID, tagID)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
+	if rowsAffected == 0 {
+		return fmt.Errorf("item not found")
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (r *Repository) Delete(id int) error {
-	_, err := r.db.Exec("DELETE FROM item WHERE id = $1", id)
-	return err
+	query := `DELETE FROM item WHERE id = $1`
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("error deleting item: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking delete result: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("item not found")
+	}
+
+	return nil
 }
