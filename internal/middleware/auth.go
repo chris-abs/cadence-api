@@ -8,7 +8,17 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+type AuthMiddleware struct {
+	jwtSecret string
+}
+
+func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
+	return &AuthMiddleware{
+		jwtSecret: jwtSecret,
+	}
+}
+
+func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorisation")
 		if authHeader == "" {
@@ -26,7 +36,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method")
 			}
-			return []byte("your-secret-key"), nil // Todo: set env secret key
+			return []byte(m.jwtSecret), nil
 		})
 
 		if err != nil || !token.Valid {

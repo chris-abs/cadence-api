@@ -10,22 +10,26 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service        *Service
+	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
+	return &Handler{
+		service:        service,
+		authMiddleware: authMiddleware,
+	}
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/users/register", h.handleRegister).Methods("POST")
 	router.HandleFunc("/users/login", h.handleLogin).Methods("POST")
 
-	router.HandleFunc("/users", middleware.AuthMiddleware(h.handleGetUsers)).Methods("GET")
+	router.HandleFunc("/users", h.authMiddleware.AuthHandler(h.handleGetUsers)).Methods("GET")
 
-	router.HandleFunc("/users/{id}", middleware.AuthMiddleware(h.handleGetUser)).Methods("GET")
-	router.HandleFunc("/users/{id}", middleware.AuthMiddleware(h.handleUpdateUser)).Methods("PUT")
-	router.HandleFunc("/users/{id}", middleware.AuthMiddleware(h.handleDeleteUser)).Methods("DELETE")
+	router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleGetUser)).Methods("GET")
+	router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleUpdateUser)).Methods("PUT")
+	router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleDeleteUser)).Methods("DELETE")
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {

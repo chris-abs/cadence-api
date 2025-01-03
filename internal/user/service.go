@@ -10,13 +10,24 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo      *Repository
+	jwtSecret string
 }
 
-func NewService(repo *Repository) *Service {
+func NewService(repo *Repository, jwtSecret string) *Service {
 	return &Service{
-		repo: repo,
+		repo:      repo,
+		jwtSecret: jwtSecret,
 	}
+}
+
+func (s *Service) generateJWT(userID int) (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["userId"] = userID
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	return token.SignedString([]byte(s.jwtSecret))
 }
 
 func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
@@ -52,7 +63,7 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	token, err := generateJWT(user.ID)
+	token, err := s.generateJWT(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
@@ -91,13 +102,4 @@ func (s *Service) UpdateUser(id int, req *UpdateUserRequest) (*models.User, erro
 
 func (s *Service) DeleteUser(id int) error {
 	return s.repo.Delete(id)
-}
-
-func generateJWT(userID int) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["userId"] = userID
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-
-	return token.SignedString([]byte("your-secret-key")) // TODO: env variable
 }

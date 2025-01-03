@@ -10,22 +10,24 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service        *Service
+	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
 	return &Handler{
-		service: service,
+		service:        service,
+		authMiddleware: authMiddleware,
 	}
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/tags", middleware.AuthMiddleware(h.handleGetTags)).Methods("GET")
-	router.HandleFunc("/tags", middleware.AuthMiddleware(h.handleCreateTag)).Methods("POST")
+	router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleGetTags)).Methods("GET")
+	router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleCreateTag)).Methods("POST")
 
-	router.HandleFunc("/tags/{id}", middleware.AuthMiddleware(h.handleGetTag)).Methods("GET")
-	router.HandleFunc("/tags/{id}", middleware.AuthMiddleware(h.handleUpdateTag)).Methods("PUT")
-	router.HandleFunc("/tags/{id}", middleware.AuthMiddleware(h.handleDeleteTag)).Methods("DELETE")
+	router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleGetTag)).Methods("GET")
+	router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleUpdateTag)).Methods("PUT")
+	router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleDeleteTag)).Methods("DELETE")
 }
 
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {

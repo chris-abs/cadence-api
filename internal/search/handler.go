@@ -10,17 +10,19 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service        *Service
+	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
 	return &Handler{
-		service: service,
+		service:        service,
+		authMiddleware: authMiddleware,
 	}
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/search", middleware.AuthMiddleware(h.handleSearch)).Methods("GET")
+	router.HandleFunc("/search", h.authMiddleware.AuthHandler(h.handleSearch)).Methods("GET")
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {

@@ -15,25 +15,25 @@ type ContainerService interface {
 }
 
 type Handler struct {
-	itemService      *Service
+	service          *Service
 	containerService ContainerService
+	authMiddleware   *middleware.AuthMiddleware
 }
 
-func NewHandler(itemService *Service, containerService interface {
-	GetContainerByID(id int) (*models.Container, error)
-}) *Handler {
+func NewHandler(service *Service, containerService ContainerService, authMiddleware *middleware.AuthMiddleware) *Handler {
 	return &Handler{
-		itemService:      itemService,
+		service:          service,
 		containerService: containerService,
+		authMiddleware:   authMiddleware,
 	}
 }
-
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/items", middleware.AuthMiddleware(h.handleGetItems)).Methods("GET")
-	router.HandleFunc("/items", middleware.AuthMiddleware(h.handleCreateItem)).Methods("POST")
-	router.HandleFunc("/items/{id}", middleware.AuthMiddleware(h.handleGetItem)).Methods("GET")
-	router.HandleFunc("/items/{id}", middleware.AuthMiddleware(h.handleUpdateItem)).Methods("PUT")
-	router.HandleFunc("/items/{id}", middleware.AuthMiddleware(h.handleDeleteItem)).Methods("DELETE")
+	router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleGetItems)).Methods("GET")
+	router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleCreateItem)).Methods("POST")
+
+	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleGetItem)).Methods("GET")
+	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleUpdateItem)).Methods("PUT")
+	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleDeleteItem)).Methods("DELETE")
 }
 
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.itemService.GetItemsByUserID(userID)
+	items, err := h.service.GetItemsByUserID(userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -76,7 +76,7 @@ func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	item, err := h.itemService.CreateItem(&req)
+	item, err := h.service.CreateItem(&req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -97,7 +97,7 @@ func (h *Handler) handleGetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.itemService.GetItemByID(itemID)
+	item, err := h.service.GetItemByID(itemID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -149,7 +149,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	item, err := h.itemService.UpdateItem(itemID, &req)
+	item, err := h.service.UpdateItem(itemID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -170,7 +170,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.itemService.GetItemByID(itemID)
+	item, err := h.service.GetItemByID(itemID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -188,7 +188,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := h.itemService.DeleteItem(itemID); err != nil {
+	if err := h.service.DeleteItem(itemID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
