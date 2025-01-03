@@ -26,6 +26,19 @@ func NewPostgresDB() (*PostgresDB, error) {
 }
 
 func (db *PostgresDB) Init() error {
+	// Drop all tables in correct order (respecting foreign key constraints)
+	// dropQuery := `
+	//   DROP TABLE IF EXISTS item_tag CASCADE;
+	//   DROP TABLE IF EXISTS tag CASCADE;
+	//   DROP TABLE IF EXISTS item CASCADE;
+	//   DROP TABLE IF EXISTS container CASCADE;
+	//   DROP TABLE IF EXISTS users CASCADE;
+	//   `
+
+	// _, err := db.Exec(dropQuery)
+	// if err != nil {
+	// 	return fmt.Errorf("error dropping tables: %v", err)
+	// }
 	if err := db.createUsersTable(); err != nil {
 		return err
 	}
@@ -40,19 +53,19 @@ func (db *PostgresDB) Init() error {
 
 func (db *PostgresDB) createUsersTable() error {
 	query := `
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            first_name VARCHAR(100),
-            last_name VARCHAR(100),
-            image_url TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        first_name VARCHAR(100),
+        last_name VARCHAR(100),
+        image_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-
+        
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    `
+        `
 	_, err := db.Exec(query)
 	return err
 }
@@ -93,6 +106,7 @@ func (db *PostgresDB) createItemTables() error {
         CREATE TABLE IF NOT EXISTS tag (
             id SERIAL PRIMARY KEY,
             name VARCHAR(50) UNIQUE,
+            colour TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
