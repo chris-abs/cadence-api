@@ -108,7 +108,6 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
 			return nil, err
 		}
 
-		// Initialize empty items slice
 		tag.Items = make([]models.Item, 0)
 		tags = append(tags, tag)
 	}

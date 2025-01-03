@@ -23,15 +23,9 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
 		Quantity:    req.Quantity,
 		ContainerID: req.ContainerID,
 		Tags:        make([]models.Tag, 0),
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if err := s.repo.Create(item); err != nil {
-		return nil, fmt.Errorf("failed to create item: %v", err)
-	}
-
-	return s.repo.GetByID(item.ID)
+	return s.repo.Create(item, req.TagNames)
 }
 
 func (s *Service) GetItemByID(id int) (*models.Item, error) {

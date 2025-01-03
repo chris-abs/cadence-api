@@ -2,6 +2,7 @@ package container
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -68,15 +69,6 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 			if err != nil {
 				return fmt.Errorf("error creating item: %v", err)
 			}
-
-			if len(itemReq.TagIDs) > 0 {
-				for _, tagID := range itemReq.TagIDs {
-					_, err = tx.Exec("INSERT INTO item_tag (item_id, tag_id) VALUES ($1, $2)", itemID, tagID)
-					if err != nil {
-						return fmt.Errorf("error associating tag: %v", err)
-					}
-				}
-			}
 		}
 	}
 
@@ -84,14 +76,14 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 }
 
 func (r *Repository) GetByID(id int) (*models.Container, error) {
-	query := `
+	containerQuery := `
         SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.created_at, c.updated_at
         FROM container c
         WHERE c.id = $1`
 
 	container := new(models.Container)
-	err := r.db.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(containerQuery, id).Scan(
 		&container.ID, &container.Name, &container.QRCode,
 		&container.QRCodeImage, &container.Number, &container.Location,
 		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
@@ -105,10 +97,25 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 	}
 
 	itemsQuery := `
-        SELECT id, name, description, image_url, quantity, 
-               container_id, created_at, updated_at
-        FROM item 
-        WHERE container_id = $1`
+        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+               i.container_id, i.created_at, i.updated_at,
+               COALESCE(
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'id', t.id,
+                           'name', t.name,
+                           'colour', t.colour,
+                           'createdAt', t.created_at AT TIME ZONE 'UTC',
+                           'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                       )
+                   ) FILTER (WHERE t.id IS NOT NULL),
+                   '[]'
+               ) as tags
+        FROM item i
+        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN tag t ON it.tag_id = t.id
+        WHERE i.container_id = $1
+        GROUP BY i.id`
 
 	rows, err := r.db.Query(itemsQuery, id)
 	if err != nil {
@@ -119,13 +126,21 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 	container.Items = make([]models.Item, 0)
 	for rows.Next() {
 		var item models.Item
+		var tagsJSON []byte
+
 		err := rows.Scan(
 			&item.ID, &item.Name, &item.Description, &item.ImageURL,
 			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+			&tagsJSON,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		if err := json.Unmarshal(tagsJSON, &item.Tags); err != nil {
+			return nil, fmt.Errorf("error parsing tags: %v", err)
+		}
+
 		container.Items = append(container.Items, item)
 	}
 
@@ -159,10 +174,25 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 		}
 
 		itemsQuery := `
-            SELECT id, name, description, image_url, quantity, 
-                   container_id, created_at, updated_at
-            FROM item 
-            WHERE container_id = $1`
+            SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+                   i.container_id, i.created_at, i.updated_at,
+                   COALESCE(
+                       jsonb_agg(
+                           jsonb_build_object(
+                               'id', t.id,
+                               'name', t.name,
+                               'colour', t.colour,
+                               'createdAt', t.created_at AT TIME ZONE 'UTC',
+                               'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                           )
+                       ) FILTER (WHERE t.id IS NOT NULL),
+                       '[]'
+                   ) as tags
+            FROM item i
+            LEFT JOIN item_tag it ON i.id = it.item_id
+            LEFT JOIN tag t ON it.tag_id = t.id
+            WHERE i.container_id = $1
+            GROUP BY i.id`
 
 		itemRows, err := r.db.Query(itemsQuery, container.ID)
 		if err != nil {
@@ -174,13 +204,21 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 			defer itemRows.Close()
 			for itemRows.Next() {
 				var item models.Item
+				var tagsJSON []byte
+
 				err := itemRows.Scan(
 					&item.ID, &item.Name, &item.Description, &item.ImageURL,
 					&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+					&tagsJSON,
 				)
 				if err != nil {
 					return
 				}
+
+				if err := json.Unmarshal(tagsJSON, &item.Tags); err != nil {
+					return
+				}
+
 				container.Items = append(container.Items, item)
 			}
 		}()

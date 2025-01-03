@@ -32,13 +32,13 @@ func (db *PostgresDB) Init() error {
 	//   DROP TABLE IF EXISTS tag CASCADE;
 	//   DROP TABLE IF EXISTS item CASCADE;
 	//   DROP TABLE IF EXISTS container CASCADE;
-	//   DROP TABLE IF EXISTS users CASCADE;
 	//   `
-
+	//   DROP TABLE IF EXISTS users CASCADE;
 	// _, err := db.Exec(dropQuery)
 	// if err != nil {
 	// 	return fmt.Errorf("error dropping tables: %v", err)
 	// }
+
 	if err := db.createUsersTable(); err != nil {
 		return err
 	}
