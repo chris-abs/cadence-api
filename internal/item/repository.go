@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/chrisabs/storage/internal/models"
 )
 
 type Repository struct {
@@ -118,21 +120,24 @@ func (r *Repository) GetByUserID(userID int) ([]*Item, error) {
 	return items, nil
 }
 
-func (r *Repository) GetAll() ([]*Item, error) {
+func (r *Repository) GetAll(userID int) ([]*models.Item, error) {
 	query := `
-        SELECT i.id, i.name, i.description, i.image_url, i.quantity, i.container_id, i.created_at, i.updated_at
+        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+               i.container_id, i.created_at, i.updated_at
         FROM item i
+        LEFT JOIN container c ON i.container_id = c.id
+        WHERE c.user_id = $1 OR i.container_id IS NULL
         ORDER BY i.created_at DESC`
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var items []*Item
+	var items []*models.Item
 	for rows.Next() {
-		item := &Item{}
+		item := &models.Item{}
 		err := rows.Scan(
 			&item.ID, &item.Name, &item.Description, &item.ImageURL,
 			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,

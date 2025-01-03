@@ -2,6 +2,8 @@ package item
 
 import (
 	"fmt"
+
+	"github.com/chrisabs/storage/internal/models"
 )
 
 type Service struct {
@@ -20,8 +22,8 @@ func (s *Service) GetItemsByUserID(userID int) ([]*Item, error) {
 	return s.repo.GetByUserID(userID)
 }
 
-func (s *Service) GetAllItems() ([]*Item, error) {
-	return s.repo.GetAll()
+func (s *Service) GetAllItems(userID int) ([]*models.Item, error) {
+	return s.repo.GetAll(userID)
 }
 
 func (s *Service) CreateItem(req *CreateItemRequest) (*Item, error) {

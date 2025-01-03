@@ -16,20 +16,21 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(container *models.Container) error {
-	query := `
-        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id`
-
+func (r *Repository) Create(container *models.Container, itemRequests []CreateItemRequest) error {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return fmt.Errorf("error starting transaction: %v", err)
 	}
+	defer tx.Rollback()
+
+	containerQuery := `
+        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id`
 
 	var containerID int
 	err = tx.QueryRow(
-		query,
+		containerQuery,
 		container.ID,
 		container.Name,
 		container.QRCode,
@@ -42,8 +43,41 @@ func (r *Repository) Create(container *models.Container) error {
 	).Scan(&containerID)
 
 	if err != nil {
-		tx.Rollback()
 		return fmt.Errorf("error creating container: %v", err)
+	}
+
+	if len(itemRequests) > 0 {
+		itemQuery := `
+            INSERT INTO item (name, description, image_url, quantity, container_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id`
+
+		for _, itemReq := range itemRequests {
+			var itemID int
+			err = tx.QueryRow(
+				itemQuery,
+				itemReq.Name,
+				itemReq.Description,
+				itemReq.ImageURL,
+				itemReq.Quantity,
+				containerID,
+				time.Now().UTC(),
+				time.Now().UTC(),
+			).Scan(&itemID)
+
+			if err != nil {
+				return fmt.Errorf("error creating item: %v", err)
+			}
+
+			if len(itemReq.TagIDs) > 0 {
+				for _, tagID := range itemReq.TagIDs {
+					_, err = tx.Exec("INSERT INTO item_tag (item_id, tag_id) VALUES ($1, $2)", itemID, tagID)
+					if err != nil {
+						return fmt.Errorf("error associating tag: %v", err)
+					}
+				}
+			}
+		}
 	}
 
 	return tx.Commit()
@@ -82,7 +116,7 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 	}
 	defer rows.Close()
 
-	var items []models.Item
+	container.Items = make([]models.Item, 0)
 	for rows.Next() {
 		var item models.Item
 		err := rows.Scan(
@@ -92,10 +126,9 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, item)
+		container.Items = append(container.Items, item)
 	}
 
-	container.Items = items
 	return container, nil
 }
 
@@ -124,6 +157,34 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error scanning container: %v", err)
 		}
+
+		itemsQuery := `
+            SELECT id, name, description, image_url, quantity, 
+                   container_id, created_at, updated_at
+            FROM item 
+            WHERE container_id = $1`
+
+		itemRows, err := r.db.Query(itemsQuery, container.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error querying items: %v", err)
+		}
+
+		container.Items = make([]models.Item, 0)
+		func() {
+			defer itemRows.Close()
+			for itemRows.Next() {
+				var item models.Item
+				err := itemRows.Scan(
+					&item.ID, &item.Name, &item.Description, &item.ImageURL,
+					&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+				)
+				if err != nil {
+					return
+				}
+				container.Items = append(container.Items, item)
+			}
+		}()
+
 		containers = append(containers, container)
 	}
 
@@ -149,6 +210,31 @@ func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	itemsQuery := `
+        SELECT id, name, description, image_url, quantity, 
+               container_id, created_at, updated_at
+        FROM item 
+        WHERE container_id = $1`
+
+	rows, err := r.db.Query(itemsQuery, container.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	container.Items = make([]models.Item, 0)
+	for rows.Next() {
+		var item models.Item
+		err := rows.Scan(
+			&item.ID, &item.Name, &item.Description, &item.ImageURL,
+			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		container.Items = append(container.Items, item)
 	}
 
 	return container, nil

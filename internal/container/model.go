@@ -1,9 +1,17 @@
 package container
 
+type CreateItemRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ImageURL    string `json:"imageUrl"`
+	Quantity    int    `json:"quantity"`
+	TagIDs      []int  `json:"tagIds"`
+}
+
 type CreateContainerRequest struct {
-	Name     string `json:"name"`
-	Location string `json:"location"`
-	ItemIDs  []int  `json:"itemIds,omitempty"`
+	Name     string              `json:"name"`
+	Location string              `json:"location"`
+	Items    []CreateItemRequest `json:"items"`
 }
 
 type UpdateContainerRequest struct {

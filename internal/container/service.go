@@ -37,13 +37,12 @@ func (s *Service) CreateContainer(userID int, req *CreateContainerRequest) (*mod
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	if err := s.repo.Create(container); err != nil {
-		return nil, fmt.Errorf("failed to create container: %v", err)
+	if err := s.repo.Create(container, req.Items); err != nil {
+		return nil, fmt.Errorf("failed to create container with items: %v", err)
 	}
 
-	return container, nil
+	return s.repo.GetByID(container.ID)
 }
-
 func (s *Service) GetContainerByID(id int) (*models.Container, error) {
 	container, err := s.repo.GetByID(id)
 	if err != nil {
