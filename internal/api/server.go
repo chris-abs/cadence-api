@@ -13,6 +13,7 @@ import (
 	"github.com/chrisabs/storage/internal/tag"
 	"github.com/chrisabs/storage/internal/user"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type Server struct {
@@ -31,6 +32,15 @@ func NewServer(listenAddr string, db *database.PostgresDB, config *config.Config
 
 func (s *Server) Run() {
 	router := mux.NewRouter()
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		ExposedHeaders:   []string{"Content-Length"},
+		AllowCredentials: true,
+		Debug:            true,
+	})
 
 	authMiddleware := middleware.NewAuthMiddleware(s.config.JWTSecret)
 
@@ -62,6 +72,10 @@ func (s *Server) Run() {
 	tagHandler.RegisterRoutes(router)
 	searchHandler.RegisterRoutes(router)
 
+	handler := c.Handler(router)
+
 	log.Println("JSON API server running on port: ", s.listenAddr)
-	http.ListenAndServe(s.listenAddr, router)
+	if err := http.ListenAndServe(s.listenAddr, handler); err != nil {
+		log.Fatal("Server failed to start:", err)
+	}
 }
