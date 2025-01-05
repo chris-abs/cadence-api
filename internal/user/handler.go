@@ -26,6 +26,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/users/login", h.handleLogin).Methods("POST")
 
 	router.HandleFunc("/users", h.authMiddleware.AuthHandler(h.handleGetUsers)).Methods("GET")
+	router.HandleFunc("/user", h.authMiddleware.AuthHandler(h.handleGetAuthenticatedUser)).Methods("GET")
 
 	router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleGetUser)).Methods("GET")
 	router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleUpdateUser)).Methods("PUT")
@@ -72,6 +73,22 @@ func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, users)
+}
+
+func (h *Handler) handleGetAuthenticatedUser(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "invalid user id")
+        return
+    }
+
+    user, err := h.service.GetUserByID(userID)
+    if err != nil {
+        writeError(w, http.StatusNotFound, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, user)
 }
 
 func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
