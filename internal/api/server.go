@@ -34,7 +34,7 @@ func (s *Server) Run() {
 	router := mux.NewRouter()
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		ExposedHeaders:   []string{"Content-Length"},
