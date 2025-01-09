@@ -163,6 +163,7 @@ func (db *PostgresDB) createContainerTable() error {
             number INTEGER,         
             location VARCHAR(50),
             user_id INTEGER,        
+            workspace_id INTEGER,        
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );

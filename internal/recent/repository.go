@@ -107,7 +107,33 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         response.Tags.Recent = append(response.Tags.Recent, preview)
     }
 
-    response.Workspaces.Total = 0
+    workspaceCountQuery := `
+    SELECT COUNT(*) 
+    FROM workspace 
+    WHERE user_id = $1`
+    if err := tx.QueryRow(workspaceCountQuery, userID).Scan(&response.Workspaces.Total); err != nil {
+        return nil, fmt.Errorf("failed to get workspace count: %v", err)
+    }
+
+    workspaceQuery := `
+        SELECT id, name, created_at 
+        FROM workspace 
+        WHERE user_id = $1
+        ORDER BY created_at DESC 
+        LIMIT $2`
+    workspaceRows, err := tx.Query(workspaceQuery, userID, limit)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch recent workspaces: %v", err)
+    }
+    defer workspaceRows.Close()
+
+    for workspaceRows.Next() {
+        var preview EntityPreview
+        if err := workspaceRows.Scan(&preview.ID, &preview.Name, &preview.CreatedAt); err != nil {
+            return nil, fmt.Errorf("failed to scan workspace row: %v", err)
+        }
+        response.Workspaces.Recent = append(response.Workspaces.Recent, preview)
+    }
 
     if err := tx.Commit(); err != nil {
         return nil, fmt.Errorf("failed to commit transaction: %v", err)
