@@ -18,24 +18,29 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) CreateContainer(userID int, req *CreateContainerRequest) (*models.Container, error) {
-	containerID := rand.Intn(10000)
-	qrString, qrImage, err := utils.GenerateQRCode(containerID)
-	if err != nil {
-		qrString = fmt.Sprintf("STQRAGE-CONTAINER-%d", containerID)
-		qrImage = ""
-	}
+    containerID := rand.Intn(10000)
+    qrString, qrImage, err := utils.GenerateQRCode(containerID)
+    if err != nil {
+        qrString = fmt.Sprintf("STQRAGE-CONTAINER-%d", containerID)
+        qrImage = ""
+    }
 
-	container := &models.Container{
-		ID:          containerID,
-		Name:        req.Name,
-		QRCode:      qrString,
-		QRCodeImage: qrImage,
-		Number:      rand.Intn(1000),
-		Location:    req.Location,
-		UserID:      userID,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
+    container := &models.Container{
+        ID:          containerID,
+        Name:        req.Name,
+        QRCode:      qrString,
+        QRCodeImage: qrImage,
+        Number:      rand.Intn(1000),
+        Location:    req.Location,
+        UserID:      userID,
+        WorkspaceID: nil, 
+        CreatedAt:   time.Now().UTC(),
+        UpdatedAt:   time.Now().UTC(),
+    }
+
+	if req.WorkspaceID != nil {
+        container.WorkspaceID = req.WorkspaceID
+    }
 
 	if err := s.repo.Create(container, req.Items); err != nil {
 		return nil, fmt.Errorf("failed to create container with items: %v", err)

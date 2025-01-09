@@ -134,15 +134,7 @@ func (db *PostgresDB) createWorkspaceTable() error {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS workspace_container (
-            workspace_id INTEGER REFERENCES workspace(id) ON DELETE CASCADE,
-            container_id INTEGER REFERENCES container(id) ON DELETE CASCADE,
-            PRIMARY KEY (workspace_id, container_id)
-        );
-
         CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(user_id);
-        CREATE INDEX IF NOT EXISTS idx_workspace_container_workspace ON workspace_container(workspace_id);
-        CREATE INDEX IF NOT EXISTS idx_workspace_container_container ON workspace_container(container_id);
     `
 
     _, err := db.Exec(query)
@@ -162,8 +154,8 @@ func (db *PostgresDB) createContainerTable() error {
             qr_code_image TEXT,             
             number INTEGER,         
             location VARCHAR(50),
-            user_id INTEGER,        
-            workspace_id INTEGER,        
+   			user_id INTEGER REFERENCES users(id) NOT NULL,
+			workspace_id INTEGER REFERENCES workspace(id),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );

@@ -11,7 +11,7 @@ type CreateItemRequest struct {
 type CreateContainerRequest struct {
     Name        string              `json:"name"`
     Location    string              `json:"location"`
-    WorkspaceID int                 `json:"workspaceId,omitempty"`
+    WorkspaceID *int                 `json:"workspaceId,omitempty"`
     Items       []CreateItemRequest `json:"items"`
 }
 
