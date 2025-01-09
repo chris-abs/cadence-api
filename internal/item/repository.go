@@ -124,8 +124,8 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
 }
 
 func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
-	query := `
-        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+    query := `
+        SELECT DISTINCT i.id, i.name, i.description, i.image_url, i.quantity, 
                i.container_id, i.created_at, i.updated_at,
                COALESCE(
                    jsonb_agg(
@@ -133,8 +133,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                            'id', t.id,
                            'name', t.name,
                            'colour', t.colour,
-                           'createdAt', t.created_at AT TIME ZONE 'UTC',
-                           'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                           'createdAt', t.created_at,
+                           'updatedAt', t.updated_at
                        )
                    ) FILTER (WHERE t.id IS NOT NULL),
                    '[]'
@@ -144,7 +144,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE c.user_id = $1
-        GROUP BY i.id
+        GROUP BY i.id, i.name, i.description, i.image_url, i.quantity, 
+                 i.container_id, i.created_at, i.updated_at
         ORDER BY i.created_at DESC`
 
 	rows, err := r.db.Query(query, userID)

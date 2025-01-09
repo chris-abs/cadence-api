@@ -27,7 +27,15 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         Tags:       EntityStats{Recent: make([]EntityPreview, 0)},
     }
 
-    // Containers
+    containerCountQuery := `
+        SELECT COUNT(*) 
+        FROM container 
+        WHERE user_id = $1
+    `
+    if err := tx.QueryRow(containerCountQuery, userID).Scan(&response.Containers.Total); err != nil {
+        return nil, fmt.Errorf("failed to get container count: %v", err)
+    }
+
     containerQuery := `
         SELECT id, name, created_at 
         FROM container 
@@ -48,29 +56,19 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         }
         response.Containers.Recent = append(response.Containers.Recent, preview)
     }
-    if err = containerRows.Err(); err != nil {
-        return nil, fmt.Errorf("error iterating container rows: %v", err)
+
+    itemCountQuery := `SELECT COUNT(*) FROM item`
+    if err := tx.QueryRow(itemCountQuery).Scan(&response.Items.Total); err != nil {
+        return nil, fmt.Errorf("failed to get item count: %v", err)
     }
 
-    containerCountQuery := `
-        SELECT COUNT(*) 
-        FROM container 
-        WHERE user_id = $1
-    `
-    if err := tx.QueryRow(containerCountQuery, userID).Scan(&response.Containers.Total); err != nil {
-        return nil, fmt.Errorf("failed to get container count: %v", err)
-    }
-
-    // Items
     itemQuery := `
-        SELECT i.id, i.name, i.created_at 
-        FROM item i
-        JOIN container c ON i.container_id = c.id
-        WHERE c.user_id = $1 
-        ORDER BY i.created_at DESC 
-        LIMIT $2
+        SELECT id, name, created_at 
+        FROM item 
+        ORDER BY created_at DESC 
+        LIMIT $1
     `
-    itemRows, err := tx.Query(itemQuery, userID, limit)
+    itemRows, err := tx.Query(itemQuery, limit)
     if err != nil {
         return nil, fmt.Errorf("failed to fetch recent items: %v", err)
     }
@@ -83,33 +81,19 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         }
         response.Items.Recent = append(response.Items.Recent, preview)
     }
-    if err = itemRows.Err(); err != nil {
-        return nil, fmt.Errorf("error iterating item rows: %v", err)
+
+    tagCountQuery := `SELECT COUNT(*) FROM tag`
+    if err := tx.QueryRow(tagCountQuery).Scan(&response.Tags.Total); err != nil {
+        return nil, fmt.Errorf("failed to get tag count: %v", err)
     }
 
-    itemCountQuery := `
-        SELECT COUNT(i.*) 
-        FROM item i
-        JOIN container c ON i.container_id = c.id
-        WHERE c.user_id = $1
-    `
-    if err := tx.QueryRow(itemCountQuery, userID).Scan(&response.Items.Total); err != nil {
-        return nil, fmt.Errorf("failed to get item count: %v", err)
-    }
-
-    // Tags
     tagQuery := `
-        SELECT DISTINCT ON (t.id)
-        t.id, t.name, t.created_at 
-        FROM tag t
-        JOIN item_tag it ON t.id = it.tag_id
-        JOIN item i ON it.item_id = i.id
-        JOIN container c ON i.container_id = c.id
-        WHERE c.user_id = $1 
-        ORDER BY t.id, t.created_at DESC 
-        LIMIT $2
+        SELECT id, name, created_at 
+        FROM tag 
+        ORDER BY created_at DESC 
+        LIMIT $1
     `
-    tagRows, err := tx.Query(tagQuery, userID, limit)
+    tagRows, err := tx.Query(tagQuery, limit)
     if err != nil {
         return nil, fmt.Errorf("failed to fetch recent tags: %v", err)
     }
@@ -122,23 +106,7 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         }
         response.Tags.Recent = append(response.Tags.Recent, preview)
     }
-    if err = tagRows.Err(); err != nil {
-        return nil, fmt.Errorf("error iterating tag rows: %v", err)
-    }
 
-    tagCountQuery := `
-        SELECT COUNT(DISTINCT t.id)
-        FROM tag t
-        JOIN item_tag it ON t.id = it.tag_id
-        JOIN item i ON it.item_id = i.id
-        JOIN container c ON i.container_id = c.id
-        WHERE c.user_id = $1
-    `
-    if err := tx.QueryRow(tagCountQuery, userID).Scan(&response.Tags.Total); err != nil {
-        return nil, fmt.Errorf("failed to get tag count: %v", err)
-    }
-
-    // Workspaces will be implemented later
     response.Workspaces.Total = 0
 
     if err := tx.Commit(); err != nil {

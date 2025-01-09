@@ -34,13 +34,22 @@ func NewServer(listenAddr string, db *database.PostgresDB, config *config.Config
 func (s *Server) Run() {
 	router := mux.NewRouter()
 
+	// c := cors.New(cors.Options{
+	// 	AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+	// 	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	// 	AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin"},
+	// 	ExposedHeaders:   []string{"Content-Length"},
+	// 	AllowCredentials: true,
+	// 	Debug:            true,
+	// })
+
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
+		AllowedOrigins:   []string{"*"},  
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin"},
+		AllowedHeaders:   []string{"*"},  
 		ExposedHeaders:   []string{"Content-Length"},
 		AllowCredentials: true,
-		Debug:            true,
+		Debug:           true,
 	})
 
 	authMiddleware := middleware.NewAuthMiddleware(s.config.JWTSecret)
