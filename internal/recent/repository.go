@@ -57,18 +57,26 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         response.Containers.Recent = append(response.Containers.Recent, preview)
     }
 
-    itemCountQuery := `SELECT COUNT(*) FROM item`
+    itemCountQuery := `
+    SELECT COUNT(DISTINCT i.id) 
+    FROM item i
+    JOIN container c ON i.container_id = c.id
+    WHERE c.user_id = $1
+    `
     if err := tx.QueryRow(itemCountQuery).Scan(&response.Items.Total); err != nil {
         return nil, fmt.Errorf("failed to get item count: %v", err)
     }
 
     itemQuery := `
-        SELECT id, name, created_at 
-        FROM item 
-        ORDER BY created_at DESC 
-        LIMIT $1
+    SELECT i.id, i.name, i.created_at 
+    FROM item i
+    JOIN container c ON i.container_id = c.id
+    WHERE c.user_id = $1
+    ORDER BY i.created_at DESC 
+    LIMIT $2
     `
-    itemRows, err := tx.Query(itemQuery, limit)
+
+    itemRows, err := tx.Query(itemQuery, userID, limit)
     if err != nil {
         return nil, fmt.Errorf("failed to fetch recent items: %v", err)
     }
@@ -82,18 +90,29 @@ func (r *Repository) GetRecentEntities(userID int, limit int) (*Response, error)
         response.Items.Recent = append(response.Items.Recent, preview)
     }
 
-    tagCountQuery := `SELECT COUNT(*) FROM tag`
+    tagCountQuery := `
+    SELECT COUNT(DISTINCT t.id)
+    FROM tag t
+    JOIN item_tag it ON t.id = it.tag_id
+    JOIN item i ON it.item_id = i.id
+    JOIN container c ON i.container_id = c.id
+    WHERE c.user_id = $1
+    `
     if err := tx.QueryRow(tagCountQuery).Scan(&response.Tags.Total); err != nil {
         return nil, fmt.Errorf("failed to get tag count: %v", err)
     }
 
     tagQuery := `
-        SELECT id, name, created_at 
-        FROM tag 
-        ORDER BY created_at DESC 
-        LIMIT $1
+    SELECT DISTINCT t.id, t.name, t.created_at 
+    FROM tag t
+    JOIN item_tag it ON t.id = it.tag_id
+    JOIN item i ON it.item_id = i.id
+    JOIN container c ON i.container_id = c.id
+    WHERE c.user_id = $1
+    ORDER BY t.created_at DESC 
+    LIMIT $2
     `
-    tagRows, err := tx.Query(tagQuery, limit)
+    tagRows, err := tx.Query(tagQuery, userID, limit)
     if err != nil {
         return nil, fmt.Errorf("failed to fetch recent tags: %v", err)
     }
