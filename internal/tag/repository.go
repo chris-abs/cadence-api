@@ -87,7 +87,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
 
 func (r *Repository) GetAll() ([]*models.Tag, error) {
 	query := `
-        SELECT id, name, colour, created_at, updated_at
+        SELECT id, name, COALESCE(colour, '') as colour, created_at, updated_at
         FROM tag
         ORDER BY name ASC`
 

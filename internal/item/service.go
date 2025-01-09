@@ -16,16 +16,27 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
-	item := &models.Item{
-		Name:        req.Name,
-		Description: req.Description,
-		ImageURL:    req.ImageURL,
-		Quantity:    req.Quantity,
-		ContainerID: req.ContainerID,
-		Tags:        make([]models.Tag, 0),
-	}
+    if req.Name == "" {
+        return nil, fmt.Errorf("item name is required")
+    }
 
-	return s.repo.Create(item, req.TagNames)
+    item := &models.Item{
+        Name:        req.Name,
+        Description: req.Description,
+        ImageURL:    req.ImageURL,
+        Quantity:    req.Quantity,
+        ContainerID: req.ContainerID,
+        Tags:        make([]models.Tag, 0),
+        CreatedAt:   time.Now().UTC(),
+        UpdatedAt:   time.Now().UTC(),
+    }
+
+    createdItem, err := s.repo.Create(item, req.TagNames)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create item: %v", err)
+    }
+
+    return createdItem, nil
 }
 
 func (s *Service) GetItemByID(id int) (*models.Item, error) {
