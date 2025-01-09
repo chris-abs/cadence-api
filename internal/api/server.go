@@ -13,6 +13,7 @@ import (
 	"github.com/chrisabs/storage/internal/search"
 	"github.com/chrisabs/storage/internal/tag"
 	"github.com/chrisabs/storage/internal/user"
+	"github.com/chrisabs/storage/internal/workspace"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -56,19 +57,23 @@ func (s *Server) Run() {
 
 	userRepo := user.NewRepository(s.db.DB)
 	containerRepo := container.NewRepository(s.db.DB)
+	workspaceRepo := workspace.NewRepository(s.db.DB)
 	itemRepo := item.NewRepository(s.db.DB)
 	tagRepo := tag.NewRepository(s.db.DB)
 	searchRepo := search.NewRepository(s.db.DB)
 	recentRepo := recent.NewRepository(s.db.DB)
 
 	userService := user.NewService(userRepo, s.config.JWTSecret)
+	workspaceService := workspace.NewService(workspaceRepo)
 	containerService := container.NewService(containerRepo)
 	itemService := item.NewService(itemRepo)
 	tagService := tag.NewService(tagRepo)
 	searchService := search.NewService(searchRepo)
 	recentService := recent.NewService(recentRepo)
 
+
 	userHandler := user.NewHandler(userService, authMiddleware)
+	workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
 	containerHandler := container.NewHandler(containerService, authMiddleware)
 	itemHandler := item.NewHandler(
 		itemService,
@@ -80,6 +85,7 @@ func (s *Server) Run() {
 	recentHandler := recent.NewHandler(recentService, authMiddleware)
 
 	userHandler.RegisterRoutes(router)
+	workspaceHandler.RegisterRoutes(router)
 	containerHandler.RegisterRoutes(router)
 	itemHandler.RegisterRoutes(router)
 	tagHandler.RegisterRoutes(router)

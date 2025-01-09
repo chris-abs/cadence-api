@@ -18,34 +18,35 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(container *models.Container, itemRequests []CreateItemRequest) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	containerQuery := `
-        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    containerQuery := `
+        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, workspace_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id`
 
-	var containerID int
-	err = tx.QueryRow(
-		containerQuery,
-		container.ID,
-		container.Name,
-		container.QRCode,
-		container.QRCodeImage,
-		container.Number,
-		container.Location,
-		container.UserID,
-		container.CreatedAt,
-		container.UpdatedAt,
-	).Scan(&containerID)
+    var containerID int
+    err = tx.QueryRow(
+        containerQuery,
+        container.ID,
+        container.Name,
+        container.QRCode,
+        container.QRCodeImage,
+        container.Number,
+        container.Location,
+        container.UserID,
+        container.WorkspaceID,
+        container.CreatedAt,
+        container.UpdatedAt,
+    ).Scan(&containerID)
 
-	if err != nil {
-		return fmt.Errorf("error creating container: %v", err)
-	}
+    if err != nil {
+        return fmt.Errorf("error creating container: %v", err)
+    }
 
 	if len(itemRequests) > 0 {
 		itemQuery := `
@@ -76,18 +77,18 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 }
 
 func (r *Repository) GetByID(id int) (*models.Container, error) {
-	containerQuery := `
+    containerQuery := `
         SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.created_at, c.updated_at
+               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at
         FROM container c
         WHERE c.id = $1`
 
-	container := new(models.Container)
-	err := r.db.QueryRow(containerQuery, id).Scan(
-		&container.ID, &container.Name, &container.QRCode,
-		&container.QRCodeImage, &container.Number, &container.Location,
-		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
-	)
+    container := new(models.Container)
+    err := r.db.QueryRow(containerQuery, id).Scan(
+        &container.ID, &container.Name, &container.QRCode,
+        &container.QRCodeImage, &container.Number, &container.Location,
+        &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+    )
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("container not found")
@@ -148,30 +149,30 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 }
 
 func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
-	query := `
+    query := `
         SELECT id, name, qr_code, qr_code_image, number, location, 
-               user_id, created_at, updated_at 
+               user_id, workspace_id, created_at, updated_at 
         FROM container
         WHERE user_id = $1
         ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("error querying containers: %v", err)
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error querying containers: %v", err)
+    }
+    defer rows.Close()
 
-	var containers []*models.Container
-	for rows.Next() {
-		container := new(models.Container)
-		err := rows.Scan(
-			&container.ID, &container.Name, &container.QRCode,
-			&container.QRCodeImage, &container.Number, &container.Location,
-			&container.UserID, &container.CreatedAt, &container.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning container: %v", err)
-		}
+    var containers []*models.Container
+    for rows.Next() {
+        container := new(models.Container)
+        err := rows.Scan(
+            &container.ID, &container.Name, &container.QRCode,
+            &container.QRCodeImage, &container.Number, &container.Location,
+            &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning container: %v", err)
+        }
 
 		itemsQuery := `
             SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
@@ -230,18 +231,18 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 }
 
 func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
-	query := `
+    query := `
         SELECT id, name, qr_code, qr_code_image, number, location, 
-               user_id, created_at, updated_at 
+               user_id, workspace_id, created_at, updated_at 
         FROM container
         WHERE qr_code = $1`
 
-	container := new(models.Container)
-	err := r.db.QueryRow(query, qrCode).Scan(
-		&container.ID, &container.Name, &container.QRCode,
-		&container.QRCodeImage, &container.Number, &container.Location,
-		&container.UserID, &container.CreatedAt, &container.UpdatedAt,
-	)
+    container := new(models.Container)
+    err := r.db.QueryRow(query, qrCode).Scan(
+        &container.ID, &container.Name, &container.QRCode,
+        &container.QRCodeImage, &container.Number, &container.Location,
+        &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+    )
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("container not found")

@@ -55,6 +55,7 @@ func (db *PostgresDB) Init() error {
 	       DROP TABLE IF EXISTS tag CASCADE;
 	       DROP TABLE IF EXISTS item CASCADE;
 	       DROP TABLE IF EXISTS container CASCADE;
+		   DROP TABLE IF EXISTS workspace CASCADE;
 	       DROP TABLE IF EXISTS users CASCADE;
 	   `
 
@@ -82,6 +83,11 @@ func (db *PostgresDB) Init() error {
 	// Continue with ensuring tables exist
 	fmt.Println("Ensuring users table exists...")
 	if err := db.createUsersTable(); err != nil {
+		return err
+	}
+
+	fmt.Println("Ensuring workspace table exists...")
+	if err := db.createWorkspaceTable(); err != nil {
 		return err
 	}
 
@@ -115,6 +121,36 @@ func (db *PostgresDB) createUsersTable() error {
         `
 	_, err := db.Exec(query)
 	return err
+}
+
+func (db *PostgresDB) createWorkspaceTable() error {
+    query := `
+        CREATE TABLE IF NOT EXISTS workspace (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS workspace_container (
+            workspace_id INTEGER REFERENCES workspace(id) ON DELETE CASCADE,
+            container_id INTEGER REFERENCES container(id) ON DELETE CASCADE,
+            PRIMARY KEY (workspace_id, container_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(user_id);
+        CREATE INDEX IF NOT EXISTS idx_workspace_container_workspace ON workspace_container(workspace_id);
+        CREATE INDEX IF NOT EXISTS idx_workspace_container_container ON workspace_container(container_id);
+    `
+
+    _, err := db.Exec(query)
+    if err != nil {
+        return fmt.Errorf("error creating workspace tables: %v", err)
+    }
+
+    return nil
 }
 
 func (db *PostgresDB) createContainerTable() error {

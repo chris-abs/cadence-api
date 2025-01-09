@@ -9,13 +9,15 @@ type CreateItemRequest struct {
 }
 
 type CreateContainerRequest struct {
-	Name     string              `json:"name"`
-	Location string              `json:"location"`
-	Items    []CreateItemRequest `json:"items"`
+    Name        string              `json:"name"`
+    Location    string              `json:"location"`
+    WorkspaceID int                 `json:"workspaceId,omitempty"`
+    Items       []CreateItemRequest `json:"items"`
 }
 
 type UpdateContainerRequest struct {
-	Name     string `json:"name"`
-	Location string `json:"location"`
-	ItemIDs  []int  `json:"itemIds,omitempty"`
+    Name        string `json:"name"`
+    Location    string `json:"location"`
+    WorkspaceID int    `json:"workspaceId,omitempty"`
+    ItemIDs     []int  `json:"itemIds,omitempty"`
 }
