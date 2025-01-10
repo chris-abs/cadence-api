@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
@@ -9,13 +10,25 @@ import (
 )
 
 type AuthMiddleware struct {
-	jwtSecret string
+    jwtSecret string
+    db        *sql.DB
 }
 
-func NewAuthMiddleware(jwtSecret string) *AuthMiddleware {
-	return &AuthMiddleware{
-		jwtSecret: jwtSecret,
-	}
+func NewAuthMiddleware(jwtSecret string, db *sql.DB) *AuthMiddleware {
+    return &AuthMiddleware{
+        jwtSecret: jwtSecret,
+        db:        db,
+    }
+}
+
+func (m *AuthMiddleware) userExists(userID string) (bool, error) {
+    var exists bool
+    query := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
+    err := m.db.QueryRow(query, userID).Scan(&exists)
+    if err != nil {
+        return false, fmt.Errorf("error checking user existence: %v", err)
+    }
+    return exists, nil
 }
 
 func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
@@ -49,8 +62,15 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
+		userID := fmt.Sprintf("%.0f", claims["userId"])
+        
+        exists, err := m.userExists(userID) 
+        if err != nil || !exists {
+            http.Error(w, "User not found", http.StatusUnauthorized)
+            return
+        }
 
-		r.Header.Set("UserId", fmt.Sprintf("%.0f", claims["userId"]))
-		next(w, r)
+        r.Header.Set("UserId", userID)
+        next(w, r)
 	}
 }

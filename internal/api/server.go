@@ -19,83 +19,75 @@ import (
 )
 
 type Server struct {
-	listenAddr string
-	db         *database.PostgresDB
-	config     *config.Config
+    listenAddr string
+    db         *database.PostgresDB
+    config     *config.Config
 }
 
 func NewServer(listenAddr string, db *database.PostgresDB, config *config.Config) *Server {
-	return &Server{
-		listenAddr: listenAddr,
-		db:         db,
-		config:     config,
-	}
+    return &Server{
+        listenAddr: listenAddr,
+        db:         db,
+        config:     config,
+    }
 }
 
 func (s *Server) Run() {
-	router := mux.NewRouter()
+    router := mux.NewRouter()
 
-	// c := cors.New(cors.Options{
-	// 	AllowedOrigins:   []string{"http://localhost:5173", "http://localhost:3000"},
-	// 	AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-	// 	AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin"},
-	// 	ExposedHeaders:   []string{"Content-Length"},
-	// 	AllowCredentials: true,
-	// 	Debug:            true,
-	// })
+    // CORS setup
+    c := cors.New(cors.Options{
+        AllowedOrigins:   []string{"*"},
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"*"},
+        ExposedHeaders:   []string{"Content-Length"},
+        AllowCredentials: true,
+        Debug:           true,
+    })
 
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},  
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},  
-		ExposedHeaders:   []string{"Content-Length"},
-		AllowCredentials: true,
-		Debug:           true,
-	})
+    // Initialise auth middleware with user validation
+    authMiddleware := middleware.NewAuthMiddleware(s.config.JWTSecret, s.db.DB)
 
-	authMiddleware := middleware.NewAuthMiddleware(s.config.JWTSecret)
+    // Initialise repositories
+    userRepo := user.NewRepository(s.db.DB)
+    containerRepo := container.NewRepository(s.db.DB)
+    workspaceRepo := workspace.NewRepository(s.db.DB)
+    itemRepo := item.NewRepository(s.db.DB)
+    tagRepo := tag.NewRepository(s.db.DB)
+    searchRepo := search.NewRepository(s.db.DB)
+    recentRepo := recent.NewRepository(s.db.DB)
 
-	userRepo := user.NewRepository(s.db.DB)
-	containerRepo := container.NewRepository(s.db.DB)
-	workspaceRepo := workspace.NewRepository(s.db.DB)
-	itemRepo := item.NewRepository(s.db.DB)
-	tagRepo := tag.NewRepository(s.db.DB)
-	searchRepo := search.NewRepository(s.db.DB)
-	recentRepo := recent.NewRepository(s.db.DB)
+    // Initialise services
+    userService := user.NewService(userRepo, s.config.JWTSecret)
+    workspaceService := workspace.NewService(workspaceRepo)
+    containerService := container.NewService(containerRepo)
+    itemService := item.NewService(itemRepo)
+    tagService := tag.NewService(tagRepo)
+    searchService := search.NewService(searchRepo)
+    recentService := recent.NewService(recentRepo)
 
-	userService := user.NewService(userRepo, s.config.JWTSecret)
-	workspaceService := workspace.NewService(workspaceRepo)
-	containerService := container.NewService(containerRepo)
-	itemService := item.NewService(itemRepo)
-	tagService := tag.NewService(tagRepo)
-	searchService := search.NewService(searchRepo)
-	recentService := recent.NewService(recentRepo)
+    // Initialise handlers
+    userHandler := user.NewHandler(userService, authMiddleware)
+    workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
+    containerHandler := container.NewHandler(containerService, authMiddleware)
+    itemHandler := item.NewHandler(itemService, containerService, authMiddleware)
+    tagHandler := tag.NewHandler(tagService, authMiddleware)
+    searchHandler := search.NewHandler(searchService, authMiddleware)
+    recentHandler := recent.NewHandler(recentService, authMiddleware)
 
+    // Register routes
+    userHandler.RegisterRoutes(router)
+    workspaceHandler.RegisterRoutes(router)
+    containerHandler.RegisterRoutes(router)
+    itemHandler.RegisterRoutes(router)
+    tagHandler.RegisterRoutes(router)
+    searchHandler.RegisterRoutes(router)
+    recentHandler.RegisterRoutes(router)
 
-	userHandler := user.NewHandler(userService, authMiddleware)
-	workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
-	containerHandler := container.NewHandler(containerService, authMiddleware)
-	itemHandler := item.NewHandler(
-		itemService,
-		containerService,
-		authMiddleware,
-	)
-	tagHandler := tag.NewHandler(tagService, authMiddleware)
-	searchHandler := search.NewHandler(searchService, authMiddleware)
-	recentHandler := recent.NewHandler(recentService, authMiddleware)
+    handler := c.Handler(router)
 
-	userHandler.RegisterRoutes(router)
-	workspaceHandler.RegisterRoutes(router)
-	containerHandler.RegisterRoutes(router)
-	itemHandler.RegisterRoutes(router)
-	tagHandler.RegisterRoutes(router)
-	searchHandler.RegisterRoutes(router)
-	recentHandler.RegisterRoutes(router)
-
-	handler := c.Handler(router)
-
-	log.Println("JSON API server running on port: ", s.listenAddr)
-	if err := http.ListenAndServe(s.listenAddr, handler); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
+    log.Printf("JSON API server running on port: %s", s.listenAddr)
+    if err := http.ListenAndServe(s.listenAddr, handler); err != nil {
+        log.Fatal("Server failed to start:", err)
+    }
 }
