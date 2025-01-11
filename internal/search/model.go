@@ -9,6 +9,7 @@ type SearchResult struct {
 }
 
 type SearchResponse struct {
+	Workspaces []SearchResult `json:"workspaces"`
 	Containers []SearchResult `json:"containers"`
 	Items      []SearchResult `json:"items"`
 	Tags       []SearchResult `json:"tags"`
