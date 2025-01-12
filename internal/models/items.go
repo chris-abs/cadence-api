@@ -9,6 +9,7 @@ type Item struct {
 	ImageURL    string    `json:"imageUrl"`
 	Quantity    int       `json:"quantity"`
 	ContainerID *int      `json:"containerId,omitempty"`
+	Container   *Container `json:"container"` 
 	Tags        []Tag     `json:"tags"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
