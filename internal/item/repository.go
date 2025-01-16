@@ -172,8 +172,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                            'id', t.id,
                            'name', t.name,
                            'colour', t.colour,
-                           'createdAt', t.created_at,
-                           'updatedAt', t.updated_at
+                           'createdAt', t.created_at AT TIME ZONE 'UTC',
+                           'updatedAt', t.updated_at AT TIME ZONE 'UTC'
                        )
                    ) FILTER (WHERE t.id IS NOT NULL),
                    '[]'
