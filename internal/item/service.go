@@ -47,24 +47,33 @@ func (s *Service) GetItemsByUserID(userID int) ([]*models.Item, error) {
 	return s.repo.GetByUserID(userID)
 }
 
-func (s *Service) UpdateItem(id int, req *CreateItemRequest) (*models.Item, error) {
-	item, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("item not found: %v", err)
-	}
+func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, error) {
+    item, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("item not found: %v", err)
+    }
 
-	item.Name = req.Name
-	item.Description = req.Description
-	item.ImageURL = req.ImageURL
-	item.Quantity = req.Quantity
-	item.ContainerID = req.ContainerID
-	item.UpdatedAt = time.Now().UTC()
+    item.Name = req.Name
+    item.Description = req.Description
+    item.ImageURL = req.ImageURL
+    item.Quantity = req.Quantity
+    item.ContainerID = req.ContainerID
+    item.UpdatedAt = time.Now().UTC()
 
-	if err := s.repo.Update(item); err != nil {
-		return nil, fmt.Errorf("failed to update item: %v", err)
-	}
+    if req.Tags != nil {
+        item.Tags = make([]models.Tag, len(req.Tags))
+        for i, tagID := range req.Tags {
+            item.Tags[i] = models.Tag{ID: tagID}
+        }
+    } else {
+        item.Tags = []models.Tag{} 
+    }
 
-	return s.repo.GetByID(id)
+    if err := s.repo.Update(item); err != nil {
+        return nil, fmt.Errorf("failed to update item: %v", err)
+    }
+
+    return s.repo.GetByID(id)
 }
 
 func (s *Service) DeleteItem(id int) error {

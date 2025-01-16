@@ -119,42 +119,42 @@ func (h *Handler) handleGetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.Atoi(r.Header.Get("UserId"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
-		return
-	}
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
 
-	itemID, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+    itemID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-	var req CreateItemRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+    var req UpdateItemRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
 
-	if req.ContainerID != nil {
-		container, err := h.containerService.GetContainerByID(*req.ContainerID)
-		if err != nil {
-			writeError(w, http.StatusNotFound, "container not found")
-			return
-		}
-		if container.UserID != userID {
-			writeError(w, http.StatusForbidden, "access denied")
-			return
-		}
-	}
+    if req.ContainerID != nil {
+        container, err := h.containerService.GetContainerByID(*req.ContainerID)
+        if err != nil {
+            writeError(w, http.StatusNotFound, "container not found")
+            return
+        }
+        if container.UserID != userID {
+            writeError(w, http.StatusForbidden, "access denied")
+            return
+        }
+    }
 
-	item, err := h.service.UpdateItem(itemID, &req)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, item)
+    item, err := h.service.UpdateItem(itemID, &req)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    writeJSON(w, http.StatusOK, item)
 }
 
 func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
