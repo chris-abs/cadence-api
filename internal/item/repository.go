@@ -182,12 +182,13 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
         LEFT JOIN container c ON i.container_id = c.id
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
+        WHERE c.user_id = $1 OR c.user_id IS NULL
         GROUP BY i.id, i.name, i.description, i.image_url, i.quantity, 
                  i.container_id, i.created_at, i.updated_at,
                  c.id, c.name, c.location, c.created_at, c.updated_at
         ORDER BY i.created_at DESC`
 
-    rows, err := r.db.Query(query)
+    rows, err := r.db.Query(query, userID)
     if err != nil {
         return nil, err
     }

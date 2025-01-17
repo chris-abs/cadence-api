@@ -44,7 +44,7 @@ func (s *Service) GetItemByID(id int) (*models.Item, error) {
 }
 
 func (s *Service) GetItemsByUserID(userID int) ([]*models.Item, error) {
-	return s.repo.GetByUserID(userID)
+    return s.repo.GetByUserID(userID)
 }
 
 func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, error) {
@@ -57,7 +57,13 @@ func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, erro
     item.Description = req.Description
     item.ImageURL = req.ImageURL
     item.Quantity = req.Quantity
-    item.ContainerID = req.ContainerID
+    
+    if req.ContainerID != nil {
+        item.ContainerID = req.ContainerID
+    } else {
+        item.ContainerID = nil 
+    }
+    
     item.UpdatedAt = time.Now().UTC()
 
     if req.Tags != nil {
