@@ -68,6 +68,7 @@ func (s *Service) UpdateContainer(id int, req *UpdateContainerRequest) (*models.
 
 	container.Name = req.Name
 	container.Location = req.Location
+	container.WorkspaceID = &req.WorkspaceID
 	container.UpdatedAt = time.Now().UTC()
 
 	if err := s.repo.Update(container); err != nil {

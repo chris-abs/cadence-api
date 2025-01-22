@@ -282,7 +282,7 @@ func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
 func (r *Repository) Update(container *models.Container) error {
 	query := `
         UPDATE container
-        SET name = $2, location = $3, updated_at = $4
+        SET name = $2, location = $3, workspace_id = $4, updated_at = $5
         WHERE id = $1`
 
 	result, err := r.db.Exec(
@@ -290,6 +290,7 @@ func (r *Repository) Update(container *models.Container) error {
 		container.ID,
 		container.Name,
 		container.Location,
+		container.WorkspaceID,
 		time.Now().UTC(),
 	)
 	if err != nil {
