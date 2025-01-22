@@ -18,6 +18,6 @@ type CreateContainerRequest struct {
 type UpdateContainerRequest struct {
     Name        string `json:"name"`
     Location    string `json:"location"`
-    WorkspaceID int    `json:"workspaceId,omitempty"`
+    WorkspaceID *int    `json:"workspaceId,omitempty"`
     ItemIDs     []int  `json:"itemIds,omitempty"`
 }

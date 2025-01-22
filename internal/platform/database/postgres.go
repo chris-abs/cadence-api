@@ -162,13 +162,6 @@ func (db *PostgresDB) createContainerTable() error {
 
         CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
     `
-
-	// DROP container TABLE FOR TESTING
-	// dropQuery := `DROP TABLE IF EXISTS container;`
-	// if _, err := db.Exec(dropQuery); err != nil {
-	//     return fmt.Errorf("error dropping table: %v", err)
-	// }
-
 	_, err := db.Exec(query)
 	if err != nil {
 		return fmt.Errorf("error executing create table query: %v", err)
@@ -208,16 +201,6 @@ func (db *PostgresDB) createItemTables() error {
         CREATE INDEX IF NOT EXISTS idx_item_tag_item ON item_tag(item_id);
         CREATE INDEX IF NOT EXISTS idx_item_tag_tag ON item_tag(tag_id);
     `
-	// DROP item TABLE FOR TESTING
-	// dropQuery := `
-	//     DROP TABLE IF EXISTS item_tag;
-	//     DROP TABLE IF EXISTS item;
-	//     DROP TABLE IF EXISTS tag;
-	// `
-	// if _, err := db.Exec(dropQuery); err != nil {
-	// 	return fmt.Errorf("error dropping table: %v", err)
-	// }
-
 	_, err := db.Exec(query)
 	return err
 }

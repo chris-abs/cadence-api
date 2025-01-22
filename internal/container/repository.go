@@ -280,34 +280,42 @@ func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
 }
 
 func (r *Repository) Update(container *models.Container) error {
-	query := `
+    query := `
         UPDATE container
         SET name = $2, location = $3, workspace_id = $4, updated_at = $5
         WHERE id = $1`
 
-	result, err := r.db.Exec(
-		query,
-		container.ID,
-		container.Name,
-		container.Location,
-		container.WorkspaceID,
-		time.Now().UTC(),
-	)
-	if err != nil {
-		return fmt.Errorf("error updating container: %v", err)
-	}
+    var workspaceID sql.NullInt64
+    if container.WorkspaceID != nil {
+        workspaceID = sql.NullInt64{Int64: int64(*container.WorkspaceID), Valid: true}
+    } else {
+        workspaceID = sql.NullInt64{Valid: false} 
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking update result: %v", err)
-	}
+    result, err := r.db.Exec(
+        query,
+        container.ID,
+        container.Name,
+        container.Location,
+        workspaceID,
+        time.Now().UTC(),
+    )
+    if err != nil {
+        return fmt.Errorf("error updating container: %v", err)
+    }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("container not found")
-	}
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking update result: %v", err)
+    }
 
-	return nil
+    if rowsAffected == 0 {
+        return fmt.Errorf("container not found")
+    }
+
+    return nil
 }
+
 
 func (r *Repository) Delete(id int) error {
 	query := `DELETE FROM container WHERE id = $1`

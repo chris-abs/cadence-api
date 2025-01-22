@@ -95,41 +95,41 @@ func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.Atoi(r.Header.Get("UserId"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
-		return
-	}
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
 
-	containerID, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+    containerID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-	container, err := h.service.GetContainerByID(containerID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
+    container, err := h.service.GetContainerByID(containerID)
+    if err != nil {
+        writeError(w, http.StatusNotFound, err.Error())
+        return
+    }
 
-	if container.UserID != userID {
-		writeError(w, http.StatusForbidden, "access denied")
-		return
-	}
+    if container.UserID != userID {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
 
-	var req UpdateContainerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+    var req UpdateContainerRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
 
-	updatedContainer, err := h.service.UpdateContainer(containerID, &req)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, updatedContainer)
+    updatedContainer, err := h.service.UpdateContainer(containerID, &req)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    writeJSON(w, http.StatusOK, updatedContainer)
 }
 
 func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {
