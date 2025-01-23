@@ -2,6 +2,7 @@ package tag
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -38,81 +39,171 @@ func (r *Repository) Create(tag *models.Tag) error {
 }
 
 func (r *Repository) GetByID(id int) (*models.Tag, error) {
-	query := `
-        SELECT t.id, t.name, t.colour, t.created_at, t.updated_at
+    query := `
+        SELECT t.id, t.name, t.colour, t.created_at, t.updated_at,
+               COALESCE(
+                   jsonb_agg(
+                       DISTINCT jsonb_build_object(
+                           'id', i.id,
+                           'name', i.name,
+                           'description', i.description,
+                           'imageUrl', i.image_url,
+                           'quantity', i.quantity,
+                           'containerId', i.container_id,
+                           'container', COALESCE(
+                               jsonb_build_object(
+                                   'id', c.id,
+                                   'name', c.name,
+                                   'qrCode', c.qr_code,
+                                   'qrCodeImage', c.qr_code_image,
+                                   'number', c.number,
+                                   'location', c.location,
+                                   'userId', c.user_id,
+                                   'workspaceId', c.workspace_id,
+                                   'createdAt', c.created_at AT TIME ZONE 'UTC',
+                                   'updatedAt', c.updated_at AT TIME ZONE 'UTC'
+                               ),
+                               null
+                           ),
+                           'createdAt', i.created_at AT TIME ZONE 'UTC',
+                           'updatedAt', i.updated_at AT TIME ZONE 'UTC',
+                           'tags', COALESCE(
+                               (
+                                   SELECT jsonb_agg(
+                                       jsonb_build_object(
+                                           'id', it_tags.id,
+                                           'name', it_tags.name,
+                                           'colour', it_tags.colour,
+                                           'createdAt', it_tags.created_at AT TIME ZONE 'UTC',
+                                           'updatedAt', it_tags.updated_at AT TIME ZONE 'UTC'
+                                       )
+                                   )
+                                   FROM tag it_tags
+                                   JOIN item_tag iit ON iit.tag_id = it_tags.id
+                                   WHERE iit.item_id = i.id
+                               ),
+                               '[]'::jsonb
+                           )
+                       )
+                   ) FILTER (WHERE i.id IS NOT NULL),
+                   '[]'
+               ) as items
         FROM tag t
-        WHERE t.id = $1`
+        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN container c ON i.container_id = c.id
+        WHERE t.id = $1
+        GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at`
 
-	tag := new(models.Tag)
-	err := r.db.QueryRow(query, id).Scan(
-		&tag.ID, &tag.Name, &tag.Colour,
-		&tag.CreatedAt, &tag.UpdatedAt,
-	)
+    tag := new(models.Tag)
+    var itemsJSON []byte
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("tag not found")
-	}
-	if err != nil {
-		return nil, err
-	}
+    err := r.db.QueryRow(query, id).Scan(
+        &tag.ID, &tag.Name, &tag.Colour,
+        &tag.CreatedAt, &tag.UpdatedAt,
+        &itemsJSON,
+    )
 
-	itemsQuery := `
-        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
-               i.container_id, i.created_at, i.updated_at
-        FROM item i
-        JOIN item_tag it ON i.id = it.item_id
-        WHERE it.tag_id = $1`
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("tag not found")
+    }
+    if err != nil {
+        return nil, err
+    }
 
-	rows, err := r.db.Query(itemsQuery, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+    if err := json.Unmarshal(itemsJSON, &tag.Items); err != nil {
+        return nil, fmt.Errorf("error parsing items: %v", err)
+    }
 
-	tag.Items = make([]models.Item, 0)
-	for rows.Next() {
-		var item models.Item
-		err := rows.Scan(
-			&item.ID, &item.Name, &item.Description, &item.ImageURL,
-			&item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		tag.Items = append(tag.Items, item)
-	}
-
-	return tag, nil
+    return tag, nil
 }
 
 func (r *Repository) GetAll() ([]*models.Tag, error) {
-	query := `
-        SELECT id, name, COALESCE(colour, '') as colour, created_at, updated_at
-        FROM tag
-        ORDER BY name ASC`
+    query := `
+        SELECT t.id, t.name, COALESCE(t.colour, '') as colour, 
+               t.created_at, t.updated_at,
+               COALESCE(
+                   jsonb_agg(
+                       DISTINCT jsonb_build_object(
+                           'id', i.id,
+                           'name', i.name,
+                           'description', i.description,
+                           'imageUrl', i.image_url,
+                           'quantity', i.quantity,
+                           'containerId', i.container_id,
+                           'container', COALESCE(
+                               jsonb_build_object(
+                                   'id', c.id,
+                                   'name', c.name,
+                                   'qrCode', c.qr_code,
+                                   'qrCodeImage', c.qr_code_image,
+                                   'number', c.number,
+                                   'location', c.location,
+                                   'userId', c.user_id,
+                                   'workspaceId', c.workspace_id,
+                                   'createdAt', c.created_at AT TIME ZONE 'UTC',
+                                   'updatedAt', c.updated_at AT TIME ZONE 'UTC'
+                               ),
+                               null
+                           ),
+                           'createdAt', i.created_at AT TIME ZONE 'UTC',
+                           'updatedAt', i.updated_at AT TIME ZONE 'UTC',
+                           'tags', COALESCE(
+                               (
+                                   SELECT jsonb_agg(
+                                       jsonb_build_object(
+                                           'id', it_tags.id,
+                                           'name', it_tags.name,
+                                           'colour', it_tags.colour,
+                                           'createdAt', it_tags.created_at AT TIME ZONE 'UTC',
+                                           'updatedAt', it_tags.updated_at AT TIME ZONE 'UTC'
+                                       )
+                                   )
+                                   FROM tag it_tags
+                                   JOIN item_tag iit ON iit.tag_id = it_tags.id
+                                   WHERE iit.item_id = i.id
+                               ),
+                               '[]'::jsonb
+                           )
+                       )
+                   ) FILTER (WHERE i.id IS NOT NULL),
+                   '[]'
+               ) as items
+        FROM tag t
+        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN container c ON i.container_id = c.id
+        GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at
+        ORDER BY t.name ASC`
 
-	rows, err := r.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
 
-	var tags []*models.Tag
-	for rows.Next() {
-		tag := new(models.Tag)
-		err := rows.Scan(
-			&tag.ID, &tag.Name, &tag.Colour,
-			&tag.CreatedAt, &tag.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
+    var tags []*models.Tag
+    for rows.Next() {
+        tag := new(models.Tag)
+        var itemsJSON []byte
 
-		tag.Items = make([]models.Item, 0)
-		tags = append(tags, tag)
-	}
+        err := rows.Scan(
+            &tag.ID, &tag.Name, &tag.Colour,
+            &tag.CreatedAt, &tag.UpdatedAt,
+            &itemsJSON,
+        )
+        if err != nil {
+            return nil, err
+        }
 
-	return tags, nil
+        if err := json.Unmarshal(itemsJSON, &tag.Items); err != nil {
+            return nil, fmt.Errorf("error parsing items: %v", err)
+        }
+
+        tags = append(tags, tag)
+    }
+
+    return tags, nil
 }
 
 func (r *Repository) Update(tag *models.Tag) error {
