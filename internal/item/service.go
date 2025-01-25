@@ -8,11 +8,11 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+    repo *Repository
 }
 
 func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+    return &Service{repo: repo}
 }
 
 func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
@@ -23,9 +23,9 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
     item := &models.Item{
         Name:        req.Name,
         Description: req.Description,
-        ImageURL:    req.ImageURL,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
+        Images:      []models.ItemImage{},
         Tags:        make([]models.Tag, 0),
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
@@ -40,7 +40,7 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
 }
 
 func (s *Service) GetItemByID(id int) (*models.Item, error) {
-	return s.repo.GetByID(id)
+    return s.repo.GetByID(id)
 }
 
 func (s *Service) GetItemsByUserID(userID int) ([]*models.Item, error) {
@@ -55,7 +55,6 @@ func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, erro
 
     item.Name = req.Name
     item.Description = req.Description
-    item.ImageURL = req.ImageURL
     item.Quantity = req.Quantity
     
     if req.ContainerID != nil {
@@ -82,6 +81,20 @@ func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, erro
     return s.repo.GetByID(id)
 }
 
+func (s *Service) AddItemImage(itemID int, url string) error {
+    item, err := s.repo.GetByID(itemID)
+    if err != nil {
+        return fmt.Errorf("item not found: %v", err)
+    }
+
+    displayOrder := len(item.Images)
+    return s.repo.AddItemImage(itemID, url, displayOrder)
+}
+
+func (s *Service) DeleteItemImage(itemID int, url string) error {
+    return s.repo.DeleteItemImage(itemID, url)
+}
+
 func (s *Service) DeleteItem(id int) error {
-	return s.repo.Delete(id)
+    return s.repo.Delete(id)
 }

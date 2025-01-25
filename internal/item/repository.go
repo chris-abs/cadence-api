@@ -25,15 +25,14 @@ func (r *Repository) Create(item *models.Item, tagNames []string) (*models.Item,
     defer tx.Rollback()
 
     itemQuery := `
-        INSERT INTO item (name, description, image_url, quantity, container_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO item (name, description, quantity, container_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id, created_at, updated_at`
 
     err = tx.QueryRow(
         itemQuery,
         item.Name,
         item.Description,
-        item.ImageURL,
         item.Quantity,
         item.ContainerID,
         time.Now().UTC(),
@@ -80,8 +79,22 @@ func (r *Repository) Create(item *models.Item, tagNames []string) (*models.Item,
 
 func (r *Repository) GetByID(id int) (*models.Item, error) {
     query := `
-        SELECT i.id, i.name, i.description, i.image_url, i.quantity, 
+        WITH item_images AS (
+            SELECT item_id,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'url', url,
+                           'displayOrder', display_order,
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
+                       ) ORDER BY display_order
+                   ) as images
+            FROM item_image
+            GROUP BY item_id
+        )
+        SELECT i.id, i.name, i.description, i.quantity, 
                i.container_id, i.created_at, i.updated_at,
+               COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
                         'id', c.id,
@@ -110,21 +123,24 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
                    '[]'
                ) as tags
         FROM item i
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE i.id = $1
-        GROUP BY i.id, i.name, i.description, i.image_url, i.quantity, 
+        GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.created_at, i.updated_at,
-                 c.id, c.name, c.location, c.created_at, c.updated_at`
+                 img.images,
+                 c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
+                 c.user_id, c.workspace_id, c.created_at, c.updated_at`
 
     item := new(models.Item)
-    var containerJSON, tagsJSON []byte
+    var imagesJSON, containerJSON, tagsJSON []byte
 
     err := r.db.QueryRow(query, id).Scan(
-        &item.ID, &item.Name, &item.Description, &item.ImageURL,
+        &item.ID, &item.Name, &item.Description,
         &item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-        &containerJSON, &tagsJSON,
+        &imagesJSON, &containerJSON, &tagsJSON,
     )
 
     if err == sql.ErrNoRows {
@@ -132,6 +148,10 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
     }
     if err != nil {
         return nil, err
+    }
+
+    if err := json.Unmarshal(imagesJSON, &item.Images); err != nil {
+        return nil, fmt.Errorf("error parsing images: %v", err)
     }
 
     if containerJSON != nil {
@@ -149,8 +169,22 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
 
 func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
     query := `
-        SELECT DISTINCT i.id, i.name, i.description, i.image_url, i.quantity, 
+        WITH item_images AS (
+            SELECT item_id,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'url', url,
+                           'displayOrder', display_order,
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
+                       ) ORDER BY display_order
+                   ) as images
+            FROM item_image
+            GROUP BY item_id
+        )
+        SELECT DISTINCT i.id, i.name, i.description, i.quantity, 
                i.container_id, i.created_at, i.updated_at,
+               COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
                         'id', c.id,
@@ -179,13 +213,16 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                    '[]'
                ) as tags
         FROM item i
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE c.user_id = $1 OR c.user_id IS NULL
-        GROUP BY i.id, i.name, i.description, i.image_url, i.quantity, 
+        GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.created_at, i.updated_at,
-                 c.id, c.name, c.location, c.created_at, c.updated_at
+                 img.images,
+                 c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
+                 c.user_id, c.workspace_id, c.created_at, c.updated_at
         ORDER BY i.created_at DESC`
 
     rows, err := r.db.Query(query, userID)
@@ -197,15 +234,19 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
     var items []*models.Item
     for rows.Next() {
         item := new(models.Item)
-        var containerJSON, tagsJSON []byte
+        var imagesJSON, containerJSON, tagsJSON []byte
 
         err := rows.Scan(
-            &item.ID, &item.Name, &item.Description, &item.ImageURL,
+            &item.ID, &item.Name, &item.Description,
             &item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-            &containerJSON, &tagsJSON,
+            &imagesJSON, &containerJSON, &tagsJSON,
         )
         if err != nil {
             return nil, err
+        }
+
+        if err := json.Unmarshal(imagesJSON, &item.Images); err != nil {
+            return nil, fmt.Errorf("error parsing images: %v", err)
         }
 
         if containerJSON != nil {
@@ -233,8 +274,8 @@ func (r *Repository) Update(item *models.Item) error {
 
     query := `
         UPDATE item
-        SET name = $2, description = $3, image_url = $4,
-            quantity = $5, container_id = $6, updated_at = $7
+        SET name = $2, description = $3,
+            quantity = $4, container_id = $5, updated_at = $6
         WHERE id = $1`
 
     result, err := tx.Exec(
@@ -242,7 +283,6 @@ func (r *Repository) Update(item *models.Item) error {
         item.ID,
         item.Name,
         item.Description,
-        item.ImageURL,
         item.Quantity,
         item.ContainerID,
         time.Now().UTC(),
@@ -276,6 +316,39 @@ func (r *Repository) Update(item *models.Item) error {
     }
 
     return tx.Commit()
+}
+
+func (r *Repository) AddItemImage(itemID int, url string, displayOrder int) error {
+    query := `
+        INSERT INTO item_image (item_id, url, display_order)
+        VALUES ($1, $2, $3)`
+    
+    _, err := r.db.Exec(query, itemID, url, displayOrder)
+    if err != nil {
+        return fmt.Errorf("error adding item image: %v", err)
+    }
+    
+    return nil
+}
+
+func (r *Repository) DeleteItemImage(itemID int, url string) error {
+    query := `DELETE FROM item_image WHERE item_id = $1 AND url = $2`
+    
+    result, err := r.db.Exec(query, itemID, url)
+    if err != nil {
+        return fmt.Errorf("error deleting item image: %v", err)
+    }
+    
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking delete result: %v", err)
+    }
+    
+    if rowsAffected == 0 {
+        return fmt.Errorf("image not found")
+    }
+    
+    return nil
 }
 
 func (r *Repository) Delete(id int) error {

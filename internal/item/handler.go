@@ -2,11 +2,13 @@ package item
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/chrisabs/storage/internal/middleware"
 	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -34,6 +36,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleGetItem)).Methods("GET")
 	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleUpdateItem)).Methods("PUT")
 	router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleDeleteItem)).Methods("DELETE")
+
+	router.HandleFunc("/items/{id}/image", h.authMiddleware.AuthHandler(h.handleUploadImage)).Methods("POST")
+    router.HandleFunc("/items/{id}/image/{url}", h.authMiddleware.AuthHandler(h.handleDeleteImage)).Methods("DELETE")
 }
 
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
@@ -208,4 +213,61 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func (h *Handler) handleUploadImage(w http.ResponseWriter, r *http.Request) {
+    itemID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid item ID")
+        return
+    }
+
+    if err := r.ParseMultipartForm(10 << 20); err != nil {
+        writeError(w, http.StatusBadRequest, "failed to parse form")
+        return
+    }
+
+    file, header, err := r.FormFile("image")
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "no image file provided")
+        return
+    }
+    defer file.Close()
+
+    s3Handler, err := storage.NewS3Handler()
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+        return
+    }
+
+    url, err := s3Handler.UploadFile(header, fmt.Sprintf("items/%d", itemID))
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to upload image")
+        return
+    }
+
+    if err := h.service.AddItemImage(itemID, url); err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to save image reference")
+        return
+    }
+
+    writeJSON(w, http.StatusCreated, map[string]string{"url": url})
+}
+
+func (h *Handler) handleDeleteImage(w http.ResponseWriter, r *http.Request) {
+    itemID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid item ID")
+        return
+    }
+
+    vars := mux.Vars(r)
+    imageURL := vars["url"]
+
+    if err := h.service.DeleteItemImage(itemID, imageURL); err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to delete image")
+        return
+    }
+
+    writeJSON(w, http.StatusOK, map[string]bool{"success": true})
 }
