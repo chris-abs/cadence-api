@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 
@@ -108,25 +109,33 @@ func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
-	id, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-	var req UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
+    if err := r.ParseMultipartForm(10 << 20); err != nil {
+        writeError(w, http.StatusBadRequest, "failed to parse form")
+        return
+    }
 
-	user, err := h.service.UpdateUser(id, &req)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    firstName := r.FormValue("firstName")
+    lastName := r.FormValue("lastName")
 
-	writeJSON(w, http.StatusOK, user)
+    var imageFile *multipart.FileHeader
+    if file, header, err := r.FormFile("image"); err == nil {
+        defer file.Close()
+        imageFile = header
+    }
+
+    user, err := h.service.UpdateUser(id, firstName, lastName, imageFile)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, user)
 }
 
 func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {

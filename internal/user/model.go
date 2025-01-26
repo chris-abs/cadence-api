@@ -11,9 +11,9 @@ type CreateUserRequest struct {
 }
 
 type UpdateUserRequest struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	ImageURL  string `json:"imageUrl"`
+    FirstName string `json:"firstName"`
+    LastName  string `json:"lastName"`
+    ImageURL  string `json:"imageUrl,omitempty"`
 }
 
 type LoginRequest struct {

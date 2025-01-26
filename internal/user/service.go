@@ -2,9 +2,11 @@ package user
 
 import (
 	"fmt"
+	"mime/multipart"
 	"time"
 
 	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -82,22 +84,34 @@ func (s *Service) GetAllUsers() ([]*models.User, error) {
 	return s.repo.GetAll()
 }
 
-func (s *Service) UpdateUser(id int, req *UpdateUserRequest) (*models.User, error) {
-	user, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %v", err)
-	}
+func (s *Service) UpdateUser(id int, firstName, lastName string, imageFile *multipart.FileHeader) (*models.User, error) {
+    user, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("user not found: %v", err)
+    }
 
-	user.FirstName = req.FirstName
-	user.LastName = req.LastName
-	user.ImageURL = req.ImageURL
-	user.UpdatedAt = time.Now().UTC()
+    user.FirstName = firstName
+    user.LastName = lastName
+    user.UpdatedAt = time.Now().UTC()
 
-	if err := s.repo.Update(user); err != nil {
-		return nil, fmt.Errorf("failed to update user: %v", err)
-	}
+    if imageFile != nil {
+        s3Handler, err := storage.NewS3Handler()
+        if err != nil {
+            return nil, fmt.Errorf("failed to initialize storage: %v", err)
+        }
 
-	return s.repo.GetByID(id)
+        imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("users/%d", id))
+        if err != nil {
+            return nil, fmt.Errorf("failed to upload image: %v", err)
+        }
+        user.ImageURL = imageURL
+    }
+
+    if err := s.repo.Update(user); err != nil {
+        return nil, fmt.Errorf("failed to update user: %v", err)
+    }
+
+    return s.repo.GetByID(id)
 }
 
 func (s *Service) DeleteUser(id int) error {
