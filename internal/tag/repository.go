@@ -10,36 +10,50 @@ import (
 )
 
 type Repository struct {
-	db *sql.DB
+    db *sql.DB
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+    return &Repository{db: db}
 }
 
 func (r *Repository) Create(tag *models.Tag) error {
-	query := `
+    query := `
         INSERT INTO tag (name, colour, created_at, updated_at)
         VALUES ($1, $2, $3, $4)
         RETURNING id`
 
-	err := r.db.QueryRow(
-		query,
-		tag.Name,
-		tag.Colour,
-		tag.CreatedAt,
-		tag.UpdatedAt,
-	).Scan(&tag.ID)
+    err := r.db.QueryRow(
+        query,
+        tag.Name,
+        tag.Colour,
+        tag.CreatedAt,
+        tag.UpdatedAt,
+    ).Scan(&tag.ID)
 
-	if err != nil {
-		return fmt.Errorf("error creating tag: %v", err)
-	}
+    if err != nil {
+        return fmt.Errorf("error creating tag: %v", err)
+    }
 
-	return nil
+    return nil
 }
 
 func (r *Repository) GetByID(id int) (*models.Tag, error) {
     query := `
+        WITH item_images AS (
+            SELECT item_id,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'id', id,
+                           'url', url,
+                           'displayOrder', display_order,
+                           'createdAt', created_at AT TIME ZONE 'UTC',
+                           'updatedAt', updated_at AT TIME ZONE 'UTC'
+                       ) ORDER BY display_order
+                   ) as images
+            FROM item_image
+            GROUP BY item_id
+        )
         SELECT t.id, t.name, t.colour, t.created_at, t.updated_at,
                COALESCE(
                    jsonb_agg(
@@ -47,7 +61,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                            'id', i.id,
                            'name', i.name,
                            'description', i.description,
-                           'imageUrl', i.image_url,
+                           'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
                            'container', COALESCE(
@@ -91,6 +105,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
         WHERE t.id = $1
         GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at`
@@ -120,6 +135,20 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
 
 func (r *Repository) GetAll() ([]*models.Tag, error) {
     query := `
+        WITH item_images AS (
+            SELECT item_id,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'id', id,
+                           'url', url,
+                           'displayOrder', display_order,
+                           'createdAt', created_at AT TIME ZONE 'UTC',
+                           'updatedAt', updated_at AT TIME ZONE 'UTC'
+                       ) ORDER BY display_order
+                   ) as images
+            FROM item_image
+            GROUP BY item_id
+        )
         SELECT t.id, t.name, COALESCE(t.colour, '') as colour, 
                t.created_at, t.updated_at,
                COALESCE(
@@ -128,7 +157,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                            'id', i.id,
                            'name', i.name,
                            'description', i.description,
-                           'imageUrl', i.image_url,
+                           'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
                            'container', COALESCE(
@@ -172,6 +201,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
         GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at
         ORDER BY t.name ASC`
@@ -207,49 +237,49 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
 }
 
 func (r *Repository) Update(tag *models.Tag) error {
-	query := `
+    query := `
         UPDATE tag
         SET name = $2, colour = $3, updated_at = $4
         WHERE id = $1`
 
-	result, err := r.db.Exec(
-		query,
-		tag.ID,
-		tag.Name,
-		tag.Colour,
-		time.Now().UTC(),
-	)
-	if err != nil {
-		return fmt.Errorf("error updating tag: %v", err)
-	}
+    result, err := r.db.Exec(
+        query,
+        tag.ID,
+        tag.Name,
+        tag.Colour,
+        time.Now().UTC(),
+    )
+    if err != nil {
+        return fmt.Errorf("error updating tag: %v", err)
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking update result: %v", err)
-	}
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking update result: %v", err)
+    }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("tag not found")
-	}
+    if rowsAffected == 0 {
+        return fmt.Errorf("tag not found")
+    }
 
-	return nil
+    return nil
 }
 
 func (r *Repository) Delete(id int) error {
-	query := `DELETE FROM tag WHERE id = $1`
-	result, err := r.db.Exec(query, id)
-	if err != nil {
-		return fmt.Errorf("error deleting tag: %v", err)
-	}
+    query := `DELETE FROM tag WHERE id = $1`
+    result, err := r.db.Exec(query, id)
+    if err != nil {
+        return fmt.Errorf("error deleting tag: %v", err)
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking delete result: %v", err)
-	}
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking delete result: %v", err)
+    }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("tag not found")
-	}
+    if rowsAffected == 0 {
+        return fmt.Errorf("tag not found")
+    }
 
-	return nil
+    return nil
 }
