@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -116,12 +117,21 @@ func (h *Handler) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
     }
 
     if err := r.ParseMultipartForm(10 << 20); err != nil {
-        writeError(w, http.StatusBadRequest, "failed to parse form")
+        writeError(w, http.StatusBadRequest, fmt.Sprintf("failed to parse form: %v", err))
         return
     }
 
     firstName := r.FormValue("firstName")
+    if firstName == "" {
+        writeError(w, http.StatusBadRequest, "firstName is required")
+        return
+    }
+
     lastName := r.FormValue("lastName")
+    if lastName == "" {
+        writeError(w, http.StatusBadRequest, "lastName is required")
+        return
+    }
 
     var imageFile *multipart.FileHeader
     if file, header, err := r.FormFile("image"); err == nil {
