@@ -304,8 +304,8 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
                            jsonb_build_object(
                                'url', url,
                                'displayOrder', display_order,
-                               'createdAt', created_at,
-                               'updatedAt', updated_at
+                               'createdAt', created_at AT TIME ZONE 'UTC',
+                               'updatedAt', updated_at AT TIME ZONE 'UTC'
                            ) ORDER BY display_order
                        ) as images
                 FROM item_image
