@@ -103,8 +103,8 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
                        jsonb_build_object(
                            'url', url,
                            'displayOrder', display_order,
-                           'createdAt', created_at,
-                           'updatedAt', updated_at
+                           'createdAt', created_at AT TIME ZONE 'UTC',
+                           'updatedAt', updated_at AT TIME ZONE 'UTC'
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
@@ -201,8 +201,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
                            jsonb_build_object(
                                'url', url,
                                'displayOrder', display_order,
-                               'createdAt', created_at,
-                               'updatedAt', updated_at
+                               'createdAt', created_at AT TIME ZONE 'UTC',
+                               'updatedAt', updated_at AT TIME ZONE 'UTC'
                            ) ORDER BY display_order
                        ) as images
                 FROM item_image
