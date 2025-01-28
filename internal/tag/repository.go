@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/chrisabs/storage/internal/models"
 )
@@ -47,10 +46,10 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                            'id', id,
                            'url', url,
                            'displayOrder', display_order,
-                           'createdAt', created_at AT TIME ZONE 'UTC',
-                           'updatedAt', updated_at AT TIME ZONE 'UTC'
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
                        ) ORDER BY display_order
-                   ) as images
+                   ) FILTER (WHERE id IS NOT NULL) as images
             FROM item_image
             GROUP BY item_id
         )
@@ -74,13 +73,13 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                                    'location', c.location,
                                    'userId', c.user_id,
                                    'workspaceId', c.workspace_id,
-                                   'createdAt', c.created_at AT TIME ZONE 'UTC',
-                                   'updatedAt', c.updated_at AT TIME ZONE 'UTC'
+                                   'createdAt', c.created_at,
+                                   'updatedAt', c.updated_at
                                ),
                                null
                            ),
-                           'createdAt', i.created_at AT TIME ZONE 'UTC',
-                           'updatedAt', i.updated_at AT TIME ZONE 'UTC',
+                           'createdAt', i.created_at,
+                           'updatedAt', i.updated_at,
                            'tags', COALESCE(
                                (
                                    SELECT jsonb_agg(
@@ -88,8 +87,8 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                                            'id', it_tags.id,
                                            'name', it_tags.name,
                                            'colour', it_tags.colour,
-                                           'createdAt', it_tags.created_at AT TIME ZONE 'UTC',
-                                           'updatedAt', it_tags.updated_at AT TIME ZONE 'UTC'
+                                           'createdAt', it_tags.created_at,
+                                           'updatedAt', it_tags.updated_at
                                        )
                                    )
                                    FROM tag it_tags
@@ -142,8 +141,8 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                            'id', id,
                            'url', url,
                            'displayOrder', display_order,
-                           'createdAt', created_at AT TIME ZONE 'UTC',
-                           'updatedAt', updated_at AT TIME ZONE 'UTC'
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
@@ -170,13 +169,13 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                                    'location', c.location,
                                    'userId', c.user_id,
                                    'workspaceId', c.workspace_id,
-                                   'createdAt', c.created_at AT TIME ZONE 'UTC',
-                                   'updatedAt', c.updated_at AT TIME ZONE 'UTC'
+                                   'createdAt', c.created_at,
+                                   'updatedAt', c.updated_at
                                ),
                                null
                            ),
-                           'createdAt', i.created_at AT TIME ZONE 'UTC',
-                           'updatedAt', i.updated_at AT TIME ZONE 'UTC',
+                           'createdAt', i.created_at,
+                           'updatedAt', i.updated_at,
                            'tags', COALESCE(
                                (
                                    SELECT jsonb_agg(
@@ -184,8 +183,8 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                                            'id', it_tags.id,
                                            'name', it_tags.name,
                                            'colour', it_tags.colour,
-                                           'createdAt', it_tags.created_at AT TIME ZONE 'UTC',
-                                           'updatedAt', it_tags.updated_at AT TIME ZONE 'UTC'
+                                           'createdAt', it_tags.created_at,
+                                           'updatedAt', it_tags.updated_at
                                        )
                                    )
                                    FROM tag it_tags
@@ -239,27 +238,21 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
 func (r *Repository) Update(tag *models.Tag) error {
     query := `
         UPDATE tag
-        SET name = $2, colour = $3, updated_at = $4
-        WHERE id = $1`
-
-    result, err := r.db.Exec(
+        SET name = $2, 
+            colour = $3, 
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING updated_at`
+        
+    err := r.db.QueryRow(
         query,
         tag.ID,
         tag.Name,
         tag.Colour,
-        time.Now().UTC(),
-    )
+    ).Scan(&tag.UpdatedAt)
+
     if err != nil {
         return fmt.Errorf("error updating tag: %v", err)
-    }
-
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return fmt.Errorf("error checking update result: %v", err)
-    }
-
-    if rowsAffected == 0 {
-        return fmt.Errorf("tag not found")
     }
 
     return nil

@@ -103,8 +103,8 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
                        jsonb_build_object(
                            'url', url,
                            'displayOrder', display_order,
-                           'createdAt', created_at AT TIME ZONE 'UTC',
-                           'updatedAt', updated_at AT TIME ZONE 'UTC'
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
@@ -119,8 +119,8 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
                            'id', t.id,
                            'name', t.name,
                            'colour', t.colour,
-                           'createdAt', t.created_at AT TIME ZONE 'UTC',
-                           'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                           'createdAt', t.created_at,
+                           'updatedAt', t.updated_at 
                        )
                    ) FILTER (WHERE t.id IS NOT NULL),
                    '[]'
@@ -201,8 +201,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
                            jsonb_build_object(
                                'url', url,
                                'displayOrder', display_order,
-                               'createdAt', created_at AT TIME ZONE 'UTC',
-                               'updatedAt', updated_at AT TIME ZONE 'UTC'
+                               'createdAt', created_at,
+                               'updatedAt', updated_at
                            ) ORDER BY display_order
                        ) as images
                 FROM item_image
@@ -217,8 +217,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
                                'id', t.id,
                                'name', t.name,
                                'colour', t.colour,
-                               'createdAt', t.created_at AT TIME ZONE 'UTC',
-                               'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                               'createdAt', t.created_at,
+                               'updatedAt', t.updated_at
                            )
                        ) FILTER (WHERE t.id IS NOT NULL),
                        '[]'
@@ -304,8 +304,8 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
                            jsonb_build_object(
                                'url', url,
                                'displayOrder', display_order,
-                               'createdAt', created_at AT TIME ZONE 'UTC',
-                               'updatedAt', updated_at AT TIME ZONE 'UTC'
+                               'createdAt', created_at,
+                               'updatedAt', updated_at
                            ) ORDER BY display_order
                        ) as images
                 FROM item_image
@@ -320,8 +320,8 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
                                'id', t.id,
                                'name', t.name,
                                'colour', t.colour,
-                               'createdAt', t.created_at AT TIME ZONE 'UTC',
-                               'updatedAt', t.updated_at AT TIME ZONE 'UTC'
+                               'createdAt', t.created_at,
+                               'updatedAt', t.updated_at
                            )
                        ) FILTER (WHERE t.id IS NOT NULL),
                        '[]'
