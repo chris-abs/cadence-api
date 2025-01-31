@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -12,7 +13,13 @@ type PostgresDB struct {
 }
 
 func NewPostgresDB() (*PostgresDB, error) {
-    connStr := "user=postgres dbname=postgres password=STQRAGE sslmode=disable"
+    password := os.Getenv("POSTGRES_PASSWORD")
+    
+    connStr := fmt.Sprintf(
+        "host=localhost user=postgres dbname=postgres password=%s sslmode=disable port=5432",
+        password,
+    )
+    
     db, err := sql.Open("postgres", connStr)
     if err != nil {
         return nil, fmt.Errorf("error connecting to database: %v", err)

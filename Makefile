@@ -11,7 +11,7 @@ build:
 
 run: build
 	@echo "Running..."
-	@./$(BINARY_DIR)/$(BINARY_NAME)
+	@export $$(cat .env | xargs) && ./$(BINARY_DIR)/$(BINARY_NAME)
 
 test:
 	@echo "Running tests..."
