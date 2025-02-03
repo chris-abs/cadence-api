@@ -10,49 +10,141 @@ import (
 )
 
 type Handler struct {
-	service        *Service
-	authMiddleware *middleware.AuthMiddleware
+    service        *Service
+    authMiddleware *middleware.AuthMiddleware
 }
 
 func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
-	return &Handler{
-		service:        service,
-		authMiddleware: authMiddleware,
-	}
+    return &Handler{
+        service:        service,
+        authMiddleware: authMiddleware,
+    }
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/search", h.authMiddleware.AuthHandler(h.handleSearch)).Methods("GET")
+    router.HandleFunc("/search", h.authMiddleware.AuthHandler(h.handleSearch)).Methods("GET")
+    router.HandleFunc("/search/workspaces", h.authMiddleware.AuthHandler(h.handleWorkspaceSearch)).Methods("GET")
+    router.HandleFunc("/search/containers", h.authMiddleware.AuthHandler(h.handleContainerSearch)).Methods("GET")
+    router.HandleFunc("/search/items", h.authMiddleware.AuthHandler(h.handleItemSearch)).Methods("GET")
+    router.HandleFunc("/search/tags", h.authMiddleware.AuthHandler(h.handleTagSearch)).Methods("GET")
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.Atoi(r.Header.Get("UserId"))
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
-		return
-	}
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
 
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		writeError(w, http.StatusBadRequest, "search query is required")
-		return
-	}
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeError(w, http.StatusBadRequest, "search query is required")
+        return
+    }
 
-	results, err := h.service.Search(query, userID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    results, err := h.service.Search(query, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
 
-	writeJSON(w, http.StatusOK, results)
+    writeJSON(w, http.StatusOK, results)
+}
+
+func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeError(w, http.StatusBadRequest, "search query is required")
+        return
+    }
+
+    results, err := h.service.SearchWorkspaces(query, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, results)
+}
+
+func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeError(w, http.StatusBadRequest, "search query is required")
+        return
+    }
+
+    results, err := h.service.SearchContainers(query, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, results)
+}
+
+func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeError(w, http.StatusBadRequest, "search query is required")
+        return
+    }
+
+    results, err := h.service.SearchItems(query, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, results)
+}
+
+func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    query := r.URL.Query().Get("q")
+    if query == "" {
+        writeError(w, http.StatusBadRequest, "search query is required")
+        return
+    }
+
+    results, err := h.service.SearchTags(query, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, results)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(status)
+    json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+    writeJSON(w, status, map[string]string{"error": message})
 }

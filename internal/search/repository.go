@@ -6,13 +6,14 @@ import (
 )
 
 type Repository struct {
-	db *sql.DB
+    db *sql.DB
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+    return &Repository{db: db}
 }
 
+// Original federated search remains unchanged
 func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     sqlQuery := `
         WITH workspace_matches AS (
@@ -121,4 +122,169 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     }
 
     return response, nil
+}
+
+// Entity-specific search methods
+func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
+    sqlQuery := `
+        SELECT 
+            'workspace' as type,
+            id,
+            name,
+            description,
+            ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
+                   plainto_tsquery('english', $1)) as rank
+        FROM workspace 
+        WHERE 
+            user_id = $2 AND
+            to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
+            plainto_tsquery('english', $1)
+        ORDER BY rank DESC;`
+
+    rows, err := r.db.Query(sqlQuery, query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error executing workspace search: %v", err)
+    }
+    defer rows.Close()
+
+    var results WorkspaceSearchResults
+    for rows.Next() {
+        var result SearchResult
+        err := rows.Scan(
+            &result.Type,
+            &result.ID,
+            &result.Name,
+            &result.Description,
+            &result.Rank,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning workspace search result: %v", err)
+        }
+        results = append(results, result)
+    }
+
+    return results, nil
+}
+
+func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
+    sqlQuery := `
+        SELECT 
+            'container' as type,
+            id,
+            name,
+            '' as description,
+            ts_rank(to_tsvector('english', name), plainto_tsquery('english', $1)) as rank
+        FROM container 
+        WHERE 
+            user_id = $2 AND
+            to_tsvector('english', name) @@ plainto_tsquery('english', $1)
+        ORDER BY rank DESC;`
+
+    rows, err := r.db.Query(sqlQuery, query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error executing container search: %v", err)
+    }
+    defer rows.Close()
+
+    var results ContainerSearchResults
+    for rows.Next() {
+        var result SearchResult
+        err := rows.Scan(
+            &result.Type,
+            &result.ID,
+            &result.Name,
+            &result.Description,
+            &result.Rank,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning container search result: %v", err)
+        }
+        results = append(results, result)
+    }
+
+    return results, nil
+}
+
+func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
+    sqlQuery := `
+        SELECT 
+            'item' as type,
+            i.id,
+            i.name,
+            i.description,
+            ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
+                   plainto_tsquery('english', $1)) as rank
+        FROM item i
+        LEFT JOIN container c ON i.container_id = c.id
+        WHERE 
+            (c.user_id = $2 OR i.container_id IS NULL) AND
+            to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+            plainto_tsquery('english', $1)
+        ORDER BY rank DESC;`
+
+    rows, err := r.db.Query(sqlQuery, query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error executing item search: %v", err)
+    }
+    defer rows.Close()
+
+    var results ItemSearchResults
+    for rows.Next() {
+        var result SearchResult
+        err := rows.Scan(
+            &result.Type,
+            &result.ID,
+            &result.Name,
+            &result.Description,
+            &result.Rank,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning item search result: %v", err)
+        }
+        results = append(results, result)
+    }
+
+    return results, nil
+}
+
+func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, error) {
+    sqlQuery := `
+        SELECT DISTINCT
+            'tag' as type,
+            t.id,
+            t.name,
+            '' as description,
+            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank
+        FROM tag t
+        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN container c ON i.container_id = c.id
+        WHERE 
+            (c.user_id = $2 OR i.container_id IS NULL) AND
+            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
+        ORDER BY rank DESC;`
+
+    rows, err := r.db.Query(sqlQuery, query, userID)
+    if err != nil {
+        return nil, fmt.Errorf("error executing tag search: %v", err)
+    }
+    defer rows.Close()
+
+    var results TagSearchResults
+    for rows.Next() {
+        var result SearchResult
+        err := rows.Scan(
+            &result.Type,
+            &result.ID,
+            &result.Name,
+            &result.Description,
+            &result.Rank,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning tag search result: %v", err)
+        }
+        results = append(results, result)
+    }
+
+    return results, nil
 }
