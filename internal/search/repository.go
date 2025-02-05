@@ -16,108 +16,109 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     sqlQuery := `
-   WITH workspace_matches AS (
-    SELECT 
-        'workspace' as type,
-        id,
-        name,
-        description,
-        ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
-               plainto_tsquery('english', $1)) as rank,
-        NULL as container_name,
-        name as workspace_name,
-        NULL as colour
-    FROM workspace 
-    WHERE 
-        user_id = $2 AND
-        to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
-        plainto_tsquery('english', $1)
-),
-container_matches AS (
-    SELECT 
-        'container' as type,
-        c.id,
-        c.name,
-        '' as description,
-        ts_rank(to_tsvector('english', c.name), plainto_tsquery('english', $1)) as rank,
-        NULL as container_name,
-        w.name as workspace_name,
-        NULL as colour
-    FROM container c
-    LEFT JOIN workspace w ON c.workspace_id = w.id
-    WHERE 
-        c.user_id = $2 AND
-        to_tsvector('english', c.name) @@ plainto_tsquery('english', $1)
-),
-item_matches AS (
-    SELECT 
-        'item' as type,
-        i.id,
-        i.name,
-        i.description,
-        ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
-               plainto_tsquery('english', $1)) as rank,
-        c.name as container_name,
-        w.name as workspace_name,
-        NULL as colour
-    FROM item i
-    LEFT JOIN container c ON i.container_id = c.id
-    LEFT JOIN workspace w ON c.workspace_id = w.id
-    WHERE 
-        (c.user_id = $2 OR i.container_id IS NULL) AND
-        to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
-        plainto_tsquery('english', $1)
-),
-tag_matches AS (
-    SELECT DISTINCT
-        'tag' as type,
-        t.id,
-        t.name,
-        '' as description,
-        ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
-        NULL as container_name,
-        NULL as workspace_name,
-        t.colour as colour
-    FROM tag t
-    LEFT JOIN item_tag it ON t.id = it.tag_id
-    LEFT JOIN item i ON it.item_id = i.id
-    LEFT JOIN container c ON i.container_id = c.id
-    WHERE 
-        (c.user_id = $2 OR i.container_id IS NULL) AND
-        to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
-),
-tagged_items AS (
-    SELECT DISTINCT
-        'tagged_item' as type,
-        i.id,
-        i.name,
-        i.description,
-        ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
-        c.name as container_name,
-        w.name as workspace_name,
-        NULL as colour
-    FROM item i
-    INNER JOIN item_tag it ON i.id = it.item_id
-    INNER JOIN tag t ON it.tag_id = t.id
-    LEFT JOIN container c ON i.container_id = c.id
-    LEFT JOIN workspace w ON c.workspace_id = w.id
-    WHERE 
-        (c.user_id = $2 OR i.container_id IS NULL) AND
-        to_tsvector('english', t.name) @@ plainto_tsquery('english', $1) AND
-        i.id NOT IN (SELECT id FROM item_matches)
-)
-SELECT type, id, name, description, rank, container_name, workspace_name, colour FROM (
-    SELECT * FROM workspace_matches
-    UNION ALL
-    SELECT * FROM container_matches
-    UNION ALL
-    SELECT * FROM item_matches
-    UNION ALL
-    SELECT * FROM tag_matches
-    UNION ALL
-    SELECT * FROM tagged_items
-) combined_results
-ORDER BY rank DESC;`
+    WITH workspace_matches AS (
+        SELECT 
+            'workspace' as type,
+            id,
+            name,
+            description,
+            ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
+                   plainto_tsquery('english', $1)) as rank,
+            NULL as container_name,
+            name as workspace_name,
+            NULL as colour            -- Explicitly include colour column
+        FROM workspace 
+        WHERE 
+            user_id = $2 AND
+            to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
+            plainto_tsquery('english', $1)
+    ),
+    container_matches AS (
+        SELECT 
+            'container' as type,
+            c.id,
+            c.name,
+            '' as description,
+            ts_rank(to_tsvector('english', c.name), plainto_tsquery('english', $1)) as rank,
+            NULL as container_name,
+            w.name as workspace_name,
+            NULL as colour            -- Explicitly include colour column
+        FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE 
+            c.user_id = $2 AND
+            to_tsvector('english', c.name) @@ plainto_tsquery('english', $1)
+    ),
+    item_matches AS (
+        SELECT 
+            'item' as type,
+            i.id,
+            i.name,
+            i.description,
+            ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
+                   plainto_tsquery('english', $1)) as rank,
+            c.name as container_name,
+            w.name as workspace_name,
+            NULL as colour            -- Explicitly include colour column
+        FROM item i
+        LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE 
+            (c.user_id = $2 OR i.container_id IS NULL) AND
+            to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+            plainto_tsquery('english', $1)
+    ),
+    tag_matches AS (
+        SELECT DISTINCT
+            'tag' as type,
+            t.id,
+            t.name,
+            '' as description,
+            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            NULL as container_name,
+            NULL as workspace_name,
+            t.colour                  -- Include the actual tag colour
+        FROM tag t
+        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN container c ON i.container_id = c.id
+        WHERE 
+            (c.user_id = $2 OR i.container_id IS NULL) AND
+            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
+    ),
+    tagged_items AS (
+        SELECT DISTINCT
+            'tagged_item' as type,
+            i.id,
+            i.name,
+            i.description,
+            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            c.name as container_name,
+            w.name as workspace_name,
+            NULL as colour            -- Explicitly include colour column
+        FROM item i
+        INNER JOIN item_tag it ON i.id = it.item_id
+        INNER JOIN tag t ON it.tag_id = t.id
+        LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE 
+            (c.user_id = $2 OR i.container_id IS NULL) AND
+            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1) AND
+            i.id NOT IN (SELECT id FROM item_matches)
+    )
+    SELECT type, id, name, description, rank, container_name, workspace_name, colour 
+    FROM (
+        SELECT * FROM workspace_matches
+        UNION ALL
+        SELECT * FROM container_matches
+        UNION ALL
+        SELECT * FROM item_matches
+        UNION ALL
+        SELECT * FROM tag_matches
+        UNION ALL
+        SELECT * FROM tagged_items
+    ) combined_results
+    ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
     if err != nil {
@@ -155,6 +156,10 @@ ORDER BY rank DESC;`
         }
         if workspaceName.Valid {
             result.WorkspaceName = &workspaceName.String
+        }
+
+        if colour.Valid {
+            result.Colour = &colour.String
         }
 
         switch result.Type {
