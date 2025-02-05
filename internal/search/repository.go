@@ -16,7 +16,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     sqlQuery := `
-    WITH workspace_matches AS (
+   WITH workspace_matches AS (
     SELECT 
         'workspace' as type,
         id,
@@ -25,7 +25,8 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
                plainto_tsquery('english', $1)) as rank,
         NULL as container_name,
-        name as workspace_name
+        name as workspace_name,
+        NULL as colour
     FROM workspace 
     WHERE 
         user_id = $2 AND
@@ -40,7 +41,8 @@ container_matches AS (
         '' as description,
         ts_rank(to_tsvector('english', c.name), plainto_tsquery('english', $1)) as rank,
         NULL as container_name,
-        w.name as workspace_name
+        w.name as workspace_name,
+        NULL as colour
     FROM container c
     LEFT JOIN workspace w ON c.workspace_id = w.id
     WHERE 
@@ -56,7 +58,8 @@ item_matches AS (
         ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
                plainto_tsquery('english', $1)) as rank,
         c.name as container_name,
-        w.name as workspace_name
+        w.name as workspace_name,
+        NULL as colour
     FROM item i
     LEFT JOIN container c ON i.container_id = c.id
     LEFT JOIN workspace w ON c.workspace_id = w.id
@@ -72,9 +75,9 @@ tag_matches AS (
         t.name,
         '' as description,
         ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
-        t.colour as tag_colour,
         NULL as container_name,
-        NULL as workspace_name
+        NULL as workspace_name,
+        t.colour as colour
     FROM tag t
     LEFT JOIN item_tag it ON t.id = it.tag_id
     LEFT JOIN item i ON it.item_id = i.id
@@ -91,7 +94,8 @@ tagged_items AS (
         i.description,
         ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
         c.name as container_name,
-        w.name as workspace_name
+        w.name as workspace_name,
+        NULL as colour
     FROM item i
     INNER JOIN item_tag it ON i.id = it.item_id
     INNER JOIN tag t ON it.tag_id = t.id
@@ -100,9 +104,9 @@ tagged_items AS (
     WHERE 
         (c.user_id = $2 OR i.container_id IS NULL) AND
         to_tsvector('english', t.name) @@ plainto_tsquery('english', $1) AND
-        i.id NOT IN (SELECT id FROM item_matches) -- Exclude direct matches
+        i.id NOT IN (SELECT id FROM item_matches)
 )
-SELECT type, id, name, description, rank, container_name, workspace_name FROM (
+SELECT type, id, name, description, rank, container_name, workspace_name, colour FROM (
     SELECT * FROM workspace_matches
     UNION ALL
     SELECT * FROM container_matches
@@ -131,7 +135,7 @@ ORDER BY rank DESC;`
 
     for rows.Next() {
         var result SearchResult
-        var containerName, workspaceName sql.NullString
+        var containerName, workspaceName, colour sql.NullString
         err := rows.Scan(
             &result.Type,
             &result.ID,
@@ -140,6 +144,7 @@ ORDER BY rank DESC;`
             &result.Rank,
             &containerName,
             &workspaceName,
+            &colour,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning search result: %v", err)
