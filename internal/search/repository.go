@@ -2,6 +2,7 @@ package search
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 )
 
@@ -71,6 +72,7 @@ tag_matches AS (
         t.name,
         '' as description,
         ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+        t.colour as tag_colour,
         NULL as container_name,
         NULL as workspace_name
     FROM tag t
@@ -170,17 +172,30 @@ ORDER BY rank DESC;`
 func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
     sqlQuery := `
         SELECT 
-            'workspace' as type,
-            id,
-            name,
-            description,
-            ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
-                   plainto_tsquery('english', $1)) as rank
-        FROM workspace 
+            w.*,
+            ts_rank(to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')), 
+                   plainto_tsquery('english', $1)) as rank,
+            COALESCE(json_agg(
+                DISTINCT jsonb_build_object(
+                    'id', c.id,
+                    'name', c.name,
+                    'location', c.location,
+                    'qrCode', c.qr_code,
+                    'qrCodeImage', c.qr_code_image,
+                    'number', c.number,
+                    'userId', c.user_id,
+                    'workspaceId', c.workspace_id,
+                    'createdAt', c.created_at,
+                    'updatedAt', c.updated_at
+                )
+            ) FILTER (WHERE c.id IS NOT NULL), '[]'::json) as containers
+        FROM workspace w
+        LEFT JOIN container c ON w.id = c.workspace_id
         WHERE 
-            user_id = $2 AND
-            to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
+            w.user_id = $2 AND
+            to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')) @@ 
             plainto_tsquery('english', $1)
+        GROUP BY w.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -191,39 +206,74 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
 
     var results WorkspaceSearchResults
     for rows.Next() {
-        var result SearchResult
+        var result WorkspaceSearchResult
+        var containersJSON []byte
+        
         err := rows.Scan(
-            &result.Type,
             &result.ID,
             &result.Name,
             &result.Description,
+            &result.UserID,
+            &result.CreatedAt,
+            &result.UpdatedAt,
             &result.Rank,
+            &containersJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning workspace search result: %v", err)
         }
+
+        if len(containersJSON) > 0 {
+            if err := json.Unmarshal(containersJSON, &result.Containers); err != nil {
+                return nil, fmt.Errorf("error unmarshaling containers: %v", err)
+            }
+        }
+
         results = append(results, result)
     }
 
     return results, nil
 }
 
+
 func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
     sqlQuery := `
         SELECT 
-            'container' as type,
-            c.id,
-            c.name,
-            COALESCE(c.description, '') as description,
-            ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.description, '')), 
+            c.*,
+            ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')), 
                    plainto_tsquery('english', $1)) as rank,
-            w.name as workspace_name
+            row_to_json(w.*) as workspace,
+            COALESCE(json_agg(
+                DISTINCT jsonb_build_object(
+                    'id', i.id,
+                    'name', i.name,
+                    'description', i.description,
+                    'quantity', i.quantity,
+                    'containerId', i.container_id,
+                    'createdAt', i.created_at,
+                    'updatedAt', i.updated_at,
+                    'tags', (
+                        SELECT json_agg(
+                            jsonb_build_object(
+                                'id', t.id,
+                                'name', t.name,
+                                'colour', t.colour
+                            )
+                        )
+                        FROM item_tag it
+                        JOIN tag t ON it.tag_id = t.id
+                        WHERE it.item_id = i.id
+                    )
+                )
+            ) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id 
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        LEFT JOIN item i ON c.id = i.container_id
         WHERE 
             c.user_id = $2 AND
-            to_tsvector('english', c.name || ' ' || COALESCE(c.description, '')) @@ 
+            to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')) @@ 
             plainto_tsquery('english', $1)
+        GROUP BY c.id, w.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -234,22 +284,34 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
 
     var results ContainerSearchResults
     for rows.Next() {
-        var result SearchResult
-        var workspaceName sql.NullString
+        var result ContainerSearchResult
+        var workspaceJSON, itemsJSON []byte
+
         err := rows.Scan(
-            &result.Type,
             &result.ID,
             &result.Name,
-            &result.Description,
+            &result.QRCode,
+            &result.QRCodeImage,
+            &result.Number,
+            &result.Location,
+            &result.UserID,
+            &result.WorkspaceID,
+            &result.CreatedAt,
+            &result.UpdatedAt,
             &result.Rank,
-            &workspaceName,
+            &workspaceJSON,
+            &itemsJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container search result: %v", err)
         }
-        if workspaceName.Valid {
-            result.WorkspaceName = &workspaceName.String
+
+        if len(itemsJSON) > 0 {
+            if err := json.Unmarshal(itemsJSON, &result.Items); err != nil {
+                return nil, fmt.Errorf("error unmarshaling items: %v", err)
+            }
         }
+
         results = append(results, result)
     }
 
@@ -259,19 +321,38 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
 func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
     sqlQuery := `
         SELECT 
-            'item' as type,
-            i.id,
-            i.name,
-            i.description,
+            i.*,
             ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
                    plainto_tsquery('english', $1)) as rank,
-            c.name as container_name
+            COALESCE(json_agg(
+                DISTINCT jsonb_build_object(
+                    'id', img.id,
+                    'url', img.url,
+                    'displayOrder', img.display_order,
+                    'createdAt', img.created_at,
+                    'updatedAt', img.updated_at
+                )
+            ) FILTER (WHERE img.id IS NOT NULL), '[]'::json) as images,
+            COALESCE(json_agg(
+                DISTINCT jsonb_build_object(
+                    'id', t.id,
+                    'name', t.name,
+                    'colour', t.colour,
+                    'createdAt', t.created_at,
+                    'updatedAt', t.updated_at
+                )
+            ) FILTER (WHERE t.id IS NOT NULL), '[]'::json) as tags,
+            row_to_json(c.*) as container
         FROM item i
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN item_image img ON i.id = img.item_id
+        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN tag t ON it.tag_id = t.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
             to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
             plainto_tsquery('english', $1)
+        GROUP BY i.id, c.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -282,22 +363,44 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
 
     var results ItemSearchResults
     for rows.Next() {
-        var result SearchResult
-        var containerName sql.NullString
+        var result ItemSearchResult
+        var imagesJSON, tagsJSON, containerJSON []byte
+
         err := rows.Scan(
-            &result.Type,
             &result.ID,
             &result.Name,
             &result.Description,
+            &result.Quantity,
+            &result.ContainerID,
+            &result.CreatedAt,
+            &result.UpdatedAt,
             &result.Rank,
-            &containerName,
+            &imagesJSON,
+            &tagsJSON,
+            &containerJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning item search result: %v", err)
         }
-        if containerName.Valid {
-            result.ContainerName = &containerName.String
+
+        if len(imagesJSON) > 0 {
+            if err := json.Unmarshal(imagesJSON, &result.Images); err != nil {
+                return nil, fmt.Errorf("error unmarshaling images: %v", err)
+            }
         }
+
+        if len(tagsJSON) > 0 {
+            if err := json.Unmarshal(tagsJSON, &result.Tags); err != nil {
+                return nil, fmt.Errorf("error unmarshaling tags: %v", err)
+            }
+        }
+
+        if len(containerJSON) > 0 {
+            if err := json.Unmarshal(containerJSON, &result.Container); err != nil {
+                return nil, fmt.Errorf("error unmarshaling container: %v", err)
+            }
+        }
+
         results = append(results, result)
     }
 
@@ -306,12 +409,36 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
 
 func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, error) {
     sqlQuery := `
-        SELECT DISTINCT
-            'tag' as type,
-            t.id,
-            t.name,
-            '' as description,
-            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank
+        SELECT 
+            t.*,
+            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            COALESCE(json_agg(
+                DISTINCT jsonb_build_object(
+                    'id', i.id,
+                    'name', i.name,
+                    'description', i.description,
+                    'quantity', i.quantity,
+                    'containerId', i.container_id,
+                    'createdAt', i.created_at,
+                    'updatedAt', i.updated_at,
+                    'container', (
+                        SELECT row_to_json(c.*)
+                        FROM container c
+                        WHERE c.id = i.container_id
+                    ),
+                    'images', (
+                        SELECT json_agg(
+                            jsonb_build_object(
+                                'id', img.id,
+                                'url', img.url,
+                                'displayOrder', img.display_order
+                            )
+                        )
+                        FROM item_image img
+                        WHERE img.item_id = i.id
+                    )
+                )
+            ) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
@@ -319,6 +446,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
             to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
+        GROUP BY t.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -329,17 +457,28 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
 
     var results TagSearchResults
     for rows.Next() {
-        var result SearchResult
+        var result TagSearchResult
+        var itemsJSON []byte
+
         err := rows.Scan(
-            &result.Type,
             &result.ID,
             &result.Name,
-            &result.Description,
+            &result.Colour,
+            &result.CreatedAt,
+            &result.UpdatedAt,
             &result.Rank,
+            &itemsJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning tag search result: %v", err)
         }
+
+        if len(itemsJSON) > 0 {
+            if err := json.Unmarshal(itemsJSON, &result.Items); err != nil {
+                return nil, fmt.Errorf("error unmarshaling items: %v", err)
+            }
+        }
+
         results = append(results, result)
     }
 
