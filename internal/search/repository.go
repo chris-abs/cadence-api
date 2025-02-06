@@ -22,16 +22,26 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             id,
             name,
             description,
-            ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
-                   plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN name ILIKE $1 THEN 1.0
+                WHEN name ILIKE $1 || '%' THEN 0.8
+                WHEN name ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', name || ' ' || COALESCE(description, '')), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             NULL as container_name,
             name as workspace_name,
-            NULL as colour            -- Explicitly include colour column
+            NULL as colour
         FROM workspace 
         WHERE 
             user_id = $2 AND
-            to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
-            plainto_tsquery('english', $1)
+            (
+                name ILIKE $1 OR
+                name ILIKE $1 || '%' OR
+                name ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
+                websearch_to_tsquery('english', $1)
+            )
     ),
     container_matches AS (
         SELECT 
@@ -39,15 +49,26 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             c.id,
             c.name,
             '' as description,
-            ts_rank(to_tsvector('english', c.name), plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN c.name ILIKE $1 THEN 1.0
+                WHEN c.name ILIKE $1 || '%' THEN 0.8
+                WHEN c.name ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', c.name), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             NULL as container_name,
             w.name as workspace_name,
-            NULL as colour            -- Explicitly include colour column
+            NULL as colour
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
             c.user_id = $2 AND
-            to_tsvector('english', c.name) @@ plainto_tsquery('english', $1)
+            (
+                c.name ILIKE $1 OR
+                c.name ILIKE $1 || '%' OR
+                c.name ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', c.name) @@ websearch_to_tsquery('english', $1)
+            )
     ),
     item_matches AS (
         SELECT 
@@ -55,18 +76,29 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             i.id,
             i.name,
             i.description,
-            ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
-                   plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN i.name ILIKE $1 THEN 1.0
+                WHEN i.name ILIKE $1 || '%' THEN 0.8
+                WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             c.name as container_name,
             w.name as workspace_name,
-            NULL as colour            -- Explicitly include colour column
+            NULL as colour
         FROM item i
         LEFT JOIN container c ON i.container_id = c.id
         LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
-            to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
-            plainto_tsquery('english', $1)
+            (
+                i.name ILIKE $1 OR
+                i.name ILIKE $1 || '%' OR
+                i.name ILIKE '%' || $1 || '%' OR
+                i.description ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+                websearch_to_tsquery('english', $1)
+            )
     ),
     tag_matches AS (
         SELECT DISTINCT
@@ -74,17 +106,28 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             t.id,
             t.name,
             '' as description,
-            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN t.name ILIKE $1 THEN 1.0
+                WHEN t.name ILIKE $1 || '%' THEN 0.8
+                WHEN t.name ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             NULL as container_name,
             NULL as workspace_name,
-            t.colour                  -- Include the actual tag colour
+            t.colour
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
         LEFT JOIN container c ON i.container_id = c.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
-            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
+            (
+                t.name ILIKE $1 OR
+                t.name ILIKE $1 || '%' OR
+                t.name ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+            )
     ),
     tagged_items AS (
         SELECT DISTINCT
@@ -92,10 +135,11 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             i.id,
             i.name,
             i.description,
-            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            COALESCE(ts_rank(to_tsvector('english', t.name), 
+                websearch_to_tsquery('english', $1)), 0.0) as rank,
             c.name as container_name,
             w.name as workspace_name,
-            NULL as colour            -- Explicitly include colour column
+            NULL as colour
         FROM item i
         INNER JOIN item_tag it ON i.id = it.item_id
         INNER JOIN tag t ON it.tag_id = t.id
@@ -103,7 +147,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
-            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1) AND
+            t.name ILIKE '%' || $1 || '%' AND
             i.id NOT IN (SELECT id FROM item_matches)
     )
     SELECT type, id, name, description, rank, container_name, workspace_name, colour 
