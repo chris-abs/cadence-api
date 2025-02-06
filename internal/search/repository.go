@@ -129,27 +129,37 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
                 to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
             )
     ),
-    tagged_items AS (
-        SELECT DISTINCT
-            'tagged_item' as type,
-            i.id,
-            i.name,
-            i.description,
-            COALESCE(ts_rank(to_tsvector('english', t.name), 
-                websearch_to_tsquery('english', $1)), 0.0) as rank,
-            c.name as container_name,
-            w.name as workspace_name,
-            NULL as colour
-        FROM item i
-        INNER JOIN item_tag it ON i.id = it.item_id
-        INNER JOIN tag t ON it.tag_id = t.id
-        LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE 
-            (c.user_id = $2 OR i.container_id IS NULL) AND
-            t.name ILIKE '%' || $1 || '%' AND
-            i.id NOT IN (SELECT id FROM item_matches)
-    )
+   tagged_items AS (
+    SELECT DISTINCT
+        'tagged_item' as type,
+        i.id,
+        i.name,
+        i.description,
+        CASE
+            WHEN t.name ILIKE $1 THEN 0.9  -- Slightly lower than direct item matches
+            WHEN t.name ILIKE $1 || '%' THEN 0.7
+            WHEN t.name ILIKE '%' || $1 || '%' THEN 0.5
+            ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
+                websearch_to_tsquery('english', $1)), 0.0)
+        END as rank,
+        c.name as container_name,
+        w.name as workspace_name,
+        NULL as colour
+    FROM item i
+    INNER JOIN item_tag it ON i.id = it.item_id
+    INNER JOIN tag t ON it.tag_id = t.id
+    LEFT JOIN container c ON i.container_id = c.id
+    LEFT JOIN workspace w ON c.workspace_id = w.id
+    WHERE 
+        (c.user_id = $2 OR i.container_id IS NULL) AND
+        (
+            t.name ILIKE $1 OR
+            t.name ILIKE $1 || '%' OR
+            t.name ILIKE '%' || $1 || '%' OR
+            to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+        ) AND
+        i.id NOT IN (SELECT id FROM item_matches)
+)
     SELECT type, id, name, description, rank, container_name, workspace_name, colour 
     FROM (
         SELECT * FROM workspace_matches
