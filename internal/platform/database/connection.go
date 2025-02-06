@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/lib/pq"
+	"github.com/chrisabs/storage/internal/platform/database/migrations"
 )
 
 type PostgresDB struct {
     *sql.DB
+    migrationsManager *migrations.Manager
 }
 
 func NewPostgresDB() (*PostgresDB, error) {
@@ -29,5 +30,8 @@ func NewPostgresDB() (*PostgresDB, error) {
         return nil, fmt.Errorf("error pinging database: %v", err)
     }
 
-    return &PostgresDB{DB: db}, nil
+    postgresDB := &PostgresDB{DB: db}
+    postgresDB.migrationsManager = migrations.NewManager(db)
+
+    return postgresDB, nil
 }

@@ -1,14 +1,14 @@
-package database
+package migrations
 
-import "fmt"
+import (
+	"database/sql"
+	"fmt"
+)
 
-func (db *PostgresDB) MigrateItemImages() error {
-    tx, err := db.Begin()
-    if err != nil {
-        return fmt.Errorf("failed to start transaction: %v", err)
-    }
-    defer tx.Rollback()
+const MigrationItemImages = "001_item_images"
 
+func MigrateItemImages(tx *sql.Tx) error {
+    // Create the new table
     createTableQuery := `
         CREATE TABLE IF NOT EXISTS item_image (
             id SERIAL PRIMARY KEY,
@@ -26,6 +26,7 @@ func (db *PostgresDB) MigrateItemImages() error {
         return fmt.Errorf("failed to create item_image table: %v", err)
     }
 
+    // Migrate existing data
     migrateDataQuery := `
         INSERT INTO item_image (item_id, url, display_order)
         SELECT id, image_url, 0
@@ -36,10 +37,11 @@ func (db *PostgresDB) MigrateItemImages() error {
         return fmt.Errorf("failed to migrate existing images: %v", err)
     }
 
+    // Clean up old column
     dropColumnQuery := `ALTER TABLE item DROP COLUMN IF EXISTS image_url;`
     if _, err := tx.Exec(dropColumnQuery); err != nil {
         return fmt.Errorf("failed to drop image_url column: %v", err)
     }
 
-    return tx.Commit()
+    return nil
 }
