@@ -11,10 +11,11 @@ func (db *PostgresDB) Init() error {
         return fmt.Errorf("schema initialization failed: %v", err)
     }
 
-    db.migrationsManager.EnableMigration("002_search_indexes")
-    if err := db.migrationsManager.Run(); err != nil {
-        return fmt.Errorf("migrations failed: %v", err)
-    }
+    // db.migrationsManager.EnableMigration("002_search_indexes")
+    // fmt.Println("Running data migration...")
+    // if err := db.migrationsManager.Run(); err != nil {
+    //     return fmt.Errorf("migrations failed: %v", err)
+    // }
 
     // UNCOMMENTING WILL DROP ALL TABLES IN DEV
     // if err := development.DropAllTables(db.DB); err != nil {
@@ -25,18 +26,23 @@ func (db *PostgresDB) Init() error {
 }
 
 func (db *PostgresDB) initializeSchema() error {
+
+    fmt.Println("Ensuring users table exists...")
     if err := db.createUsersTable(); err != nil {
         return err
     }
 
+    fmt.Println("Ensuring workspace table exists...")
     if err := db.createWorkspaceTable(); err != nil {
         return err
     }
 
+    fmt.Println("Ensuring container table exists...")
     if err := db.createContainerTable(); err != nil {
         return err
     }
 
+    fmt.Println("Ensuring item table exists...")
     if err := db.createItemTables(); err != nil {
         return err
     }
