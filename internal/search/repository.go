@@ -227,8 +227,13 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
     sqlQuery := `
         SELECT 
             w.*,
-            ts_rank(to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')), 
-                   plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN w.name ILIKE $1 THEN 1.0
+                WHEN w.name ILIKE $1 || '%' THEN 0.8
+                WHEN w.name ILIKE '%' || $1 || '%' OR w.description ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             COALESCE(json_agg(
                 DISTINCT jsonb_build_object(
                     'id', c.id,
@@ -247,8 +252,14 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
         LEFT JOIN container c ON w.id = c.workspace_id
         WHERE 
             w.user_id = $2 AND
-            to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')) @@ 
-            plainto_tsquery('english', $1)
+            (
+                w.name ILIKE $1 OR
+                w.name ILIKE $1 || '%' OR
+                w.name ILIKE '%' || $1 || '%' OR
+                w.description ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')) @@ 
+                websearch_to_tsquery('english', $1)
+            )
         GROUP BY w.id
         ORDER BY rank DESC;`
 
@@ -289,14 +300,18 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
     return results, nil
 }
 
-
 func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
     sqlQuery := `
         SELECT 
             c.*,
-            ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')), 
-                   plainto_tsquery('english', $1)) as rank,
-            row_to_json(w.*) as workspace,
+            CASE
+                WHEN c.name ILIKE $1 THEN 1.0
+                WHEN c.name ILIKE $1 || '%' THEN 0.8
+                WHEN c.name ILIKE '%' || $1 || '%' OR c.location ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
+            w.name as workspace_name,
             COALESCE(json_agg(
                 DISTINCT jsonb_build_object(
                     'id', i.id,
@@ -325,8 +340,14 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
         LEFT JOIN item i ON c.id = i.container_id
         WHERE 
             c.user_id = $2 AND
-            to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')) @@ 
-            plainto_tsquery('english', $1)
+            (
+                c.name ILIKE $1 OR
+                c.name ILIKE $1 || '%' OR
+                c.name ILIKE '%' || $1 || '%' OR
+                c.location ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')) @@ 
+                websearch_to_tsquery('english', $1)
+            )
         GROUP BY c.id, w.id
         ORDER BY rank DESC;`
 
@@ -339,7 +360,8 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
     var results ContainerSearchResults
     for rows.Next() {
         var result ContainerSearchResult
-        var workspaceJSON, itemsJSON []byte
+        var workspaceName sql.NullString
+        var itemsJSON []byte
 
         err := rows.Scan(
             &result.ID,
@@ -353,7 +375,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
-            &workspaceJSON,
+            &workspaceName,
             &itemsJSON,
         )
         if err != nil {
@@ -376,24 +398,25 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
     sqlQuery := `
         SELECT 
             i.*,
-            ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
-                   plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN i.name ILIKE $1 THEN 1.0
+                WHEN i.name ILIKE $1 || '%' THEN 0.8
+                WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             COALESCE(json_agg(
                 DISTINCT jsonb_build_object(
                     'id', img.id,
                     'url', img.url,
-                    'displayOrder', img.display_order,
-                    'createdAt', img.created_at,
-                    'updatedAt', img.updated_at
+                    'displayOrder', img.display_order
                 )
             ) FILTER (WHERE img.id IS NOT NULL), '[]'::json) as images,
             COALESCE(json_agg(
                 DISTINCT jsonb_build_object(
                     'id', t.id,
                     'name', t.name,
-                    'colour', t.colour,
-                    'createdAt', t.created_at,
-                    'updatedAt', t.updated_at
+                    'colour', t.colour
                 )
             ) FILTER (WHERE t.id IS NOT NULL), '[]'::json) as tags,
             row_to_json(c.*) as container
@@ -404,8 +427,14 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
-            to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
-            plainto_tsquery('english', $1)
+            (
+                i.name ILIKE $1 OR
+                i.name ILIKE $1 || '%' OR
+                i.name ILIKE '%' || $1 || '%' OR
+                i.description ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+                websearch_to_tsquery('english', $1)
+            )
         GROUP BY i.id, c.id
         ORDER BY rank DESC;`
 
@@ -465,7 +494,13 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
     sqlQuery := `
         SELECT 
             t.*,
-            ts_rank(to_tsvector('english', t.name), plainto_tsquery('english', $1)) as rank,
+            CASE
+                WHEN t.name ILIKE $1 THEN 1.0
+                WHEN t.name ILIKE $1 || '%' THEN 0.8
+                WHEN t.name ILIKE '%' || $1 || '%' THEN 0.6
+                ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
             COALESCE(json_agg(
                 DISTINCT jsonb_build_object(
                     'id', i.id,
@@ -473,23 +508,10 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                     'description', i.description,
                     'quantity', i.quantity,
                     'containerId', i.container_id,
-                    'createdAt', i.created_at,
-                    'updatedAt', i.updated_at,
                     'container', (
                         SELECT row_to_json(c.*)
                         FROM container c
                         WHERE c.id = i.container_id
-                    ),
-                    'images', (
-                        SELECT json_agg(
-                            jsonb_build_object(
-                                'id', img.id,
-                                'url', img.url,
-                                'displayOrder', img.display_order
-                            )
-                        )
-                        FROM item_image img
-                        WHERE img.item_id = i.id
                     )
                 )
             ) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
@@ -499,7 +521,12 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         LEFT JOIN container c ON i.container_id = c.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
-            to_tsvector('english', t.name) @@ plainto_tsquery('english', $1)
+            (
+                t.name ILIKE $1 OR
+                t.name ILIKE $1 || '%' OR
+                t.name ILIKE '%' || $1 || '%' OR
+                to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+            )
         GROUP BY t.id
         ORDER BY rank DESC;`
 
