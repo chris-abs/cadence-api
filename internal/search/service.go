@@ -1,6 +1,10 @@
 package search
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/chrisabs/storage/internal/models"
+)
 
 type Service struct {
     repo *Repository
@@ -75,4 +79,17 @@ func (s *Service) SearchTags(query string, userID int) (TagSearchResults, error)
     }
 
     return results, nil
+}
+
+func (s *Service) FindContainerByQR(qrCode string, userID int) (*models.Container, error) {
+    if qrCode == "" {
+        return nil, fmt.Errorf("QR code cannot be empty")
+    }
+
+    container, err := s.repo.FindContainerByQR(qrCode, userID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to find container: %v", err)
+    }
+
+    return container, nil
 }

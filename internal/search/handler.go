@@ -27,6 +27,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/search/containers", h.authMiddleware.AuthHandler(h.handleContainerSearch)).Methods("GET")
     router.HandleFunc("/search/items", h.authMiddleware.AuthHandler(h.handleItemSearch)).Methods("GET")
     router.HandleFunc("/search/tags", h.authMiddleware.AuthHandler(h.handleTagSearch)).Methods("GET")
+
+    router.HandleFunc("/search/containers/qr/{code}", h.authMiddleware.AuthHandler(h.handleContainerQRSearch)).Methods("GET")
+
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +140,28 @@ func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
     }
 
     writeJSON(w, http.StatusOK, results)
+}
+
+func (h *Handler) handleContainerQRSearch(w http.ResponseWriter, r *http.Request) {
+    userID, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    qrCode := mux.Vars(r)["code"]
+    if qrCode == "" {
+        writeError(w, http.StatusBadRequest, "QR code is required")
+        return
+    }
+
+    container, err := h.service.FindContainerByQR(qrCode, userID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, container)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

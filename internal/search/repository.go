@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
+	"github.com/chrisabs/storage/internal/models"
 )
 
 type Repository struct {
@@ -574,4 +576,39 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
     }
 
     return results, nil
+}
+
+func (r *Repository) FindContainerByQR(qrCode string, userID int) (*models.Container, error) {
+    query := `
+        SELECT c.*, w.name as workspace_name
+        FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE c.qr_code = $1 AND c.user_id = $2
+        LIMIT 1`
+
+    var container models.Container
+    var workspaceName sql.NullString
+    
+    err := r.db.QueryRow(query, qrCode, userID).Scan(
+        &container.ID,
+        &container.Name,
+        &container.QRCode,
+        &container.QRCodeImage,
+        &container.Number,
+        &container.Location,
+        &container.UserID,
+        &container.WorkspaceID,
+        &container.CreatedAt,
+        &container.UpdatedAt,
+        &workspaceName,
+    )
+
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("container not found")
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error finding container: %v", err)
+    }
+
+    return &container, nil
 }
