@@ -105,6 +105,18 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
                         'location', c.location,
                         'userId', c.user_id,
                         'workspaceId', c.workspace_id,
+                        'workspace', CASE 
+                            WHEN w.id IS NOT NULL THEN
+                                jsonb_build_object(
+                                    'id', w.id,
+                                    'name', w.name,
+                                    'description', w.description,
+                                    'userId', w.user_id,
+                                    'createdAt', w.created_at,
+                                    'updatedAt', w.updated_at
+                                )
+                            ELSE null
+                        END,
                         'createdAt', c.created_at,
                         'updatedAt', c.updated_at
                     ),
@@ -125,6 +137,7 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
         FROM item i
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE i.id = $1
@@ -132,7 +145,8 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
                  i.container_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.workspace_id, c.created_at, c.updated_at`
+                 c.user_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at`
 
     item := new(models.Item)
     var imagesJSON, containerJSON, tagsJSON []byte
@@ -195,6 +209,18 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                         'location', c.location,
                         'userId', c.user_id,
                         'workspaceId', c.workspace_id,
+                        'workspace', CASE 
+                            WHEN w.id IS NOT NULL THEN
+                                jsonb_build_object(
+                                    'id', w.id,
+                                    'name', w.name,
+                                    'description', w.description,
+                                    'userId', w.user_id,
+                                    'createdAt', w.created_at,
+                                    'updatedAt', w.updated_at
+                                )
+                            ELSE null
+                        END,
                         'createdAt', c.created_at,
                         'updatedAt', c.updated_at
                     ),
@@ -215,6 +241,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
         FROM item i
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         LEFT JOIN item_tag it ON i.id = it.item_id
         LEFT JOIN tag t ON it.tag_id = t.id
         WHERE c.user_id = $1 OR c.user_id IS NULL
@@ -222,7 +249,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                  i.container_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.workspace_id, c.created_at, c.updated_at
+                 c.user_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         ORDER BY i.created_at DESC`
 
     rows, err := r.db.Query(query, userID)
