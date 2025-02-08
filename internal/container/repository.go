@@ -78,15 +78,22 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 func (r *Repository) GetByID(id int) (*models.Container, error) {
     containerQuery := `
         SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at
+               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE c.id = $1`
 
     container := new(models.Container)
+    var workspaceID sql.NullInt64
+    var workspace models.Workspace
+
     err := r.db.QueryRow(containerQuery, id).Scan(
         &container.ID, &container.Name, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+        &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
+        &workspace.ID, &workspace.Name, &workspace.Description,
+        &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -94,6 +101,12 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
     }
     if err != nil {
         return nil, err
+    }
+
+    if workspaceID.Valid {
+        wsID := int(workspaceID.Int64)
+        container.WorkspaceID = &wsID
+        container.Workspace = &workspace
     }
 
     itemsQuery := `
@@ -170,11 +183,13 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 
 func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
     query := `
-        SELECT id, name, qr_code, qr_code_image, number, location, 
-               user_id, workspace_id, created_at, updated_at 
-        FROM container
-        WHERE user_id = $1
-        ORDER BY created_at DESC`
+        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+        FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE c.user_id = $1
+        ORDER BY c.created_at DESC`
 
     rows, err := r.db.Query(query, userID)
     if err != nil {
@@ -185,13 +200,24 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
     var containers []*models.Container
     for rows.Next() {
         container := new(models.Container)
+        var workspaceID sql.NullInt64
+        var workspace models.Workspace
+
         err := rows.Scan(
             &container.ID, &container.Name, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
-            &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+            &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
+            &workspace.ID, &workspace.Name, &workspace.Description,
+            &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container: %v", err)
+        }
+
+        if workspaceID.Valid {
+            wsID := int(workspaceID.Int64)
+            container.WorkspaceID = &wsID
+            container.Workspace = &workspace
         }
 
         itemsQuery := `
@@ -277,16 +303,23 @@ func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
 
 func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models.Container, error) {
     query := `
-        SELECT id, name, qr_code, qr_code_image, number, location, 
-               user_id, workspace_id, created_at, updated_at 
-        FROM container
-        WHERE qr_code = $1`
+        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+        FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id
+        WHERE c.qr_code = $1`
 
     container := new(models.Container)
+    var workspaceID sql.NullInt64
+    var workspace models.Workspace
+
     err := r.db.QueryRow(query, qrCode).Scan(
         &container.ID, &container.Name, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.WorkspaceID, &container.CreatedAt, &container.UpdatedAt,
+        &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
+        &workspace.ID, &workspace.Name, &workspace.Description,
+        &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -294,6 +327,12 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
     }
     if err != nil {
         return nil, err
+    }
+
+    if workspaceID.Valid {
+        wsID := int(workspaceID.Int64)
+        container.WorkspaceID = &wsID
+        container.Workspace = &workspace
     }
 
     if includeItems {
@@ -379,8 +418,6 @@ func (r *Repository) Update(container *models.Container) error {
     var workspaceID sql.NullInt64
     if container.WorkspaceID != nil {
         workspaceID = sql.NullInt64{Int64: int64(*container.WorkspaceID), Valid: true}
-    } else {
-        workspaceID = sql.NullInt64{Valid: false}
     }
 
     result, err := r.db.Exec(
@@ -408,8 +445,37 @@ func (r *Repository) Update(container *models.Container) error {
 }
 
 func (r *Repository) Delete(id int) error {
-    query := `DELETE FROM container WHERE id = $1`
-    result, err := r.db.Exec(query, id)
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    // Update items to remove container references
+    itemQuery := `
+        UPDATE item 
+        SET container_id = NULL, updated_at = $2
+        WHERE container_id = $1`
+
+    _, err = tx.Exec(itemQuery, id, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error updating items: %v", err)
+    }
+
+    // Remove workspace reference from container before deletion
+    workspaceQuery := `
+        UPDATE container
+        SET workspace_id = NULL, updated_at = $2
+        WHERE id = $1`
+
+    _, err = tx.Exec(workspaceQuery, id, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error removing workspace reference: %v", err)
+    }
+
+    // Delete the container
+    containerQuery := `DELETE FROM container WHERE id = $1`
+    result, err := tx.Exec(containerQuery, id)
     if err != nil {
         return fmt.Errorf("error deleting container: %v", err)
     }
@@ -423,5 +489,5 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("container not found")
     }
 
-    return nil
+    return tx.Commit()
 }

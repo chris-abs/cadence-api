@@ -271,12 +271,20 @@ func (r *Repository) Delete(id int) error {
     }
     defer tx.Rollback()
 
-    if err := r.clearWorkspaceContainers(tx, id); err != nil {
-        return err
+    // Update containers to remove workspace references
+    containerQuery := `
+        UPDATE container 
+        SET workspace_id = NULL, updated_at = $2
+        WHERE workspace_id = $1`
+
+    _, err = tx.Exec(containerQuery, id, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error updating containers: %v", err)
     }
 
-    query := `DELETE FROM workspace WHERE id = $1`
-    result, err := tx.Exec(query, id)
+    // Delete the workspace
+    workspaceQuery := `DELETE FROM workspace WHERE id = $1`
+    result, err := tx.Exec(workspaceQuery, id)
     if err != nil {
         return fmt.Errorf("error deleting workspace: %v", err)
     }
@@ -290,9 +298,5 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("workspace not found")
     }
 
-    if err := tx.Commit(); err != nil {
-        return fmt.Errorf("error committing transaction: %v", err)
-    }
-
-    return nil
+    return tx.Commit()
 }
