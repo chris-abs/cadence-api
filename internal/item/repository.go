@@ -380,10 +380,24 @@ func (r *Repository) DeleteItemImage(itemID int, url string) error {
 }
 
 func (r *Repository) Delete(id int) error {
-    query := `DELETE FROM item WHERE id = $1`
-    result, err := r.db.Exec(query, id)
+    tx, err := r.db.Begin()
     if err != nil {
-        return fmt.Errorf("error deleting item: %v", err)
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    // First remove all item-tag associations
+    itemTagQuery := `DELETE FROM item_tag WHERE tag_id = $1`
+    _, err = tx.Exec(itemTagQuery, id)
+    if err != nil {
+        return fmt.Errorf("error removing item-tag associations: %v", err)
+    }
+
+    // Then delete the tag
+    tagQuery := `DELETE FROM tag WHERE id = $1`
+    result, err := tx.Exec(tagQuery, id)
+    if err != nil {
+        return fmt.Errorf("error deleting tag: %v", err)
     }
 
     rowsAffected, err := result.RowsAffected()
@@ -392,8 +406,8 @@ func (r *Repository) Delete(id int) error {
     }
 
     if rowsAffected == 0 {
-        return fmt.Errorf("item not found")
+        return fmt.Errorf("tag not found")
     }
 
-    return nil
+    return tx.Commit()
 }

@@ -63,21 +63,34 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
-                           'container', COALESCE(
-                               jsonb_build_object(
-                                   'id', c.id,
-                                   'name', c.name,
-                                   'qrCode', c.qr_code,
-                                   'qrCodeImage', c.qr_code_image,
-                                   'number', c.number,
-                                   'location', c.location,
-                                   'userId', c.user_id,
-                                   'workspaceId', c.workspace_id,
-                                   'createdAt', c.created_at,
-                                   'updatedAt', c.updated_at
-                               ),
-                               null
-                           ),
+                           'container', CASE 
+                               WHEN c.id IS NOT NULL THEN
+                                   jsonb_build_object(
+                                       'id', c.id,
+                                       'name', c.name,
+                                       'qrCode', c.qr_code,
+                                       'qrCodeImage', c.qr_code_image,
+                                       'number', c.number,
+                                       'location', c.location,
+                                       'userId', c.user_id,
+                                       'workspaceId', c.workspace_id,
+                                       'workspace', CASE 
+                                           WHEN w.id IS NOT NULL THEN
+                                               jsonb_build_object(
+                                                   'id', w.id,
+                                                   'name', w.name,
+                                                   'description', w.description,
+                                                   'userId', w.user_id,
+                                                   'createdAt', w.created_at,
+                                                   'updatedAt', w.updated_at
+                                               )
+                                           ELSE null
+                                       END,
+                                       'createdAt', c.created_at,
+                                       'updatedAt', c.updated_at
+                                   )
+                               ELSE null
+                           END,
                            'createdAt', i.created_at,
                            'updatedAt', i.updated_at,
                            'tags', COALESCE(
@@ -106,6 +119,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
         LEFT JOIN item i ON it.item_id = i.id
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE t.id = $1
         GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at`
 
@@ -159,21 +173,34 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
-                           'container', COALESCE(
-                               jsonb_build_object(
-                                   'id', c.id,
-                                   'name', c.name,
-                                   'qrCode', c.qr_code,
-                                   'qrCodeImage', c.qr_code_image,
-                                   'number', c.number,
-                                   'location', c.location,
-                                   'userId', c.user_id,
-                                   'workspaceId', c.workspace_id,
-                                   'createdAt', c.created_at,
-                                   'updatedAt', c.updated_at
-                               ),
-                               null
-                           ),
+                           'container', CASE 
+                               WHEN c.id IS NOT NULL THEN
+                                   jsonb_build_object(
+                                       'id', c.id,
+                                       'name', c.name,
+                                       'qrCode', c.qr_code,
+                                       'qrCodeImage', c.qr_code_image,
+                                       'number', c.number,
+                                       'location', c.location,
+                                       'userId', c.user_id,
+                                       'workspaceId', c.workspace_id,
+                                       'workspace', CASE 
+                                           WHEN w.id IS NOT NULL THEN
+                                               jsonb_build_object(
+                                                   'id', w.id,
+                                                   'name', w.name,
+                                                   'description', w.description,
+                                                   'userId', w.user_id,
+                                                   'createdAt', w.created_at,
+                                                   'updatedAt', w.updated_at
+                                               )
+                                           ELSE null
+                                       END,
+                                       'createdAt', c.created_at,
+                                       'updatedAt', c.updated_at
+                                   )
+                               ELSE null
+                           END,
                            'createdAt', i.created_at,
                            'updatedAt', i.updated_at,
                            'tags', COALESCE(
@@ -202,6 +229,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
         LEFT JOIN item i ON it.item_id = i.id
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at
         ORDER BY t.name ASC`
 
@@ -259,8 +287,22 @@ func (r *Repository) Update(tag *models.Tag) error {
 }
 
 func (r *Repository) Delete(id int) error {
-    query := `DELETE FROM tag WHERE id = $1`
-    result, err := r.db.Exec(query, id)
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    // Remove item-tag associations
+    itemTagQuery := `DELETE FROM item_tag WHERE tag_id = $1`
+    _, err = tx.Exec(itemTagQuery, id)
+    if err != nil {
+        return fmt.Errorf("error removing item-tag associations: %v", err)
+    }
+
+    // Delete the tag
+    tagQuery := `DELETE FROM tag WHERE id = $1`
+    result, err := tx.Exec(tagQuery, id)
     if err != nil {
         return fmt.Errorf("error deleting tag: %v", err)
     }
@@ -274,5 +316,5 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("tag not found")
     }
 
-    return nil
+    return tx.Commit()
 }
