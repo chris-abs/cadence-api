@@ -386,18 +386,25 @@ func (r *Repository) Delete(id int) error {
     }
     defer tx.Rollback()
 
-    // First remove all item-tag associations
-    itemTagQuery := `DELETE FROM item_tag WHERE tag_id = $1`
+    // Remove the item's images
+    imageQuery := `DELETE FROM item_image WHERE item_id = $1`
+    _, err = tx.Exec(imageQuery, id)
+    if err != nil {
+        return fmt.Errorf("error removing item images: %v", err)
+    }
+
+    // Remove item-tag associations
+    itemTagQuery := `DELETE FROM item_tag WHERE item_id = $1`
     _, err = tx.Exec(itemTagQuery, id)
     if err != nil {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    // Then delete the tag
-    tagQuery := `DELETE FROM tag WHERE id = $1`
-    result, err := tx.Exec(tagQuery, id)
+    // Delete the item
+    itemQuery := `DELETE FROM item WHERE id = $1`
+    result, err := tx.Exec(itemQuery, id)
     if err != nil {
-        return fmt.Errorf("error deleting tag: %v", err)
+        return fmt.Errorf("error deleting item: %v", err)
     }
 
     rowsAffected, err := result.RowsAffected()
@@ -406,7 +413,7 @@ func (r *Repository) Delete(id int) error {
     }
 
     if rowsAffected == 0 {
-        return fmt.Errorf("tag not found")
+        return fmt.Errorf("item not found")
     }
 
     return tx.Commit()
