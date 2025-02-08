@@ -63,8 +63,9 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
     }
 
     containersQuery := `
-        SELECT id, name, qr_code, qr_code_image, number, location, 
-               user_id, created_at, updated_at
+        SELECT 
+            id, name, qr_code, qr_code_image, number, location, 
+            user_id, workspace_id, created_at, updated_at
         FROM container
         WHERE workspace_id = $1
         ORDER BY created_at DESC`
@@ -78,6 +79,7 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
     workspace.Containers = make([]models.Container, 0)
     for rows.Next() {
         var container models.Container
+        var workspaceID sql.NullInt64
         err := rows.Scan(
             &container.ID,
             &container.Name,
@@ -86,12 +88,19 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
             &container.Number,
             &container.Location,
             &container.UserID,
+            &workspaceID,
             &container.CreatedAt,
             &container.UpdatedAt,
         )
         if err != nil {
             return nil, err
         }
+
+        if workspaceID.Valid {
+            wsID := int(workspaceID.Int64)
+            container.WorkspaceID = &wsID
+        }
+
         workspace.Containers = append(workspace.Containers, container)
     }
 
@@ -127,8 +136,9 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
         }
 
         containersQuery := `
-            SELECT id, name, qr_code, qr_code_image, number, location, 
-                   user_id, created_at, updated_at
+            SELECT 
+                id, name, qr_code, qr_code_image, number, location, 
+                user_id, workspace_id, created_at, updated_at
             FROM container
             WHERE workspace_id = $1
             ORDER BY created_at DESC`
@@ -143,6 +153,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
             defer containerRows.Close()
             for containerRows.Next() {
                 var container models.Container
+                var workspaceID sql.NullInt64
                 err := containerRows.Scan(
                     &container.ID,
                     &container.Name,
@@ -151,12 +162,19 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
                     &container.Number,
                     &container.Location,
                     &container.UserID,
+                    &workspaceID,
                     &container.CreatedAt,
                     &container.UpdatedAt,
                 )
                 if err != nil {
                     return
                 }
+
+                if workspaceID.Valid {
+                    wsID := int(workspaceID.Int64)
+                    container.WorkspaceID = &wsID
+                }
+
                 workspace.Containers = append(workspace.Containers, container)
             }
         }()
@@ -196,9 +214,69 @@ func (r *Repository) Update(workspace *models.Workspace) error {
     return nil
 }
 
+func (r *Repository) UpdateContainers(workspaceID int, containerIDs []int) error {
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    if err := r.clearWorkspaceContainers(tx, workspaceID); err != nil {
+        return err
+    }
+
+    if err := r.assignContainersToWorkspace(tx, workspaceID, containerIDs); err != nil {
+        return err
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("error committing transaction: %v", err)
+    }
+
+    return nil
+}
+
+func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int) error {
+    query := `
+        UPDATE container 
+        SET workspace_id = NULL, updated_at = $2
+        WHERE workspace_id = $1`
+
+    _, err := tx.Exec(query, workspaceID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error clearing workspace containers: %v", err)
+    }
+
+    return nil
+}
+
+func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, containerIDs []int) error {
+    query := `
+        UPDATE container 
+        SET workspace_id = $1, updated_at = $2
+        WHERE id = ANY($3)`
+
+    _, err := tx.Exec(query, workspaceID, time.Now().UTC(), containerIDs)
+    if err != nil {
+        return fmt.Errorf("error assigning containers to workspace: %v", err)
+    }
+
+    return nil
+}
+
 func (r *Repository) Delete(id int) error {
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    if err := r.clearWorkspaceContainers(tx, id); err != nil {
+        return err
+    }
+
     query := `DELETE FROM workspace WHERE id = $1`
-    result, err := r.db.Exec(query, id)
+    result, err := tx.Exec(query, id)
     if err != nil {
         return fmt.Errorf("error deleting workspace: %v", err)
     }
@@ -210,6 +288,10 @@ func (r *Repository) Delete(id int) error {
 
     if rowsAffected == 0 {
         return fmt.Errorf("workspace not found")
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("error committing transaction: %v", err)
     }
 
     return nil

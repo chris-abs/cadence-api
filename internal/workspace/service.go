@@ -60,9 +60,18 @@ func (s *Service) UpdateWorkspace(id int, req *UpdateWorkspaceRequest) (*models.
         return nil, fmt.Errorf("failed to update workspace: %v", err)
     }
 
-    return workspace, nil
+    if len(req.ContainerIDs) > 0 {
+        if err := s.repo.UpdateContainers(workspace.ID, req.ContainerIDs); err != nil {
+            return nil, fmt.Errorf("failed to update container assignments: %v", err)
+        }
+    }
+
+    return s.repo.GetByID(workspace.ID)
 }
 
 func (s *Service) DeleteWorkspace(id int) error {
-    return s.repo.Delete(id)
+    if err := s.repo.Delete(id); err != nil {
+        return fmt.Errorf("failed to delete workspace: %v", err)
+    }
+    return nil
 }
