@@ -86,14 +86,21 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 
     container := new(models.Container)
     var workspaceID sql.NullInt64
-    var workspace models.Workspace
+    var wsFields struct {
+        ID          sql.NullInt64
+        Name        sql.NullString
+        Description sql.NullString
+        UserID      sql.NullInt64
+        CreatedAt   sql.NullTime
+        UpdatedAt   sql.NullTime
+    }
 
     err := r.db.QueryRow(containerQuery, id).Scan(
         &container.ID, &container.Name, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
         &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
-        &workspace.ID, &workspace.Name, &workspace.Description,
-        &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
+        &wsFields.ID, &wsFields.Name, &wsFields.Description,
+        &wsFields.UserID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -103,10 +110,17 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
         return nil, err
     }
 
-    if workspaceID.Valid {
+    if workspaceID.Valid && wsFields.ID.Valid {
         wsID := int(workspaceID.Int64)
         container.WorkspaceID = &wsID
-        container.Workspace = &workspace
+        container.Workspace = &models.Workspace{
+            ID:          int(wsFields.ID.Int64),
+            Name:        wsFields.Name.String,
+            Description: wsFields.Description.String,
+            UserID:      int(wsFields.UserID.Int64),
+            CreatedAt:   wsFields.CreatedAt.Time,
+            UpdatedAt:   wsFields.UpdatedAt.Time,
+        }
     }
 
     itemsQuery := `
@@ -201,23 +215,37 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
     for rows.Next() {
         container := new(models.Container)
         var workspaceID sql.NullInt64
-        var workspace models.Workspace
+        var wsFields struct {
+            ID          sql.NullInt64
+            Name        sql.NullString
+            Description sql.NullString
+            UserID      sql.NullInt64
+            CreatedAt   sql.NullTime
+            UpdatedAt   sql.NullTime
+        }
 
         err := rows.Scan(
             &container.ID, &container.Name, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
             &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
-            &workspace.ID, &workspace.Name, &workspace.Description,
-            &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
+            &wsFields.ID, &wsFields.Name, &wsFields.Description,
+            &wsFields.UserID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container: %v", err)
         }
 
-        if workspaceID.Valid {
+        if workspaceID.Valid && wsFields.ID.Valid {
             wsID := int(workspaceID.Int64)
             container.WorkspaceID = &wsID
-            container.Workspace = &workspace
+            container.Workspace = &models.Workspace{
+                ID:          int(wsFields.ID.Int64),
+                Name:        wsFields.Name.String,
+                Description: wsFields.Description.String,
+                UserID:      int(wsFields.UserID.Int64),
+                CreatedAt:   wsFields.CreatedAt.Time,
+                UpdatedAt:   wsFields.UpdatedAt.Time,
+            }
         }
 
         itemsQuery := `
@@ -451,7 +479,6 @@ func (r *Repository) Delete(id int) error {
     }
     defer tx.Rollback()
 
-    // Update items to remove container references
     itemQuery := `
         UPDATE item 
         SET container_id = NULL, updated_at = $2
@@ -462,7 +489,6 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("error updating items: %v", err)
     }
 
-    // Remove workspace reference from container before deletion
     workspaceQuery := `
         UPDATE container
         SET workspace_id = NULL, updated_at = $2
@@ -473,7 +499,6 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("error removing workspace reference: %v", err)
     }
 
-    // Delete the container
     containerQuery := `DELETE FROM container WHERE id = $1`
     result, err := tx.Exec(containerQuery, id)
     if err != nil {
