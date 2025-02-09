@@ -39,8 +39,6 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             user_id = $2 AND
             (
                 name ILIKE $1 OR
-                name ILIKE $1 || '%' OR
-                name ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
                 websearch_to_tsquery('english', $1)
             )
@@ -50,7 +48,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             'container' as type,
             c.id,
             c.name,
-            '' as description,
+            COALESCE(c.location, '') as description,
             CASE
                 WHEN c.name ILIKE $1 THEN 1.0
                 WHEN c.name ILIKE $1 || '%' THEN 0.8
@@ -67,8 +65,6 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             c.user_id = $2 AND
             (
                 c.name ILIKE $1 OR
-                c.name ILIKE $1 || '%' OR
-                c.name ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', c.name) @@ websearch_to_tsquery('english', $1)
             )
     ),
@@ -86,17 +82,14 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
                     websearch_to_tsquery('english', $1)), 0.0)
             END as rank,
             c.name as container_name,
-            w.name as workspace_name,
+            NULL as workspace_name,
             NULL as colour
         FROM item i
         LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
-            (c.user_id = $2 OR i.container_id IS NULL) AND
+            c.user_id = $2 AND
             (
                 i.name ILIKE $1 OR
-                i.name ILIKE $1 || '%' OR
-                i.name ILIKE '%' || $1 || '%' OR
                 i.description ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
                 websearch_to_tsquery('english', $1)
@@ -119,9 +112,29 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             NULL as workspace_name,
             t.colour
         FROM tag t
-        LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id
+        WHERE t.name ILIKE $1 OR t.name ILIKE $1 || '%' OR t.name ILIKE '%' || $1 || '%'
+    ),
+    tagged_items AS (
+        SELECT DISTINCT
+            'tagged_item' as type,
+            i.id,
+            i.name,
+            i.description,
+            CASE
+                WHEN t.name ILIKE $1 THEN 0.9
+                WHEN t.name ILIKE $1 || '%' THEN 0.7
+                WHEN t.name ILIKE '%' || $1 || '%' THEN 0.5
+                ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
+                    websearch_to_tsquery('english', $1)), 0.0)
+            END as rank,
+            c.name as container_name,
+            w.name as workspace_name,
+            NULL as colour
+        FROM item i
+        INNER JOIN item_tag it ON i.id = it.item_id
+        INNER JOIN tag t ON it.tag_id = t.id
         LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
             (c.user_id = $2 OR i.container_id IS NULL) AND
             (
@@ -129,39 +142,9 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
                 t.name ILIKE $1 || '%' OR
                 t.name ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
-            )
-    ),
-   tagged_items AS (
-    SELECT DISTINCT
-        'tagged_item' as type,
-        i.id,
-        i.name,
-        i.description,
-        CASE
-            WHEN t.name ILIKE $1 THEN 0.9  -- Slightly lower than direct item matches
-            WHEN t.name ILIKE $1 || '%' THEN 0.7
-            WHEN t.name ILIKE '%' || $1 || '%' THEN 0.5
-            ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
-                websearch_to_tsquery('english', $1)), 0.0)
-        END as rank,
-        c.name as container_name,
-        w.name as workspace_name,
-        NULL as colour
-    FROM item i
-    INNER JOIN item_tag it ON i.id = it.item_id
-    INNER JOIN tag t ON it.tag_id = t.id
-    LEFT JOIN container c ON i.container_id = c.id
-    LEFT JOIN workspace w ON c.workspace_id = w.id
-    WHERE 
-        (c.user_id = $2 OR i.container_id IS NULL) AND
-        (
-            t.name ILIKE $1 OR
-            t.name ILIKE $1 || '%' OR
-            t.name ILIKE '%' || $1 || '%' OR
-            to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
-        ) AND
-        i.id NOT IN (SELECT id FROM item_matches)
-)
+            ) AND
+            i.id NOT IN (SELECT id FROM item_matches)
+    )
     SELECT type, id, name, description, rank, container_name, workspace_name, colour 
     FROM (
         SELECT * FROM workspace_matches
@@ -213,7 +196,6 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         if workspaceName.Valid {
             result.WorkspaceName = &workspaceName.String
         }
-
         if colour.Valid {
             result.Colour = &colour.String
         }
@@ -229,8 +211,8 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             response.Tags = append(response.Tags, result)
         case "tagged_item":
             response.TaggedItems = append(response.TaggedItems, result)
+        }
     }
-}
 
     return response, nil
 }
@@ -238,41 +220,23 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
 func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
     sqlQuery := `
         SELECT 
-            w.*,
+            w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at,
             CASE
                 WHEN w.name ILIKE $1 THEN 1.0
                 WHEN w.name ILIKE $1 || '%' THEN 0.8
                 WHEN w.name ILIKE '%' || $1 || '%' OR w.description ILIKE '%' || $1 || '%' THEN 0.6
                 ELSE COALESCE(ts_rank(to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')), 
                     websearch_to_tsquery('english', $1)), 0.0)
-            END as rank,
-            COALESCE(json_agg(
-                DISTINCT jsonb_build_object(
-                    'id', c.id,
-                    'name', c.name,
-                    'location', c.location,
-                    'qrCode', c.qr_code,
-                    'qrCodeImage', c.qr_code_image,
-                    'number', c.number,
-                    'userId', c.user_id,
-                    'workspaceId', c.workspace_id,
-                    'createdAt', c.created_at,
-                    'updatedAt', c.updated_at
-                )
-            ) FILTER (WHERE c.id IS NOT NULL), '[]'::json) as containers
+            END as rank
         FROM workspace w
-        LEFT JOIN container c ON w.id = c.workspace_id
         WHERE 
             w.user_id = $2 AND
             (
                 w.name ILIKE $1 OR
-                w.name ILIKE $1 || '%' OR
-                w.name ILIKE '%' || $1 || '%' OR
                 w.description ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')) @@ 
                 websearch_to_tsquery('english', $1)
             )
-        GROUP BY w.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -284,8 +248,6 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
     var results WorkspaceSearchResults
     for rows.Next() {
         var result WorkspaceSearchResult
-        var containersJSON []byte
-        
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -294,16 +256,9 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
-            &containersJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning workspace search result: %v", err)
-        }
-
-        if len(containersJSON) > 0 {
-            if err := json.Unmarshal(containersJSON, &result.Containers); err != nil {
-                return nil, fmt.Errorf("error unmarshaling containers: %v", err)
-            }
         }
 
         results = append(results, result)
@@ -315,52 +270,24 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
 func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
     sqlQuery := `
         SELECT 
-            c.*,
+            c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
+            c.user_id, c.workspace_id, c.created_at, c.updated_at,
             CASE
                 WHEN c.name ILIKE $1 THEN 1.0
                 WHEN c.name ILIKE $1 || '%' THEN 0.8
                 WHEN c.name ILIKE '%' || $1 || '%' OR c.location ILIKE '%' || $1 || '%' THEN 0.6
                 ELSE COALESCE(ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')), 
                     websearch_to_tsquery('english', $1)), 0.0)
-            END as rank,
-            w.name as workspace_name,
-            COALESCE(json_agg(
-                DISTINCT jsonb_build_object(
-                    'id', i.id,
-                    'name', i.name,
-                    'description', i.description,
-                    'quantity', i.quantity,
-                    'containerId', i.container_id,
-                    'createdAt', i.created_at,
-                    'updatedAt', i.updated_at,
-                    'tags', (
-                        SELECT json_agg(
-                            jsonb_build_object(
-                                'id', t.id,
-                                'name', t.name,
-                                'colour', t.colour
-                            )
-                        )
-                        FROM item_tag it
-                        JOIN tag t ON it.tag_id = t.id
-                        WHERE it.item_id = i.id
-                    )
-                )
-            ) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
+            END as rank
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        LEFT JOIN item i ON c.id = i.container_id
         WHERE 
             c.user_id = $2 AND
             (
                 c.name ILIKE $1 OR
-                c.name ILIKE $1 || '%' OR
-                c.name ILIKE '%' || $1 || '%' OR
                 c.location ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')) @@ 
                 websearch_to_tsquery('english', $1)
             )
-        GROUP BY c.id, w.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -372,9 +299,6 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
     var results ContainerSearchResults
     for rows.Next() {
         var result ContainerSearchResult
-        var workspaceName sql.NullString
-        var itemsJSON []byte
-
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -387,17 +311,9 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
-            &workspaceName,
-            &itemsJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container search result: %v", err)
-        }
-
-        if len(itemsJSON) > 0 {
-            if err := json.Unmarshal(itemsJSON, &result.Items); err != nil {
-                return nil, fmt.Errorf("error unmarshaling items: %v", err)
-            }
         }
 
         results = append(results, result)
@@ -409,45 +325,25 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
 func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
     sqlQuery := `
         SELECT 
-            i.*,
+            i.id, i.name, i.description, i.quantity, i.container_id,
+            i.created_at, i.updated_at,
             CASE
                 WHEN i.name ILIKE $1 THEN 1.0
                 WHEN i.name ILIKE $1 || '%' THEN 0.8
                 WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
                 ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
                     websearch_to_tsquery('english', $1)), 0.0)
-            END as rank,
-            COALESCE(json_agg(
-                DISTINCT jsonb_build_object(
-                    'id', img.id,
-                    'url', img.url,
-                    'displayOrder', img.display_order
-                )
-            ) FILTER (WHERE img.id IS NOT NULL), '[]'::json) as images,
-            COALESCE(json_agg(
-                DISTINCT jsonb_build_object(
-                    'id', t.id,
-                    'name', t.name,
-                    'colour', t.colour
-                )
-            ) FILTER (WHERE t.id IS NOT NULL), '[]'::json) as tags,
-            row_to_json(c.*) as container
+            END as rank
         FROM item i
-        LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN item_image img ON i.id = img.item_id
-        LEFT JOIN item_tag it ON i.id = it.item_id
-        LEFT JOIN tag t ON it.tag_id = t.id
+        JOIN container c ON i.container_id = c.id
         WHERE 
-            (c.user_id = $2 OR i.container_id IS NULL) AND
+            c.user_id = $2 AND
             (
                 i.name ILIKE $1 OR
-                i.name ILIKE $1 || '%' OR
-                i.name ILIKE '%' || $1 || '%' OR
                 i.description ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
                 websearch_to_tsquery('english', $1)
             )
-        GROUP BY i.id, c.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -459,8 +355,6 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
     var results ItemSearchResults
     for rows.Next() {
         var result ItemSearchResult
-        var imagesJSON, tagsJSON, containerJSON []byte
-
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -470,30 +364,9 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
-            &imagesJSON,
-            &tagsJSON,
-            &containerJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning item search result: %v", err)
-        }
-
-        if len(imagesJSON) > 0 {
-            if err := json.Unmarshal(imagesJSON, &result.Images); err != nil {
-                return nil, fmt.Errorf("error unmarshaling images: %v", err)
-            }
-        }
-
-        if len(tagsJSON) > 0 {
-            if err := json.Unmarshal(tagsJSON, &result.Tags); err != nil {
-                return nil, fmt.Errorf("error unmarshaling tags: %v", err)
-            }
-        }
-
-        if len(containerJSON) > 0 {
-            if err := json.Unmarshal(containerJSON, &result.Container); err != nil {
-                return nil, fmt.Errorf("error unmarshaling container: %v", err)
-            }
         }
 
         results = append(results, result)
@@ -504,42 +377,25 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
 
 func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, error) {
     sqlQuery := `
-        SELECT 
-            t.*,
+        SELECT DISTINCT
+            t.id, t.name, t.colour, t.created_at, t.updated_at,
             CASE
                 WHEN t.name ILIKE $1 THEN 1.0
                 WHEN t.name ILIKE $1 || '%' THEN 0.8
                 WHEN t.name ILIKE '%' || $1 || '%' THEN 0.6
                 ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
                     websearch_to_tsquery('english', $1)), 0.0)
-            END as rank,
-            COALESCE(json_agg(
-                DISTINCT jsonb_build_object(
-                    'id', i.id,
-                    'name', i.name,
-                    'description', i.description,
-                    'quantity', i.quantity,
-                    'containerId', i.container_id,
-                    'container', (
-                        SELECT row_to_json(c.*)
-                        FROM container c
-                        WHERE c.id = i.container_id
-                    )
-                )
-            ) FILTER (WHERE i.id IS NOT NULL), '[]'::json) as items
+            END as rank
         FROM tag t
-        LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id
-        LEFT JOIN container c ON i.container_id = c.id
+        JOIN item_tag it ON t.id = it.tag_id
+        JOIN item i ON it.item_id = i.id
+        JOIN container c ON i.container_id = c.id
         WHERE 
-            (c.user_id = $2 OR i.container_id IS NULL) AND
+            c.user_id = $2 AND
             (
                 t.name ILIKE $1 OR
-                t.name ILIKE $1 || '%' OR
-                t.name ILIKE '%' || $1 || '%' OR
                 to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
             )
-        GROUP BY t.id
         ORDER BY rank DESC;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
@@ -551,8 +407,6 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
     var results TagSearchResults
     for rows.Next() {
         var result TagSearchResult
-        var itemsJSON []byte
-
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -560,16 +414,9 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
-            &itemsJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning tag search result: %v", err)
-        }
-
-        if len(itemsJSON) > 0 {
-            if err := json.Unmarshal(itemsJSON, &result.Items); err != nil {
-                return nil, fmt.Errorf("error unmarshaling items: %v", err)
-            }
         }
 
         results = append(results, result)
@@ -579,36 +426,52 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
 }
 
 func (r *Repository) FindContainerByQR(qrCode string, userID int) (*models.Container, error) {
-    query := `
-        SELECT c.*, w.name as workspace_name
-        FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE c.qr_code = $1 AND c.user_id = $2
-        LIMIT 1`
+   query := `
+       SELECT 
+           c.*,
+           jsonb_build_object(
+               'id', w.id,
+               'name', w.name,
+               'description', w.description,
+               'userId', w.user_id,
+               'createdAt', w.created_at,
+               'updatedAt', w.updated_at
+           ) as workspace
+       FROM container c
+       LEFT JOIN workspace w ON c.workspace_id = w.id
+       WHERE c.qr_code = $1 AND c.user_id = $2
+       LIMIT 1`
 
-    var container models.Container
-    var workspaceName sql.NullString
-    
-    err := r.db.QueryRow(query, qrCode, userID).Scan(
-        &container.ID,
-        &container.Name,
-        &container.QRCode,
-        &container.QRCodeImage,
-        &container.Number,
-        &container.Location,
-        &container.UserID,
-        &container.WorkspaceID,
-        &container.CreatedAt,
-        &container.UpdatedAt,
-        &workspaceName,
-    )
+   container := new(models.Container)
+   var workspaceJSON []byte
+   
+   err := r.db.QueryRow(query, qrCode, userID).Scan(
+       &container.ID,
+       &container.Name,
+       &container.QRCode,
+       &container.QRCodeImage,
+       &container.Number,
+       &container.Location,
+       &container.UserID,
+       &container.WorkspaceID,
+       &container.CreatedAt,
+       &container.UpdatedAt,
+       &workspaceJSON,
+   )
 
-    if err == sql.ErrNoRows {
-        return nil, fmt.Errorf("container not found")
-    }
-    if err != nil {
-        return nil, fmt.Errorf("error finding container: %v", err)
-    }
+   if err == sql.ErrNoRows {
+       return nil, fmt.Errorf("container not found")
+   }
+   if err != nil {
+       return nil, fmt.Errorf("error finding container: %v", err)
+   }
 
-    return &container, nil
+   if len(workspaceJSON) > 0 {
+       if err := json.Unmarshal(workspaceJSON, &container.Workspace); err != nil {
+           return nil, fmt.Errorf("error unmarshaling workspace: %v", err)
+       }
+   }
+
+   return container, nil
 }
+       

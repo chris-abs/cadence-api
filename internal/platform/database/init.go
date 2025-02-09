@@ -11,7 +11,7 @@ func (db *PostgresDB) Init() error {
         return fmt.Errorf("schema initialization failed: %v", err)
     }
 
-    // db.migrationsManager.EnableMigration("002_search_indexes")
+    // db.migrationsManager.EnableMigration("003_workspace_relationships")
     // fmt.Println("Running data migration...")
     // if err := db.migrationsManager.Run(); err != nil {
     //     return fmt.Errorf("migrations failed: %v", err)

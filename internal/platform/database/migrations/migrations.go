@@ -30,6 +30,11 @@ func NewManager(db *sql.DB) *Manager {
                 Enabled: true,
                 Run:     MigrateSearchIndexes,
             },
+            {
+                ID:      "003_workspace_relationships",
+                Enabled: false,
+                Run:     MigrateWorkspaceRelationships,
+            },
         },
     }
 }
