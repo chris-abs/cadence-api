@@ -10,7 +10,7 @@ type UpdateTagRequest struct {
 	Colour string `json:"colour"`
 }
 
-type BulkAssignRequest struct {
+type AssignTagsRequest struct {
     TagIDs  []int `json:"tagIds"`
     ItemIDs []int `json:"itemIds"`
 }

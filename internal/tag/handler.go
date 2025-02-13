@@ -29,7 +29,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleUpdateTag)).Methods("PUT")
 	router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleDeleteTag)).Methods("DELETE")
 
-	router.HandleFunc("/tags/bulk-assign", h.authMiddleware.AuthHandler(h.handleBulkAssign)).Methods("POST")
+    router.HandleFunc("/tags/assign", h.authMiddleware.AuthHandler(h.handleAssignTags)).Methods("POST")
 
 }
 
@@ -93,14 +93,20 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tag)
 }
 
-func (h *Handler) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
-    var req BulkAssignRequest
+func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
+    _, err := strconv.Atoi(r.Header.Get("UserId"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid user ID")
+        return
+    }
+
+    var req AssignTagsRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
         return
     }
 
-    if err := h.service.BulkAssignTags(req.TagIDs, req.ItemIDs); err != nil {
+    if err := h.service.AssignTagsToItems(req.TagIDs, req.ItemIDs); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

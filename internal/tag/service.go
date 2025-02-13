@@ -58,8 +58,8 @@ func (s *Service) UpdateTag(id int, req *UpdateTagRequest) (*models.Tag, error) 
 	return s.repo.GetByID(id)
 }
 
-func (s *Service) BulkAssignTags(tagIDs []int, itemIDs []int) error {
-    return s.repo.BulkAssignTags(tagIDs, itemIDs)
+func (s *Service) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
+    return s.repo.AssignTagsToItems(tagIDs, itemIDs)
 }
 
 func (s *Service) DeleteTag(id int) error {

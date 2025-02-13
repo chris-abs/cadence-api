@@ -287,23 +287,34 @@ func (r *Repository) Update(tag *models.Tag) error {
     return nil
 }
 
-func (r *Repository) BulkAssignTags(tagIDs []int, itemIDs []int) error {
+func (r *Repository) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
-    query := `INSERT INTO item_tag (item_id, tag_id) 
-              SELECT $1, t.id 
-              FROM unnest($2::int[]) AS t(id)
-              ON CONFLICT (item_id, tag_id) DO NOTHING`
+    // Remove existing tag-item relationships for these specific tags and items
+    _, err = tx.Exec(`
+        DELETE FROM item_tag 
+        WHERE tag_id = ANY($1) AND item_id = ANY($2)
+    `, pq.Array(tagIDs), pq.Array(itemIDs))
+    if err != nil {
+        return fmt.Errorf("error removing existing tag assignments: %v", err)
+    }
 
-    for _, itemID := range itemIDs {
-        _, err = tx.Exec(query, itemID, pq.Array(tagIDs))
-        if err != nil {
-            return fmt.Errorf("error assigning tags to item %d: %v", itemID, err)
-        }
+    // Assign the tags to items
+    insertQuery := `
+        INSERT INTO item_tag (tag_id, item_id)
+        SELECT t.id, i.id
+        FROM unnest($1::int[]) AS t(id)
+        CROSS JOIN unnest($2::int[]) AS i(id)
+        ON CONFLICT (tag_id, item_id) DO NOTHING
+    `
+    
+    _, err = tx.Exec(insertQuery, pq.Array(tagIDs), pq.Array(itemIDs))
+    if err != nil {
+        return fmt.Errorf("error assigning tags: %v", err)
     }
 
     return tx.Commit()
