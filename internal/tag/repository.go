@@ -294,16 +294,6 @@ func (r *Repository) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
     }
     defer tx.Rollback()
 
-    // Remove existing tag-item relationships for these specific tags and items
-    _, err = tx.Exec(`
-        DELETE FROM item_tag 
-        WHERE tag_id = ANY($1) AND item_id = ANY($2)
-    `, pq.Array(tagIDs), pq.Array(itemIDs))
-    if err != nil {
-        return fmt.Errorf("error removing existing tag assignments: %v", err)
-    }
-
-    // Assign the tags to items
     insertQuery := `
         INSERT INTO item_tag (tag_id, item_id)
         SELECT t.id, i.id
