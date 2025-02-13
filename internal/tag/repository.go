@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/chrisabs/storage/internal/models"
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -286,6 +287,28 @@ func (r *Repository) Update(tag *models.Tag) error {
     return nil
 }
 
+func (r *Repository) BulkAssignTags(tagIDs []int, itemIDs []int) error {
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    query := `INSERT INTO item_tag (item_id, tag_id) 
+              SELECT $1, t.id 
+              FROM unnest($2::int[]) AS t(id)
+              ON CONFLICT (item_id, tag_id) DO NOTHING`
+
+    for _, itemID := range itemIDs {
+        _, err = tx.Exec(query, itemID, pq.Array(tagIDs))
+        if err != nil {
+            return fmt.Errorf("error assigning tags to item %d: %v", itemID, err)
+        }
+    }
+
+    return tx.Commit()
+}
+
 func (r *Repository) Delete(id int) error {
     tx, err := r.db.Begin()
     if err != nil {
@@ -293,14 +316,12 @@ func (r *Repository) Delete(id int) error {
     }
     defer tx.Rollback()
 
-    // Remove item-tag associations
     itemTagQuery := `DELETE FROM item_tag WHERE tag_id = $1`
     _, err = tx.Exec(itemTagQuery, id)
     if err != nil {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    // Delete the tag
     tagQuery := `DELETE FROM tag WHERE id = $1`
     result, err := tx.Exec(tagQuery, id)
     if err != nil {
