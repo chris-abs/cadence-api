@@ -99,6 +99,7 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
                     jsonb_build_object(
                         'id', c.id,
                         'name', c.name,
+                        'description', c.description,
                         'qrCode', c.qr_code,
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
@@ -144,7 +145,7 @@ func (r *Repository) GetByID(id int) (*models.Item, error) {
         GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.created_at, i.updated_at,
                  img.images,
-                 c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
+                 c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
                  c.user_id, c.workspace_id, c.created_at, c.updated_at,
                  w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at`
 
@@ -203,6 +204,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
                     jsonb_build_object(
                         'id', c.id,
                         'name', c.name,
+                        'description', c.description,
                         'qrCode', c.qr_code,
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
@@ -248,7 +250,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Item, error) {
         GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.created_at, i.updated_at,
                  img.images,
-                 c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
+                 c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
                  c.user_id, c.workspace_id, c.created_at, c.updated_at,
                  w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         ORDER BY i.created_at DESC`

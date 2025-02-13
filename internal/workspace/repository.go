@@ -64,7 +64,7 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
 
     containersQuery := `
         SELECT 
-            id, name, qr_code, qr_code_image, number, location, 
+            id, name, description, qr_code, qr_code_image, number, location, 
             user_id, workspace_id, created_at, updated_at
         FROM container
         WHERE workspace_id = $1
@@ -83,6 +83,7 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
         err := rows.Scan(
             &container.ID,
             &container.Name,
+            &container.Description,
             &container.QRCode,
             &container.QRCodeImage,
             &container.Number,
@@ -137,7 +138,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
 
         containersQuery := `
             SELECT 
-                id, name, qr_code, qr_code_image, number, location, 
+                id, name, description, qr_code, qr_code_image, number, location, 
                 user_id, workspace_id, created_at, updated_at
             FROM container
             WHERE workspace_id = $1
@@ -157,6 +158,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
                 err := containerRows.Scan(
                     &container.ID,
                     &container.Name,
+                    &container.Description,
                     &container.QRCode,
                     &container.QRCodeImage,
                     &container.Number,
@@ -271,7 +273,6 @@ func (r *Repository) Delete(id int) error {
     }
     defer tx.Rollback()
 
-    // Update containers to remove workspace references
     containerQuery := `
         UPDATE container 
         SET workspace_id = NULL, updated_at = $2
@@ -282,7 +283,6 @@ func (r *Repository) Delete(id int) error {
         return fmt.Errorf("error updating containers: %v", err)
     }
 
-    // Delete the workspace
     workspaceQuery := `DELETE FROM workspace WHERE id = $1`
     result, err := tx.Exec(workspaceQuery, id)
     if err != nil {

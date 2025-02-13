@@ -48,6 +48,7 @@ func (db *PostgresDB) createContainerTable() error {
         CREATE TABLE IF NOT EXISTS container (
             id SERIAL PRIMARY KEY,
             name VARCHAR(50),
+            description TEXT,
             qr_code VARCHAR(100) UNIQUE,           
             qr_code_image TEXT,             
             number INTEGER,         

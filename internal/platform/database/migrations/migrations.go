@@ -35,6 +35,11 @@ func NewManager(db *sql.DB) *Manager {
                 Enabled: false,
                 Run:     MigrateWorkspaceRelationships,
             },
+            {
+                ID:      "004_container_description",
+                Enabled: true,  
+                Run:     MigrateContainerDescription,
+            },
         },
     }
 }

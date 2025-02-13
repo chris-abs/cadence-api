@@ -28,6 +28,7 @@ func (s *Service) CreateContainer(userID int, req *CreateContainerRequest) (*mod
     container := &models.Container{
         ID:          containerID,
         Name:        req.Name,
+		Description: req.Description,
         QRCode:      qrString,
         QRCodeImage: qrImage,
         Number:      rand.Intn(1000),
@@ -67,6 +68,7 @@ func (s *Service) UpdateContainer(id int, req *UpdateContainerRequest) (*models.
 	}
 
 	container.Name = req.Name
+	container.Description = req.Description
 	container.Location = req.Location
 	container.WorkspaceID = req.WorkspaceID
 	container.UpdatedAt = time.Now().UTC()

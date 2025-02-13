@@ -25,8 +25,8 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
     defer tx.Rollback()
 
     containerQuery := `
-        INSERT INTO container (id, name, qr_code, qr_code_image, number, location, user_id, workspace_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        INSERT INTO container (id, name, description qr_code, qr_code_image, number, location, user_id, workspace_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id`
 
     var containerID int
@@ -34,6 +34,7 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
         containerQuery,
         container.ID,
         container.Name,
+        container.Description,
         container.QRCode,
         container.QRCodeImage,
         container.Number,
@@ -77,7 +78,7 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 
 func (r *Repository) GetByID(id int) (*models.Container, error) {
     containerQuery := `
-        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+        SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
                w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         FROM container c
@@ -96,7 +97,7 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
     }
 
     err := r.db.QueryRow(containerQuery, id).Scan(
-        &container.ID, &container.Name, &container.QRCode,
+        &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
         &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
@@ -197,7 +198,7 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 
 func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
     query := `
-        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+        SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
                w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         FROM container c
@@ -225,7 +226,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
         }
 
         err := rows.Scan(
-            &container.ID, &container.Name, &container.QRCode,
+            &container.ID, &container.Name, &container.Description, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
             &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
             &wsFields.ID, &wsFields.Name, &wsFields.Description,
@@ -331,7 +332,7 @@ func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
 
 func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models.Container, error) {
     query := `
-        SELECT c.id, c.name, c.qr_code, c.qr_code_image, c.number, 
+        SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
                w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
         FROM container c
@@ -343,7 +344,7 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
     var workspace models.Workspace
 
     err := r.db.QueryRow(query, qrCode).Scan(
-        &container.ID, &container.Name, &container.QRCode,
+        &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
         &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
         &workspace.ID, &workspace.Name, &workspace.Description,
@@ -440,7 +441,7 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
 func (r *Repository) Update(container *models.Container) error {
     query := `
         UPDATE container
-        SET name = $2, location = $3, workspace_id = $4, updated_at = $5
+        SET name = $2, description = $3, location = $4, workspace_id = $5, updated_at = $6
         WHERE id = $1`
 
     var workspaceID sql.NullInt64
@@ -452,6 +453,7 @@ func (r *Repository) Update(container *models.Container) error {
         query,
         container.ID,
         container.Name,
+        container.Description,
         container.Location,
         workspaceID,
         time.Now().UTC(),
