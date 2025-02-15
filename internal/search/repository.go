@@ -324,27 +324,82 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
 
 func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
     sqlQuery := `
+        WITH ranked_items AS (
+            SELECT 
+                i.id,
+                i.name,
+                i.description,
+                i.quantity,
+                i.container_id,
+                i.created_at,
+                i.updated_at,
+                CASE
+                    WHEN i.name ILIKE $1 THEN 1.0
+                    WHEN i.name ILIKE $1 || '%' THEN 0.8
+                    WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
+                    WHEN similarity(i.name, $1) > 0.3 THEN 0.4
+                    ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
+                        websearch_to_tsquery('english', $1)), 0.0)
+                END as rank
+            FROM item i
+            LEFT JOIN container c ON i.container_id = c.id
+            WHERE 
+                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (
+                    i.name ILIKE $1 OR
+                    i.description ILIKE '%' || $1 || '%' OR
+                    similarity(i.name, $1) > 0.3 OR
+                    to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+                    websearch_to_tsquery('english', $1)
+                )
+        ),
+        item_images AS (
+            -- Subquery to handle image ordering separately
+            SELECT 
+                img.item_id,
+                jsonb_agg(
+                    jsonb_build_object(
+                        'id', img.id,
+                        'url', img.url,
+                        'display_order', img.display_order
+                    ) ORDER BY img.display_order
+                ) as images
+            FROM item_image img
+            JOIN ranked_items ri ON img.item_id = ri.id
+            GROUP BY img.item_id
+        )
         SELECT 
-            i.id, i.name, i.description, i.quantity, i.container_id,
-            i.created_at, i.updated_at,
-            CASE
-                WHEN i.name ILIKE $1 THEN 1.0
-                WHEN i.name ILIKE $1 || '%' THEN 0.8
-                WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
-                ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
-                    websearch_to_tsquery('english', $1)), 0.0)
-            END as rank
-        FROM item i
-        JOIN container c ON i.container_id = c.id
-        WHERE 
-            c.user_id = $2 AND
-            (
-                i.name ILIKE $1 OR
-                i.description ILIKE '%' || $1 || '%' OR
-                to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
-                websearch_to_tsquery('english', $1)
-            )
-        ORDER BY rank DESC;`
+            i.*,
+            i.rank,
+            jsonb_build_object(
+                'id', c.id,
+                'name', c.name,
+                'location', c.location,
+                'workspace_id', c.workspace_id
+            ) as container,
+            COALESCE(
+                jsonb_agg(
+                    DISTINCT jsonb_build_object(
+                        'id', t.id,
+                        'name', t.name,
+                        'colour', t.colour
+                    )
+                ) FILTER (WHERE t.id IS NOT NULL),
+                '[]'
+            ) as tags,
+            COALESCE(ii.images, '[]'::jsonb) as images
+        FROM ranked_items i
+        LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN tag t ON it.tag_id = t.id
+        LEFT JOIN item_images ii ON i.id = ii.item_id
+        GROUP BY 
+            i.id, i.name, i.description, i.quantity, i.container_id, 
+            i.created_at, i.updated_at, i.rank, 
+            c.id, c.name, c.location, c.workspace_id,
+            ii.images
+        ORDER BY i.rank DESC
+        LIMIT 50;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
     if err != nil {
@@ -355,6 +410,8 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
     var results ItemSearchResults
     for rows.Next() {
         var result ItemSearchResult
+        var containerJSON, tagsJSON, imagesJSON []byte
+        
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -364,9 +421,26 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
+            &containerJSON,
+            &tagsJSON,
+            &imagesJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning item search result: %v", err)
+        }
+
+        if len(containerJSON) > 0 {
+            if err := json.Unmarshal(containerJSON, &result.Container); err != nil {
+                return nil, fmt.Errorf("error unmarshaling container: %v", err)
+            }
+        }
+
+        if err := json.Unmarshal(tagsJSON, &result.Tags); err != nil {
+            return nil, fmt.Errorf("error unmarshaling tags: %v", err)
+        }
+
+        if err := json.Unmarshal(imagesJSON, &result.Images); err != nil {
+            return nil, fmt.Errorf("error unmarshaling images: %v", err)
         }
 
         results = append(results, result)
