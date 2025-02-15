@@ -11,11 +11,11 @@ func (db *PostgresDB) Init() error {
         return fmt.Errorf("schema initialization failed: %v", err)
     }
 
-    // db.migrationsManager.EnableMigration("004_container_description")
-    // fmt.Println("Running data migration...")
-    // if err := db.migrationsManager.Run(); err != nil {
-    //     return fmt.Errorf("migrations failed: %v", err)
-    // }
+    db.migrationsManager.EnableMigration("005_tag_description")
+    fmt.Println("Running data migration...")
+    if err := db.migrationsManager.Run(); err != nil {
+        return fmt.Errorf("migrations failed: %v", err)
+    }
 
     // UNCOMMENTING WILL DROP ALL TABLES IN DEV
     // if err := development.DropAllTables(db.DB); err != nil {

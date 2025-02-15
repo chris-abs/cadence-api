@@ -40,6 +40,11 @@ func NewManager(db *sql.DB) *Manager {
                 Enabled: true,  
                 Run:     MigrateContainerDescription,
             },
+            {
+                ID:      "005_tag_description",
+                Enabled: true,
+                Run:     MigrateTagDescription,
+            },
         },
     }
 }
