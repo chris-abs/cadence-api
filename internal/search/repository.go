@@ -507,13 +507,13 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         SELECT EXISTS (
             SELECT 1
             FROM tag t
-            JOIN item_tag it ON t.id = it.tag_id
-            JOIN item i ON it.item_id = i.id
-            JOIN container c ON i.container_id = c.id
+            LEFT JOIN item_tag it ON t.id = it.tag_id
+            LEFT JOIN item i ON it.item_id = i.id
+            LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                c.user_id = $2 AND
+                (c.user_id = $2 OR i.container_id IS NULL) AND
                 (
-                    LOWER(t.name) = LOWER($1) OR
+                    t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
                     t.name ILIKE '%' || $1 || '%' OR
                     similarity(t.name, $1) > 0.3
@@ -532,10 +532,11 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
 
     sqlQuery := `
         WITH ranked_tags AS (
-            SELECT DISTINCT
+            SELECT DISTINCT ON (t.id)
                 t.id,
                 t.name,
                 t.colour,
+                t.description,
                 t.created_at,
                 t.updated_at,
                 (
@@ -553,13 +554,13 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                     END
                 ) as rank
             FROM tag t
-            JOIN item_tag it ON t.id = it.tag_id
-            JOIN item i ON it.item_id = i.id
-            JOIN container c ON i.container_id = c.id
+            LEFT JOIN item_tag it ON t.id = it.tag_id
+            LEFT JOIN item i ON it.item_id = i.id
+            LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                c.user_id = $2 AND
+                (c.user_id = $2 OR i.container_id IS NULL) AND
                 (
-                    LOWER(t.name) = LOWER($1) OR
+                    t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
                     t.name ILIKE '%' || $1 || '%' OR
                     similarity(t.name, $1) > 0.3
@@ -567,25 +568,18 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         )
         SELECT 
             rt.*,
-            COALESCE(
-                jsonb_agg(
-                    DISTINCT jsonb_build_object(
-                        'id', i.id,
-                        'name', i.name,
-                        'quantity', i.quantity,
-                        'container', jsonb_build_object(
-                            'id', c.id,
-                            'name', c.name
-                        )
-                    )
-                ) FILTER (WHERE i.id IS NOT NULL),
-                '[]'
-            ) as items
+            array_agg(
+                json_build_object(
+                    'id', i.id,
+                    'name', i.name,
+                    'quantity', i.quantity,
+                    'container_id', i.container_id
+                )
+            ) FILTER (WHERE i.id IS NOT NULL) as items
         FROM ranked_tags rt
         LEFT JOIN item_tag it ON rt.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
-        LEFT JOIN container c ON i.container_id = c.id
-        GROUP BY rt.id, rt.name, rt.colour, rt.created_at, rt.updated_at, rt.rank
+        GROUP BY rt.id, rt.name, rt.colour, rt.description, rt.created_at, rt.updated_at, rt.rank
         ORDER BY rt.rank DESC
         LIMIT 50;`
 
@@ -604,6 +598,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
             &result.ID,
             &result.Name,
             &result.Colour,
+            &result.Description,
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
