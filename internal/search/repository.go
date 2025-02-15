@@ -503,27 +503,102 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
 }
 
 func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, error) {
+    quickCheckQuery := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM tag t
+            JOIN item_tag it ON t.id = it.tag_id
+            JOIN item i ON it.item_id = i.id
+            JOIN container c ON i.container_id = c.id
+            WHERE 
+                c.user_id = $2 AND
+                (
+                    LOWER(t.name) = LOWER($1) OR
+                    t.name ~* ('\m' || $1 || '\M') OR
+                    t.name ILIKE $1 || '%' OR
+                    t.name ILIKE '%' || $1 || '%' OR
+                    similarity(t.name, $1) > 0.3 OR
+                    to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+                )
+        );`
+
+    var hasResults bool
+    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    if err != nil {
+        return nil, fmt.Errorf("error checking for results: %v", err)
+    }
+
+    if !hasResults {
+        return TagSearchResults{}, nil
+    }
+
     sqlQuery := `
-        SELECT DISTINCT
-            t.id, t.name, t.colour, t.created_at, t.updated_at,
-            CASE
-                WHEN t.name ILIKE $1 THEN 1.0
-                WHEN t.name ILIKE $1 || '%' THEN 0.8
-                WHEN t.name ILIKE '%' || $1 || '%' THEN 0.6
-                ELSE COALESCE(ts_rank(to_tsvector('english', t.name), 
-                    websearch_to_tsquery('english', $1)), 0.0)
-            END as rank
-        FROM tag t
-        JOIN item_tag it ON t.id = it.tag_id
-        JOIN item i ON it.item_id = i.id
-        JOIN container c ON i.container_id = c.id
-        WHERE 
-            c.user_id = $2 AND
-            (
-                t.name ILIKE $1 OR
-                to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
-            )
-        ORDER BY rank DESC;`
+        WITH ranked_tags AS (
+            SELECT DISTINCT
+                t.id,
+                t.name,
+                t.colour,
+                t.created_at,
+                t.updated_at,
+                (
+                    CASE
+                        WHEN LOWER(t.name) = LOWER($1) THEN 100.0
+                        WHEN t.name ~* ('\m' || $1 || '\M') THEN 90.0
+                        WHEN t.name ILIKE $1 || '%' THEN 80.0
+                        WHEN t.name ILIKE '%' || $1 || '%' THEN 60.0
+                        WHEN similarity(t.name, $1) > 0.3 THEN similarity(t.name, $1) * 30.0
+                        ELSE COALESCE(
+                            ts_rank(
+                                to_tsvector('english', t.name),
+                                websearch_to_tsquery('english', $1)
+                            ) * 20.0,
+                            0.0
+                        )
+                    END
+                    +
+                    CASE 
+                        WHEN t.updated_at > NOW() - INTERVAL '7 days' THEN 5.0 
+                        ELSE 0.0 
+                    END
+                ) as rank
+            FROM tag t
+            JOIN item_tag it ON t.id = it.tag_id
+            JOIN item i ON it.item_id = i.id
+            JOIN container c ON i.container_id = c.id
+            WHERE 
+                c.user_id = $2 AND
+                (
+                    LOWER(t.name) = LOWER($1) OR
+                    t.name ~* ('\m' || $1 || '\M') OR
+                    t.name ILIKE $1 || '%' OR
+                    t.name ILIKE '%' || $1 || '%' OR
+                    similarity(t.name, $1) > 0.3 OR
+                    to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+                )
+        )
+        SELECT 
+            rt.*,
+            COALESCE(
+                jsonb_agg(
+                    DISTINCT jsonb_build_object(
+                        'id', i.id,
+                        'name', i.name,
+                        'quantity', i.quantity,
+                        'container', jsonb_build_object(
+                            'id', c.id,
+                            'name', c.name
+                        )
+                    )
+                ) FILTER (WHERE i.id IS NOT NULL),
+                '[]'
+            ) as items
+        FROM ranked_tags rt
+        LEFT JOIN item_tag it ON rt.id = it.tag_id
+        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN container c ON i.container_id = c.id
+        GROUP BY rt.id, rt.name, rt.colour, rt.created_at, rt.updated_at, rt.rank
+        ORDER BY rt.rank DESC
+        LIMIT 50;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
     if err != nil {
@@ -534,6 +609,8 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
     var results TagSearchResults
     for rows.Next() {
         var result TagSearchResult
+        var itemsJSON []byte
+
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -541,9 +618,14 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
+            &itemsJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning tag search result: %v", err)
+        }
+
+        if err := json.Unmarshal(itemsJSON, &result.Items); err != nil {
+            return nil, fmt.Errorf("error unmarshaling items: %v", err)
         }
 
         results = append(results, result)
