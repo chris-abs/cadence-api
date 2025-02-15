@@ -567,15 +567,28 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                 )
         )
         SELECT 
-            rt.*,
-            array_agg(
-                json_build_object(
-                    'id', i.id,
-                    'name', i.name,
-                    'quantity', i.quantity,
-                    'container_id', i.container_id
-                )
-            ) FILTER (WHERE i.id IS NOT NULL) as items
+            rt.id,
+            rt.name,
+            rt.colour,
+            rt.description,
+            rt.created_at,
+            rt.updated_at,
+            rt.rank,
+            COALESCE(
+                jsonb_agg(
+                    CASE 
+                        WHEN i.id IS NOT NULL THEN
+                            jsonb_build_object(
+                                'id', i.id,
+                                'name', i.name,
+                                'quantity', i.quantity,
+                                'container_id', i.container_id
+                            )
+                        ELSE NULL 
+                    END
+                ) FILTER (WHERE i.id IS NOT NULL),
+                '[]'::jsonb
+            ) as items
         FROM ranked_tags rt
         LEFT JOIN item_tag it ON rt.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id
