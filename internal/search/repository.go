@@ -323,6 +323,35 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
 }
 
 func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
+    quickCheckQuery := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM item i
+            LEFT JOIN container c ON i.container_id = c.id
+            WHERE 
+                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (
+                    LOWER(i.name) = LOWER($1) OR
+                    i.name ~* ('\m' || $1 || '\M') OR
+                    i.name ILIKE $1 || '%' OR
+                    i.name ILIKE '%' || $1 || '%' OR
+                    i.description ILIKE '%' || $1 || '%' OR
+                    similarity(i.name, $1) > 0.3 OR
+                    to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
+                    websearch_to_tsquery('english', $1)
+                )
+        );`
+
+    var hasResults bool
+    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    if err != nil {
+        return nil, fmt.Errorf("error checking for results: %v", err)
+    }
+
+    if !hasResults {
+        return ItemSearchResults{}, nil
+    }
+
     sqlQuery := `
         WITH ranked_items AS (
             SELECT 
@@ -369,8 +398,10 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
                     to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
                     websearch_to_tsquery('english', $1)
                 )
-        ),
-        item_images AS (
+        )`
+
+    sqlQuery += `
+        , item_images AS (
             SELECT 
                 img.item_id,
                 jsonb_agg(
