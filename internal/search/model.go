@@ -40,16 +40,7 @@ type ItemSearchResult struct {
 
 type TagSearchResult struct {
     models.Tag
-    Rank  float64 `json:"rank"`
-    Items []struct {
-        ID        int    `json:"id"`
-        Name      string `json:"name"`
-        Quantity  int    `json:"quantity"`
-        Container struct {
-            ID   int    `json:"id"`
-            Name string `json:"name"`
-        } `json:"container"`
-    } `json:"items"`
+    Rank float64 `json:"rank"`
 }
 
 type WorkspaceSearchResults []WorkspaceSearchResult

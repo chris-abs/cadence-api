@@ -514,11 +514,9 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                 c.user_id = $2 AND
                 (
                     LOWER(t.name) = LOWER($1) OR
-                    t.name ~* ('\m' || $1 || '\M') OR
                     t.name ILIKE $1 || '%' OR
                     t.name ILIKE '%' || $1 || '%' OR
-                    similarity(t.name, $1) > 0.3 OR
-                    to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+                    similarity(t.name, $1) > 0.3
                 )
         );`
 
@@ -543,17 +541,10 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                 (
                     CASE
                         WHEN LOWER(t.name) = LOWER($1) THEN 100.0
-                        WHEN t.name ~* ('\m' || $1 || '\M') THEN 90.0
                         WHEN t.name ILIKE $1 || '%' THEN 80.0
                         WHEN t.name ILIKE '%' || $1 || '%' THEN 60.0
                         WHEN similarity(t.name, $1) > 0.3 THEN similarity(t.name, $1) * 30.0
-                        ELSE COALESCE(
-                            ts_rank(
-                                to_tsvector('english', t.name),
-                                websearch_to_tsquery('english', $1)
-                            ) * 20.0,
-                            0.0
-                        )
+                        ELSE 0.0
                     END
                     +
                     CASE 
@@ -569,11 +560,9 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
                 c.user_id = $2 AND
                 (
                     LOWER(t.name) = LOWER($1) OR
-                    t.name ~* ('\m' || $1 || '\M') OR
                     t.name ILIKE $1 || '%' OR
                     t.name ILIKE '%' || $1 || '%' OR
-                    similarity(t.name, $1) > 0.3 OR
-                    to_tsvector('english', t.name) @@ websearch_to_tsquery('english', $1)
+                    similarity(t.name, $1) > 0.3
                 )
         )
         SELECT 
