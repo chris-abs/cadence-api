@@ -333,20 +333,37 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
                 i.container_id,
                 i.created_at,
                 i.updated_at,
-                CASE
-                    WHEN i.name ILIKE $1 THEN 1.0
-                    WHEN i.name ILIKE $1 || '%' THEN 0.8
-                    WHEN i.name ILIKE '%' || $1 || '%' OR i.description ILIKE '%' || $1 || '%' THEN 0.6
-                    WHEN similarity(i.name, $1) > 0.3 THEN 0.4
-                    ELSE COALESCE(ts_rank(to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')), 
-                        websearch_to_tsquery('english', $1)), 0.0)
-                END as rank
+                (
+                    CASE
+                        WHEN LOWER(i.name) = LOWER($1) THEN 100.0
+                        WHEN i.name ~* ('\m' || $1 || '\M') THEN 90.0
+                        WHEN i.name ILIKE $1 || '%' THEN 80.0
+                        WHEN i.name ILIKE '%' || $1 || '%' THEN 60.0
+                        WHEN i.description ILIKE '%' || $1 || '%' THEN 40.0
+                        WHEN similarity(i.name, $1) > 0.3 THEN similarity(i.name, $1) * 30.0
+                        ELSE COALESCE(
+                            ts_rank(
+                                to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')),
+                                websearch_to_tsquery('english', $1)
+                            ) * 20.0,
+                            0.0
+                        )
+                    END
+                    +
+                    CASE 
+                        WHEN i.updated_at > NOW() - INTERVAL '7 days' THEN 5.0 
+                        ELSE 0.0 
+                    END
+                ) as rank
             FROM item i
             LEFT JOIN container c ON i.container_id = c.id
             WHERE 
                 (c.user_id = $2 OR i.container_id IS NULL) AND
                 (
-                    i.name ILIKE $1 OR
+                    LOWER(i.name) = LOWER($1) OR
+                    i.name ~* ('\m' || $1 || '\M') OR
+                    i.name ILIKE $1 || '%' OR
+                    i.name ILIKE '%' || $1 || '%' OR
                     i.description ILIKE '%' || $1 || '%' OR
                     similarity(i.name, $1) > 0.3 OR
                     to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
@@ -354,7 +371,6 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
                 )
         ),
         item_images AS (
-            -- Subquery to handle image ordering separately
             SELECT 
                 img.item_id,
                 jsonb_agg(
@@ -369,7 +385,13 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
             GROUP BY img.item_id
         )
         SELECT 
-            i.*,
+            i.id,
+            i.name,
+            i.description,
+            i.quantity,
+            i.container_id,
+            i.created_at,
+            i.updated_at,
             i.rank,
             jsonb_build_object(
                 'id', c.id,
@@ -395,7 +417,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
         LEFT JOIN item_images ii ON i.id = ii.item_id
         GROUP BY 
             i.id, i.name, i.description, i.quantity, i.container_id, 
-            i.created_at, i.updated_at, i.rank, 
+            i.created_at, i.updated_at, i.rank,
             c.id, c.name, c.location, c.workspace_id,
             ii.images
         ORDER BY i.rank DESC
@@ -411,7 +433,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
     for rows.Next() {
         var result ItemSearchResult
         var containerJSON, tagsJSON, imagesJSON []byte
-        
+
         err := rows.Scan(
             &result.ID,
             &result.Name,
