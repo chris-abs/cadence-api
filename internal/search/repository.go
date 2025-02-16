@@ -218,26 +218,99 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
 }
 
 func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
+    quickCheckQuery := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM workspace w
+            WHERE 
+                w.user_id = $2 AND
+                (
+                    LOWER(w.name) = LOWER($1) OR
+                    w.name ILIKE $1 || '%' OR
+                    w.name ILIKE '%' || $1 || '%' OR
+                    w.description ILIKE '%' || $1 || '%' OR
+                    similarity(w.name, $1) > 0.3
+                )
+        );`
+
+    var hasResults bool
+    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    if err != nil {
+        return nil, fmt.Errorf("error checking for results: %v", err)
+    }
+
+    if !hasResults {
+        return WorkspaceSearchResults{}, nil
+    }
+
     sqlQuery := `
+        WITH ranked_workspaces AS (
+            SELECT 
+                w.id,
+                w.name,
+                w.description,
+                w.user_id,
+                w.created_at,
+                w.updated_at,
+                (
+                    CASE
+                        WHEN LOWER(w.name) = LOWER($1) THEN 100.0
+                        WHEN w.name ~* ('\m' || $1 || '\M') THEN 90.0
+                        WHEN w.name ILIKE $1 || '%' THEN 80.0
+                        WHEN w.name ILIKE '%' || $1 || '%' THEN 60.0
+                        WHEN w.description ILIKE '%' || $1 || '%' THEN 40.0
+                        WHEN similarity(w.name, $1) > 0.3 THEN similarity(w.name, $1) * 30.0
+                        ELSE COALESCE(
+                            ts_rank(
+                                to_tsvector('english', 
+                                    w.name || ' ' || 
+                                    COALESCE(w.description, '')
+                                ),
+                                websearch_to_tsquery('english', $1)
+                            ) * 20.0,
+                            0.0
+                        )
+                    END
+                    +
+                    CASE 
+                        WHEN w.updated_at > NOW() - INTERVAL '7 days' THEN 5.0 
+                        ELSE 0.0 
+                    END
+                ) as rank
+            FROM workspace w
+            WHERE 
+                w.user_id = $2 AND
+                (
+                    LOWER(w.name) = LOWER($1) OR
+                    w.name ~* ('\m' || $1 || '\M') OR
+                    w.name ILIKE $1 || '%' OR
+                    w.name ILIKE '%' || $1 || '%' OR
+                    w.description ILIKE '%' || $1 || '%' OR
+                    similarity(w.name, $1) > 0.3 OR
+                    to_tsvector('english', 
+                        w.name || ' ' || 
+                        COALESCE(w.description, '')
+                    ) @@ websearch_to_tsquery('english', $1)
+                )
+        )
         SELECT 
-            w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at,
-            CASE
-                WHEN w.name ILIKE $1 THEN 1.0
-                WHEN w.name ILIKE $1 || '%' THEN 0.8
-                WHEN w.name ILIKE '%' || $1 || '%' OR w.description ILIKE '%' || $1 || '%' THEN 0.6
-                ELSE COALESCE(ts_rank(to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')), 
-                    websearch_to_tsquery('english', $1)), 0.0)
-            END as rank
-        FROM workspace w
-        WHERE 
-            w.user_id = $2 AND
-            (
-                w.name ILIKE $1 OR
-                w.description ILIKE '%' || $1 || '%' OR
-                to_tsvector('english', w.name || ' ' || COALESCE(w.description, '')) @@ 
-                websearch_to_tsquery('english', $1)
-            )
-        ORDER BY rank DESC;`
+            rw.*,
+            COALESCE(
+                jsonb_agg(
+                    DISTINCT jsonb_build_object(
+                        'id', c.id,
+                        'name', c.name,
+                        'location', c.location,
+                        'number', c.number
+                    )
+                ) FILTER (WHERE c.id IS NOT NULL),
+                '[]'::jsonb
+            ) as containers
+        FROM ranked_workspaces rw
+        LEFT JOIN container c ON rw.id = c.workspace_id
+        GROUP BY rw.id, rw.name, rw.description, rw.user_id, rw.created_at, rw.updated_at, rw.rank
+        ORDER BY rw.rank DESC
+        LIMIT 50;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
     if err != nil {
@@ -248,6 +321,8 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
     var results WorkspaceSearchResults
     for rows.Next() {
         var result WorkspaceSearchResult
+        var containersJSON []byte
+
         err := rows.Scan(
             &result.ID,
             &result.Name,
@@ -256,9 +331,14 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
+            &containersJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning workspace search result: %v", err)
+        }
+
+        if err := json.Unmarshal(containersJSON, &result.Containers); err != nil {
+            return nil, fmt.Errorf("error unmarshaling containers: %v", err)
         }
 
         results = append(results, result)
@@ -268,7 +348,6 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
 }
 
 func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
-    // First, do a quick check for matching containers
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
