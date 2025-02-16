@@ -268,27 +268,106 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
 }
 
 func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
+    // First, do a quick check for matching containers
+    quickCheckQuery := `
+        SELECT EXISTS (
+            SELECT 1
+            FROM container c
+            WHERE 
+                c.user_id = $2 AND
+                (
+                    LOWER(c.name) = LOWER($1) OR
+                    c.name ILIKE $1 || '%' OR
+                    c.name ILIKE '%' || $1 || '%' OR
+                    c.location ILIKE '%' || $1 || '%' OR
+                    c.description ILIKE '%' || $1 || '%' OR
+                    similarity(c.name, $1) > 0.3
+                )
+        );`
+
+    var hasResults bool
+    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    if err != nil {
+        return nil, fmt.Errorf("error checking for results: %v", err)
+    }
+
+    if !hasResults {
+        return ContainerSearchResults{}, nil
+    }
+
     sqlQuery := `
+        WITH ranked_containers AS (
+            SELECT 
+                c.id,
+                c.name,
+                c.description,
+                c.qr_code,
+                c.qr_code_image,
+                c.number,
+                c.location,
+                c.user_id,
+                c.workspace_id,
+                c.created_at,
+                c.updated_at,
+                (
+                    CASE
+                        WHEN LOWER(c.name) = LOWER($1) THEN 100.0
+                        WHEN c.name ~* ('\m' || $1 || '\M') THEN 90.0
+                        WHEN c.name ILIKE $1 || '%' THEN 80.0
+                        WHEN c.name ILIKE '%' || $1 || '%' THEN 60.0
+                        WHEN c.description ILIKE '%' || $1 || '%' THEN 50.0
+                        WHEN c.location ILIKE '%' || $1 || '%' THEN 40.0
+                        WHEN similarity(c.name, $1) > 0.3 THEN similarity(c.name, $1) * 30.0
+                        ELSE COALESCE(
+                            ts_rank(
+                                to_tsvector('english', 
+                                    c.name || ' ' || 
+                                    COALESCE(c.description, '') || ' ' || 
+                                    COALESCE(c.location, '')
+                                ),
+                                websearch_to_tsquery('english', $1)
+                            ) * 20.0,
+                            0.0
+                        )
+                    END
+                    +
+                    CASE 
+                        WHEN c.updated_at > NOW() - INTERVAL '7 days' THEN 5.0 
+                        ELSE 0.0 
+                    END
+                ) as rank
+            FROM container c
+            WHERE 
+                c.user_id = $2 AND
+                (
+                    LOWER(c.name) = LOWER($1) OR
+                    c.name ~* ('\m' || $1 || '\M') OR
+                    c.name ILIKE $1 || '%' OR
+                    c.name ILIKE '%' || $1 || '%' OR
+                    c.description ILIKE '%' || $1 || '%' OR
+                    c.location ILIKE '%' || $1 || '%' OR
+                    similarity(c.name, $1) > 0.3 OR
+                    to_tsvector('english', 
+                        c.name || ' ' || 
+                        COALESCE(c.description, '') || ' ' || 
+                        COALESCE(c.location, '')
+                    ) @@ websearch_to_tsquery('english', $1)
+                )
+        )
         SELECT 
-            c.id, c.name, c.qr_code, c.qr_code_image, c.number, c.location,
-            c.user_id, c.workspace_id, c.created_at, c.updated_at,
-            CASE
-                WHEN c.name ILIKE $1 THEN 1.0
-                WHEN c.name ILIKE $1 || '%' THEN 0.8
-                WHEN c.name ILIKE '%' || $1 || '%' OR c.location ILIKE '%' || $1 || '%' THEN 0.6
-                ELSE COALESCE(ts_rank(to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')), 
-                    websearch_to_tsquery('english', $1)), 0.0)
-            END as rank
-        FROM container c
-        WHERE 
-            c.user_id = $2 AND
-            (
-                c.name ILIKE $1 OR
-                c.location ILIKE '%' || $1 || '%' OR
-                to_tsvector('english', c.name || ' ' || COALESCE(c.location, '')) @@ 
-                websearch_to_tsquery('english', $1)
-            )
-        ORDER BY rank DESC;`
+            rc.*,
+            COALESCE(
+                jsonb_build_object(
+                    'id', w.id,
+                    'name', w.name,
+                    'description', w.description
+                ),
+                NULL
+            ) as workspace
+        FROM ranked_containers rc
+        LEFT JOIN workspace w ON rc.workspace_id = w.id
+        ORDER BY rc.rank DESC
+        LIMIT 50;`
 
     rows, err := r.db.Query(sqlQuery, query, userID)
     if err != nil {
@@ -299,9 +378,12 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
     var results ContainerSearchResults
     for rows.Next() {
         var result ContainerSearchResult
+        var workspaceJSON []byte
+
         err := rows.Scan(
             &result.ID,
             &result.Name,
+            &result.Description,
             &result.QRCode,
             &result.QRCodeImage,
             &result.Number,
@@ -311,9 +393,16 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
+            &workspaceJSON,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container search result: %v", err)
+        }
+
+        if len(workspaceJSON) > 0 {
+            if err := json.Unmarshal(workspaceJSON, &result.Workspace); err != nil {
+                return nil, fmt.Errorf("error unmarshaling workspace: %v", err)
+            }
         }
 
         results = append(results, result)
