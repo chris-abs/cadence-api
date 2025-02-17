@@ -3,11 +3,13 @@ package user
 import "github.com/chrisabs/storage/internal/models"
 
 type CreateUserRequest struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	ImageURL  string `json:"imageUrl"`
+    Email     string          `json:"email"`
+    Password  string          `json:"password"`
+    FirstName string          `json:"firstName"`
+    LastName  string          `json:"lastName"`
+    ImageURL  string          `json:"imageUrl"`
+    FamilyID  *int           `json:"familyId,omitempty"` 
+    Role      models.UserRole `json:"role,omitempty"`     
 }
 
 type UpdateUserRequest struct {
@@ -17,11 +19,16 @@ type UpdateUserRequest struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
 }
 
 type AuthResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
+    Token string      `json:"token"`
+    User  models.User `json:"user"`
+}
+
+type AcceptInviteRequest struct {
+    Token    string `json:"token"`
+    Password string `json:"password,omitempty"` 
 }
