@@ -9,8 +9,8 @@ type User struct {
     FirstName  string      `json:"firstName"`
     LastName   string      `json:"lastName"`
     ImageURL   string      `json:"imageUrl"`
-    Role       UserRole    `json:"role"`
-    FamilyID   *int        `json:"familyId"`
+    Role       UserRole    `json:"role"`        
+    FamilyID   *int        `json:"familyId"`    
     Containers []Container `json:"containers"`
     CreatedAt  time.Time   `json:"createdAt"`
     UpdatedAt  time.Time   `json:"updatedAt"`

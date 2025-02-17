@@ -12,8 +12,8 @@ type Family struct {
 }
 
 type Module struct {
-    ID        string    `json:"id"`
-    IsEnabled bool      `json:"isEnabled"`
+    ID        string         `json:"id"`
+    IsEnabled bool          `json:"isEnabled"`
     Settings  ModuleSettings `json:"settings"`
 }
 
@@ -28,3 +28,14 @@ const (
     PermissionWrite  Permission = "WRITE"
     PermissionManage Permission = "MANAGE"
 )
+
+type FamilyInvite struct {
+    ID        int       `json:"id"`
+    FamilyID  int       `json:"familyId"`
+    Email     string    `json:"email"`
+    Role      UserRole  `json:"role"`
+    Token     string    `json:"token"`
+    ExpiresAt time.Time `json:"expiresAt"`
+    CreatedAt time.Time `json:"createdAt"`
+    UpdatedAt time.Time `json:"updatedAt"`
+}
