@@ -2,6 +2,7 @@ package family
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -17,17 +18,46 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(family *models.Family) error {
+    defaultModules := []models.Module{
+        {
+            ID: "storage",
+            IsEnabled: true,
+            Settings: models.ModuleSettings{
+                Permissions: map[models.UserRole][]models.Permission{
+                    models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+                    models.RoleChild:  {models.PermissionRead},
+                },
+            },
+        },
+        {
+            ID: "meals",
+            IsEnabled: false,
+            Settings: models.ModuleSettings{
+                Permissions: map[models.UserRole][]models.Permission{
+                    models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+                    models.RoleChild:  {models.PermissionRead},
+                },
+            },
+        },
+    }
+
+    family.Modules = defaultModules
+
+    modulesJSON, err := json.Marshal(family.Modules)
+    if err != nil {
+        return fmt.Errorf("error marshaling modules: %v", err)
+    }
+
     query := `
-        INSERT INTO family (name, owner_id, module_permissions, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO family (name, owner_id, modules, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $4)
         RETURNING id`
 
-    err := r.db.QueryRow(
+    err = r.db.QueryRow(
         query,
         family.Name,
         family.OwnerID,
-        family.ModulePermissions,
-        time.Now().UTC(),
+        modulesJSON,
         time.Now().UTC(),
     ).Scan(&family.ID)
 
@@ -40,16 +70,18 @@ func (r *Repository) Create(family *models.Family) error {
 
 func (r *Repository) GetByID(id int) (*models.Family, error) {
     query := `
-        SELECT id, name, owner_id, module_permissions, created_at, updated_at
+        SELECT id, name, owner_id, modules, created_at, updated_at
         FROM family
         WHERE id = $1`
 
+    var modulesJSON []byte
     family := new(models.Family)
+    
     err := r.db.QueryRow(query, id).Scan(
         &family.ID,
         &family.Name,
         &family.OwnerID,
-        &family.ModulePermissions,
+        &modulesJSON,
         &family.CreatedAt,
         &family.UpdatedAt,
     )
@@ -61,14 +93,23 @@ func (r *Repository) GetByID(id int) (*models.Family, error) {
         return nil, fmt.Errorf("error getting family: %v", err)
     }
 
+    if err := json.Unmarshal(modulesJSON, &family.Modules); err != nil {
+        return nil, fmt.Errorf("error unmarshaling modules: %v", err)
+    }
+
     return family, nil
 }
 
 func (r *Repository) Update(family *models.Family) error {
+    modulesJSON, err := json.Marshal(family.Modules)
+    if err != nil {
+        return fmt.Errorf("error marshaling modules: %v", err)
+    }
+
     query := `
         UPDATE family
         SET name = $2, 
-            module_permissions = $3,
+            modules = $3,
             updated_at = $4
         WHERE id = $1`
 
@@ -76,7 +117,7 @@ func (r *Repository) Update(family *models.Family) error {
         query,
         family.ID,
         family.Name,
-        family.ModulePermissions,
+        modulesJSON,
         time.Now().UTC(),
     )
 
@@ -100,7 +141,7 @@ func (r *Repository) CreateInvite(invite *models.FamilyInvite) error {
     query := `
         INSERT INTO family_invite (
             family_id, email, role, token, expires_at, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $6)
         RETURNING id`
 
     err := r.db.QueryRow(
@@ -110,7 +151,6 @@ func (r *Repository) CreateInvite(invite *models.FamilyInvite) error {
         invite.Role,
         invite.Token,
         invite.ExpiresAt,
-        time.Now().UTC(),
         time.Now().UTC(),
     ).Scan(&invite.ID)
 
@@ -125,7 +165,7 @@ func (r *Repository) GetInviteByToken(token string) (*models.FamilyInvite, error
     query := `
         SELECT id, family_id, email, role, token, expires_at, created_at, updated_at
         FROM family_invite
-        WHERE token = $1`
+        WHERE token = $1 AND expires_at > NOW()`
 
     invite := new(models.FamilyInvite)
     err := r.db.QueryRow(query, token).Scan(
@@ -140,7 +180,7 @@ func (r *Repository) GetInviteByToken(token string) (*models.FamilyInvite, error
     )
 
     if err == sql.ErrNoRows {
-        return nil, fmt.Errorf("invite not found")
+        return nil, fmt.Errorf("invite not found or expired")
     }
     if err != nil {
         return nil, fmt.Errorf("error getting invite: %v", err)
