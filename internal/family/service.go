@@ -148,3 +148,7 @@ func (s *Service) GetFamilyModules(familyID int) ([]models.Module, error) {
 
     return family.Modules, nil
 }
+
+func (s *Service) DeleteInvite(id int) error {
+    return s.repo.DeleteInvite(id)
+}

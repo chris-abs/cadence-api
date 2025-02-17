@@ -6,6 +6,7 @@ import (
 
 	"github.com/chrisabs/storage/internal/config"
 	"github.com/chrisabs/storage/internal/container"
+	"github.com/chrisabs/storage/internal/family"
 	"github.com/chrisabs/storage/internal/item"
 	"github.com/chrisabs/storage/internal/middleware"
 	"github.com/chrisabs/storage/internal/platform/database"
@@ -50,6 +51,7 @@ func (s *Server) Run() {
 
     // Initialise repositories
     userRepo := user.NewRepository(s.db.DB)
+    familyRepo := family.NewRepository(s.db.DB)
     containerRepo := container.NewRepository(s.db.DB)
     workspaceRepo := workspace.NewRepository(s.db.DB)
     itemRepo := item.NewRepository(s.db.DB)
@@ -58,7 +60,12 @@ func (s *Server) Run() {
     recentRepo := recent.NewRepository(s.db.DB)
 
     // Initialise services
-    userService := user.NewService(userRepo, s.config.JWTSecret)
+    familyService := family.NewService(familyRepo)
+    userService := user.NewService(
+        userRepo, 
+        familyService,                               
+        s.config.JWTSecret,
+    )    
     workspaceService := workspace.NewService(workspaceRepo)
     containerService := container.NewService(containerRepo)
     itemService := item.NewService(itemRepo)
@@ -66,8 +73,13 @@ func (s *Server) Run() {
     searchService := search.NewService(searchRepo)
     recentService := recent.NewService(recentRepo)
 
+
     // Initialise handlers
     userHandler := user.NewHandler(userService, authMiddleware)
+    familyHandler := family.NewHandler(              
+        familyService, 
+        authMiddleware,
+    )
     workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
     containerHandler := container.NewHandler(containerService, authMiddleware)
     itemHandler := item.NewHandler(itemService, containerService, authMiddleware)
@@ -77,6 +89,7 @@ func (s *Server) Run() {
 
     // Register routes
     userHandler.RegisterRoutes(router)
+    familyHandler.RegisterRoutes(router)  
     workspaceHandler.RegisterRoutes(router)
     containerHandler.RegisterRoutes(router)
     itemHandler.RegisterRoutes(router)

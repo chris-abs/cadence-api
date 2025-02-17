@@ -196,6 +196,38 @@ func (r *Repository) Update(user *models.User) error {
 	return nil
 }
 
+func (r *Repository) UpdateFamilyMembership(userID int, familyID *int, role models.UserRole) error {
+    query := `
+        UPDATE users
+        SET family_id = $2,
+            role = $3,
+            updated_at = $4
+        WHERE id = $1`
+
+    result, err := r.db.Exec(
+        query,
+        userID,
+        familyID,
+        role,
+        time.Now().UTC(),
+    )
+
+    if err != nil {
+        return fmt.Errorf("error updating user family membership: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking update result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("user not found")
+    }
+
+    return nil
+}
+
 func (r *Repository) Delete(id int) error {
 	query := `DELETE FROM users WHERE id = $1`
 	result, err := r.db.Exec(query, id)

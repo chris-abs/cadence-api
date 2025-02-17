@@ -26,6 +26,8 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/users/register", h.handleRegister).Methods("POST")
 	router.HandleFunc("/users/login", h.handleLogin).Methods("POST")
+	router.HandleFunc("/users/accept-invite", h.handleAcceptInvite).Methods("POST")
+
 
 	router.HandleFunc("/users", h.authMiddleware.AuthHandler(h.handleGetUsers)).Methods("GET")
 	router.HandleFunc("/user", h.authMiddleware.AuthHandler(h.handleGetAuthenticatedUser)).Methods("GET")
@@ -65,6 +67,31 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+func (h *Handler) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
+    var req AcceptInviteRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    user, err := h.service.AcceptInvite(&req)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    token, err := h.service.generateJWT(user.ID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "failed to generate token")
+        return
+    }
+
+    writeJSON(w, http.StatusOK, &AuthResponse{
+        Token: token,
+        User:  *user,
+    })
 }
 
 func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request) {
