@@ -1,0 +1,167 @@
+package family
+
+import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"time"
+
+	"github.com/chrisabs/storage/internal/models"
+)
+
+type Service struct {
+    repo *Repository
+}
+
+func NewService(repo *Repository) *Service {
+    return &Service{
+        repo: repo,
+    }
+}
+
+type CreateFamilyRequest struct {
+    Name      string `json:"name"`
+    OwnerID   int    `json:"ownerId"`
+}
+
+type CreateInviteRequest struct {
+    FamilyID int            `json:"familyId"`
+    Email    string         `json:"email"`
+    Role     models.UserRole `json:"role"`
+}
+
+type UpdateModuleRequest struct {
+    ModuleID    string                                     `json:"moduleId"`
+    IsEnabled   bool                                       `json:"isEnabled"`
+    Permissions map[models.UserRole][]models.Permission    `json:"permissions"`
+}
+
+func (s *Service) CreateFamily(req *CreateFamilyRequest) (*models.Family, error) {
+    family := &models.Family{
+        Name:    req.Name,
+        OwnerID: req.OwnerID,
+    }
+
+    if err := s.repo.Create(family); err != nil {
+        return nil, fmt.Errorf("failed to create family: %v", err)
+    }
+
+    return family, nil
+}
+
+func (s *Service) CreateInvite(req *CreateInviteRequest) (*models.FamilyInvite, error) {
+    tokenBytes := make([]byte, 32)
+    if _, err := rand.Read(tokenBytes); err != nil {
+        return nil, fmt.Errorf("failed to generate token: %v", err)
+    }
+    token := base64.URLEncoding.EncodeToString(tokenBytes)
+
+    invite := &models.FamilyInvite{
+        FamilyID:  req.FamilyID,
+        Email:     req.Email,
+        Role:      req.Role,
+        Token:     token,
+        ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour), 
+    }
+
+    if err := s.repo.CreateInvite(invite); err != nil {
+        return nil, fmt.Errorf("failed to create invite: %v", err)
+    }
+
+    return invite, nil
+}
+
+func (s *Service) ValidateInvite(token string) (*models.FamilyInvite, error) {
+    invite, err := s.repo.GetInviteByToken(token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid or expired invite: %v", err)
+    }
+
+    return invite, nil
+}
+
+func (s *Service) GetFamily(id int) (*models.Family, error) {
+    return s.repo.GetByID(id)
+}
+
+func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) error {
+    family, err := s.repo.GetByID(familyID)
+    if err != nil {
+        return fmt.Errorf("failed to get family: %v", err)
+    }
+
+    moduleFound := false
+    for i, module := range family.Modules {
+        if module.ID == req.ModuleID {
+            family.Modules[i].IsEnabled = req.IsEnabled
+            family.Modules[i].Settings.Permissions = req.Permissions
+            moduleFound = true
+            break
+        }
+    }
+
+    if !moduleFound {
+        family.Modules = append(family.Modules, models.Module{
+            ID:        req.ModuleID,
+            IsEnabled: req.IsEnabled,
+            Settings: models.ModuleSettings{
+                Permissions: req.Permissions,
+            },
+        })
+    }
+
+    if err := s.repo.Update(family); err != nil {
+        return fmt.Errorf("failed to update family modules: %v", err)
+    }
+
+    return nil
+}
+
+func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, moduleID string, permission models.Permission) (bool, error) {
+    family, err := s.repo.GetByID(familyID)
+    if err != nil {
+        return false, fmt.Errorf("failed to get family: %v", err)
+    }
+
+    for _, module := range family.Modules {
+        if module.ID == moduleID && module.IsEnabled {
+            permissions, exists := module.Settings.Permissions[userRole]
+            if !exists {
+                return false, nil
+            }
+
+            for _, p := range permissions {
+                if p == permission {
+                    return true, nil
+                }
+            }
+            return false, nil
+        }
+    }
+
+    return false, nil
+}
+
+func (s *Service) IsModuleEnabled(familyID int, moduleID string) (bool, error) {
+    family, err := s.repo.GetByID(familyID)
+    if err != nil {
+        return false, fmt.Errorf("failed to get family: %v", err)
+    }
+
+    for _, module := range family.Modules {
+        if module.ID == moduleID {
+            return module.IsEnabled, nil
+        }
+    }
+
+    return false, nil
+}
+
+func (s *Service) GetFamilyModules(familyID int) ([]models.Module, error) {
+    family, err := s.repo.GetByID(familyID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get family: %v", err)
+    }
+
+    return family.Modules, nil
+}
