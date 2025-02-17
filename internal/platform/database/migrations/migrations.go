@@ -45,6 +45,11 @@ func NewManager(db *sql.DB) *Manager {
                 Enabled: true,
                 Run:     MigrateTagDescription,
             },
+            {
+                ID:      "006_family_support",
+                Enabled: true,
+                Run:     MigrateFamilySupport,
+            },
         },
     }
 }
