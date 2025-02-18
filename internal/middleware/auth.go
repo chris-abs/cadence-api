@@ -1,29 +1,20 @@
 package middleware
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/chrisabs/storage/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 
 type AuthMiddleware struct {
     jwtSecret string
     db        *sql.DB
-}
-
-type ModulePermission struct {
-    ModuleID string   `json:"moduleId"`
-    Enabled  bool     `json:"enabled"`
-    Actions  []string `json:"actions"`
-}
-
-type UserModuleAccess struct {
-    Role        string             `json:"role"`
-    Permissions []ModulePermission `json:"permissions"`
 }
 
 func NewAuthMiddleware(jwtSecret string, db *sql.DB) *AuthMiddleware {
@@ -33,44 +24,53 @@ func NewAuthMiddleware(jwtSecret string, db *sql.DB) *AuthMiddleware {
     }
 }
 
-func (m *AuthMiddleware) getUserAccess(userID string) (*UserModuleAccess, error) {
+func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, error) {
     query := `
-        SELECT u.role, f.module_permissions
+        SELECT 
+            u.id,
+            u.family_id,
+            u.role,
+            f.modules
         FROM users u
         LEFT JOIN families f ON u.family_id = f.id
         WHERE u.id = $1`
 
     var (
-        role        string
-        permissions []byte
+        ctx models.UserContext
+        modulesJSON []byte
     )
 
-    err := m.db.QueryRow(query, userID).Scan(&role, &permissions)
+    err := m.db.QueryRow(query, userID).Scan(
+        &ctx.UserID,
+        &ctx.FamilyID,
+        &ctx.Role,
+        &modulesJSON,
+    )
     if err == sql.ErrNoRows {
         return nil, fmt.Errorf("user not found")
     }
     if err != nil {
-        return nil, fmt.Errorf("error checking user access: %v", err)
+        return nil, fmt.Errorf("error fetching user context: %v", err)
     }
 
-    access := &UserModuleAccess{Role: role}
-    if permissions != nil {
-        if err := json.Unmarshal(permissions, &access.Permissions); err != nil {
-            return nil, fmt.Errorf("error parsing permissions: %v", err)
+    ctx.ModuleAccess = make(map[string][]models.Permission)
+
+    if modulesJSON != nil {
+        var modules []models.Module
+        if err := json.Unmarshal(modulesJSON, &modules); err != nil {
+            return nil, fmt.Errorf("error parsing modules: %v", err)
+        }
+        
+        for _, module := range modules {
+            if module.IsEnabled {
+                if perms, exists := module.Settings.Permissions[ctx.Role]; exists {
+                    ctx.ModuleAccess[module.ID] = perms
+                }
+            }
         }
     }
 
-    return access, nil
-}
-
-func (m *AuthMiddleware) userExists(userID string) (bool, error) {
-    var exists bool
-    query := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
-    err := m.db.QueryRow(query, userID).Scan(&exists)
-    if err != nil {
-        return false, fmt.Errorf("error checking user existence: %v", err)
-    }
-    return exists, nil
+    return &ctx, nil
 }
 
 func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
@@ -105,39 +105,31 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
             return
         }
 
-        userID := fmt.Sprintf("%.0f", claims["userId"])
+        userID := int(claims["userId"].(float64))
         
-        exists, err := m.userExists(userID)
-        if err != nil || !exists {
-            http.Error(w, "User not found", http.StatusUnauthorized)
-            return
-        }
-
-        access, err := m.getUserAccess(userID)
+        userCtx, err := m.buildUserContext(userID)
         if err != nil {
-            http.Error(w, "Error checking user access", http.StatusInternalServerError)
+            http.Error(w, "Unauthorized", http.StatusUnauthorized)
             return
         }
 
-        r.Header.Set("UserId", userID)
-        r.Header.Set("UserRole", access.Role)
-        
         module := extractModuleFromPath(r.URL.Path)
         action := mapHTTPMethodToAction(r.Method)
-
-        if !hasPermission(access.Permissions, module, action) {
+        
+        if !userCtx.CanAccess(module, models.Permission(action)) {
             http.Error(w, "Insufficient permissions", http.StatusForbidden)
             return
         }
 
-        next(w, r)
+        ctx := context.WithValue(r.Context(), "user", userCtx)
+        next.ServeHTTP(w, r.WithContext(ctx))
     }
 }
 
 func extractModuleFromPath(path string) string {
     parts := strings.Split(path, "/")
     if len(parts) > 1 {
-        return parts[1] 
+        return parts[1]
     }
     return ""
 }
@@ -153,17 +145,4 @@ func mapHTTPMethodToAction(method string) string {
     default:
         return ""
     }
-}
-
-func hasPermission(permissions []ModulePermission, moduleID, action string) bool {
-    for _, p := range permissions {
-        if p.ModuleID == moduleID && p.Enabled {
-            for _, a := range p.Actions {
-                if a == action {
-                    return true
-                }
-            }
-        }
-    }
-    return false
 }
