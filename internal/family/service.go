@@ -44,7 +44,7 @@ func (s *Service) CreateInvite(req *CreateInviteRequest) (*models.FamilyInvite, 
         Email:     req.Email,
         Role:      req.Role,
         Token:     token,
-        ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour), 
+        ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
     }
 
     if err := s.repo.CreateInvite(invite); err != nil {
@@ -100,7 +100,7 @@ func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) e
     return nil
 }
 
-func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, moduleID string, permission models.Permission) (bool, error) {
+func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
     family, err := s.repo.GetByID(familyID)
     if err != nil {
         return false, fmt.Errorf("failed to get family: %v", err)
@@ -125,7 +125,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
     return false, nil
 }
 
-func (s *Service) IsModuleEnabled(familyID int, moduleID string) (bool, error) {
+func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
     family, err := s.repo.GetByID(familyID)
     if err != nil {
         return false, fmt.Errorf("failed to get family: %v", err)
