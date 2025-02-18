@@ -53,7 +53,7 @@ func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, erro
         return nil, fmt.Errorf("error fetching user context: %v", err)
     }
 
-    ctx.ModuleAccess = make(map[string][]models.Permission)
+    ctx.ModuleAccess = make(map[models.ModuleID][]models.Permission)
 
     if modulesJSON != nil {
         var modules []models.Module
@@ -113,10 +113,10 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
             return
         }
 
-        module := extractModuleFromPath(r.URL.Path)
-        action := mapHTTPMethodToAction(r.Method)
+        moduleID := extractModuleFromPath(r.URL.Path)
+        permission := mapHTTPMethodToPermission(r.Method)
         
-        if !userCtx.CanAccess(module, models.Permission(action)) {
+        if !userCtx.CanAccess(moduleID, permission) {
             http.Error(w, "Insufficient permissions", http.StatusForbidden)
             return
         }
@@ -126,23 +126,23 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
     }
 }
 
-func extractModuleFromPath(path string) string {
+func extractModuleFromPath(path string) models.ModuleID {
     parts := strings.Split(path, "/")
     if len(parts) > 1 {
-        return parts[1]
+        return models.ModuleID(parts[1])
     }
     return ""
 }
 
-func mapHTTPMethodToAction(method string) string {
+func mapHTTPMethodToPermission(method string) models.Permission {
     switch method {
     case http.MethodGet:
-        return "READ"
+        return models.PermissionRead
     case http.MethodPost, http.MethodPut, http.MethodPatch:
-        return "WRITE"
+        return models.PermissionWrite
     case http.MethodDelete:
-        return "DELETE"
+        return models.PermissionManage
     default:
-        return ""
+        return models.PermissionRead 
     }
 }

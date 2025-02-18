@@ -11,14 +11,24 @@ type Family struct {
     Modules     []Module  `json:"modules"`
 }
 
+type ModuleID string
+
+
+const (
+    ModuleStorage  ModuleID = "storage"
+    ModuleChores   ModuleID = "chores"
+    ModuleMeals    ModuleID = "meals"
+    ModuleServices ModuleID = "services"
+)
+
 type Module struct {
-    ID        string         `json:"id"`
+    ID        ModuleID       `json:"id"`
     IsEnabled bool          `json:"isEnabled"`
     Settings  ModuleSettings `json:"settings"`
 }
 
 type ModuleSettings struct {
-    Permissions map[UserRole][]Permission `json:"permissions"`
+    Permissions map[UserRole][]Permission `json:"permissions"` 
 }
 
 type Permission string

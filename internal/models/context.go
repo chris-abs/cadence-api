@@ -4,10 +4,10 @@ type UserContext struct {
     UserID        int
     FamilyID      *int
     Role          UserRole
-    ModuleAccess  map[string][]Permission
+    ModuleAccess  map[ModuleID][]Permission
 }
 
-func (ctx *UserContext) CanAccess(module string, permission Permission) bool {
+func (ctx *UserContext) CanAccess(module ModuleID, permission Permission) bool {
     permissions, exists := ctx.ModuleAccess[module]
     if !exists {
         return false
