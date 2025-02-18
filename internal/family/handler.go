@@ -27,7 +27,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleGetFamily)).Methods("GET")
     
     router.HandleFunc("/families/{id}/invites", h.authMiddleware.AuthHandler(h.handleCreateInvite)).Methods("POST")
-    router.HandleFunc("/families/invites/{token}", h.handleValidateInvite).Methods("GET") 
+    router.HandleFunc("/families/invites/{token}", h.handleValidateInvite).Methods("GET")
     
     router.HandleFunc("/families/{id}/modules", h.authMiddleware.AuthHandler(h.handleGetModules)).Methods("GET")
     router.HandleFunc("/families/{id}/modules/{moduleId}", h.authMiddleware.AuthHandler(h.handleUpdateModule)).Methods("PUT")
@@ -40,12 +40,8 @@ func (h *Handler) handleCreateFamily(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusInternalServerError, "invalid user id")
-        return
-    }
-    req.OwnerID = userID
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    req.OwnerID = userCtx.UserID
 
     family, err := h.service.CreateFamily(&req)
     if err != nil {
@@ -86,15 +82,9 @@ func (h *Handler) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
     }
     req.FamilyID = familyID
 
-    userRole := models.UserRole(r.Header.Get("UserRole"))
-    hasPermission, err := h.service.HasModulePermission(
-        familyID,
-        userRole,
-        "family", 
-        models.PermissionManage,
-    )
-    if err != nil || !hasPermission {
-        writeError(w, http.StatusForbidden, "insufficient permissions")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    if userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can create invites")
         return
     }
 
@@ -144,7 +134,7 @@ func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
     }
 
     vars := mux.Vars(r)
-    moduleID := vars["moduleId"]
+    moduleID := models.ModuleID(vars["moduleId"])
 
     var req UpdateModuleRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,15 +143,9 @@ func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
     }
     req.ModuleID = moduleID
 
-    userRole := models.UserRole(r.Header.Get("UserRole"))
-    hasPermission, err := h.service.HasModulePermission(
-        familyID,
-        userRole,
-        "family", 
-        models.PermissionManage,
-    )
-    if err != nil || !hasPermission {
-        writeError(w, http.StatusForbidden, "insufficient permissions")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    if userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can update modules")
         return
     }
 
