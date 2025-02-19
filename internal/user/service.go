@@ -36,10 +36,11 @@ func (s *Service) generateJWT(userID int) (string, error) {
 }
 
 func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
-    existingUser, err := s.repo.GetByEmail(req.Email)
-    if err == nil && existingUser != nil {
-        return nil, fmt.Errorf("email already exists")
+    tx, err := s.repo.BeginTx()
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
     }
+    defer tx.Rollback()
 
     user := &models.User{
         Email:     req.Email,
@@ -47,14 +48,30 @@ func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
         FirstName: req.FirstName,
         LastName:  req.LastName,
         ImageURL:  req.ImageURL,
-        Role:      models.RoleParent, 
-        FamilyID:  req.FamilyID,     
+        Role:      models.RoleParent,  
         CreatedAt: time.Now().UTC(),
         UpdatedAt: time.Now().UTC(),
     }
 
-    if err := s.repo.Create(user); err != nil {
+    if err := s.repo.CreateTx(tx, user); err != nil {
         return nil, fmt.Errorf("failed to create user: %v", err)
+    }
+
+    family, err := s.familyService.CreateFamily(&family.CreateFamilyRequest{
+        Name:    fmt.Sprintf("%s's Family", req.FirstName),
+        OwnerID: user.ID,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to create family: %v", err)
+    }
+
+    user.FamilyID = family.ID
+    if err := s.repo.UpdateFamilyMembershipTx(tx, user.ID, family.ID, models.RoleParent); err != nil {
+        return nil, fmt.Errorf("failed to update user family: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
     }
 
     return s.repo.GetByID(user.ID)
