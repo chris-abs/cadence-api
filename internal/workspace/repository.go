@@ -18,8 +18,8 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(workspace *models.Workspace) error {
     query := `
-        INSERT INTO workspace (id, name, description, user_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO workspace (id, name, description, user_id, family_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`
 
     err := r.db.QueryRow(
@@ -28,6 +28,7 @@ func (r *Repository) Create(workspace *models.Workspace) error {
         workspace.Name,
         workspace.Description,
         workspace.UserID,
+        workspace.FamilyID,
         workspace.CreatedAt,
         workspace.UpdatedAt,
     ).Scan(&workspace.ID)
@@ -39,18 +40,19 @@ func (r *Repository) Create(workspace *models.Workspace) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int) (*models.Workspace, error) {
+func (r *Repository) GetByID(id int, familyID int) (*models.Workspace, error) {
     workspaceQuery := `
-        SELECT w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+        SELECT w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM workspace w
-        WHERE w.id = $1`
+        WHERE w.id = $1 AND w.family_id = $2`
 
     workspace := new(models.Workspace)
-    err := r.db.QueryRow(workspaceQuery, id).Scan(
+    err := r.db.QueryRow(workspaceQuery, id, familyID).Scan(
         &workspace.ID,
         &workspace.Name,
         &workspace.Description,
         &workspace.UserID,
+        &workspace.FamilyID,
         &workspace.CreatedAt,
         &workspace.UpdatedAt,
     )
@@ -65,12 +67,12 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
     containersQuery := `
         SELECT 
             id, name, description, qr_code, qr_code_image, number, location, 
-            user_id, workspace_id, created_at, updated_at
+            user_id, family_id, workspace_id, created_at, updated_at
         FROM container
-        WHERE workspace_id = $1
+        WHERE workspace_id = $1 AND family_id = $2
         ORDER BY created_at DESC`
 
-    rows, err := r.db.Query(containersQuery, id)
+    rows, err := r.db.Query(containersQuery, id, familyID)
     if err != nil {
         return nil, err
     }
@@ -89,6 +91,7 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
             &container.Number,
             &container.Location,
             &container.UserID,
+            &container.FamilyID,
             &workspaceID,
             &container.CreatedAt,
             &container.UpdatedAt,
@@ -108,14 +111,14 @@ func (r *Repository) GetByID(id int) (*models.Workspace, error) {
     return workspace, nil
 }
 
-func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
+func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*models.Workspace, error) {
     query := `
-        SELECT id, name, description, user_id, created_at, updated_at 
+        SELECT id, name, description, user_id, family_id, created_at, updated_at 
         FROM workspace
-        WHERE user_id = $1
+        WHERE family_id = $1
         ORDER BY created_at DESC`
 
-    rows, err := r.db.Query(query, userID)
+    rows, err := r.db.Query(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error querying workspaces: %v", err)
     }
@@ -129,6 +132,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
             &workspace.Name,
             &workspace.Description,
             &workspace.UserID,
+            &workspace.FamilyID,
             &workspace.CreatedAt,
             &workspace.UpdatedAt,
         )
@@ -139,12 +143,12 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
         containersQuery := `
             SELECT 
                 id, name, description, qr_code, qr_code_image, number, location, 
-                user_id, workspace_id, created_at, updated_at
+                user_id, family_id, workspace_id, created_at, updated_at
             FROM container
-            WHERE workspace_id = $1
+            WHERE workspace_id = $1 AND family_id = $2
             ORDER BY created_at DESC`
 
-        containerRows, err := r.db.Query(containersQuery, workspace.ID)
+        containerRows, err := r.db.Query(containersQuery, workspace.ID, familyID)
         if err != nil {
             return nil, fmt.Errorf("error querying containers: %v", err)
         }
@@ -164,6 +168,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Workspace, error) {
                     &container.Number,
                     &container.Location,
                     &container.UserID,
+                    &container.FamilyID,
                     &workspaceID,
                     &container.CreatedAt,
                     &container.UpdatedAt,
@@ -191,7 +196,7 @@ func (r *Repository) Update(workspace *models.Workspace) error {
     query := `
         UPDATE workspace
         SET name = $2, description = $3, updated_at = $4
-        WHERE id = $1`
+        WHERE id = $1 AND family_id = $5`
 
     result, err := r.db.Exec(
         query,
@@ -199,6 +204,7 @@ func (r *Repository) Update(workspace *models.Workspace) error {
         workspace.Name,
         workspace.Description,
         time.Now().UTC(),
+        workspace.FamilyID,
     )
     if err != nil {
         return fmt.Errorf("error updating workspace: %v", err)
@@ -216,18 +222,18 @@ func (r *Repository) Update(workspace *models.Workspace) error {
     return nil
 }
 
-func (r *Repository) UpdateContainers(workspaceID int, containerIDs []int) error {
+func (r *Repository) UpdateContainers(workspaceID int, familyID int, containerIDs []int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
-    if err := r.clearWorkspaceContainers(tx, workspaceID); err != nil {
+    if err := r.clearWorkspaceContainers(tx, workspaceID, familyID); err != nil {
         return err
     }
 
-    if err := r.assignContainersToWorkspace(tx, workspaceID, containerIDs); err != nil {
+    if err := r.assignContainersToWorkspace(tx, workspaceID, familyID, containerIDs); err != nil {
         return err
     }
 
@@ -238,13 +244,13 @@ func (r *Repository) UpdateContainers(workspaceID int, containerIDs []int) error
     return nil
 }
 
-func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int) error {
+func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int, familyID int) error {
     query := `
         UPDATE container 
-        SET workspace_id = NULL, updated_at = $2
-        WHERE workspace_id = $1`
+        SET workspace_id = NULL, updated_at = $3
+        WHERE workspace_id = $1 AND family_id = $2`
 
-    _, err := tx.Exec(query, workspaceID, time.Now().UTC())
+    _, err := tx.Exec(query, workspaceID, familyID, time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error clearing workspace containers: %v", err)
     }
@@ -252,13 +258,13 @@ func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int) error
     return nil
 }
 
-func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, containerIDs []int) error {
+func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, familyID int, containerIDs []int) error {
     query := `
         UPDATE container 
-        SET workspace_id = $1, updated_at = $2
-        WHERE id = ANY($3)`
+        SET workspace_id = $1, updated_at = $3
+        WHERE id = ANY($2) AND family_id = $4`
 
-    _, err := tx.Exec(query, workspaceID, time.Now().UTC(), containerIDs)
+    _, err := tx.Exec(query, workspaceID, containerIDs, time.Now().UTC(), familyID)
     if err != nil {
         return fmt.Errorf("error assigning containers to workspace: %v", err)
     }
@@ -266,7 +272,7 @@ func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, co
     return nil
 }
 
-func (r *Repository) Delete(id int) error {
+func (r *Repository) Delete(id int, familyID int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -275,16 +281,16 @@ func (r *Repository) Delete(id int) error {
 
     containerQuery := `
         UPDATE container 
-        SET workspace_id = NULL, updated_at = $2
-        WHERE workspace_id = $1`
+        SET workspace_id = NULL, updated_at = $3
+        WHERE workspace_id = $1 AND family_id = $2`
 
-    _, err = tx.Exec(containerQuery, id, time.Now().UTC())
+    _, err = tx.Exec(containerQuery, id, familyID, time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error updating containers: %v", err)
     }
 
-    workspaceQuery := `DELETE FROM workspace WHERE id = $1`
-    result, err := tx.Exec(workspaceQuery, id)
+    workspaceQuery := `DELETE FROM workspace WHERE id = $1 AND family_id = $2`
+    result, err := tx.Exec(workspaceQuery, id, familyID)
     if err != nil {
         return fmt.Errorf("error deleting workspace: %v", err)
     }
