@@ -34,12 +34,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
-    containers, err := h.service.GetContainersByFamilyID(*userCtx.FamilyID)
+    containers, err := h.service.GetContainersByFamilyID(userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -49,10 +45,6 @@ func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
     var req CreateContainerRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -60,7 +52,7 @@ func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    container, err := h.service.CreateContainer(userCtx.UserID, *userCtx.FamilyID, &req)
+    container, err := h.service.CreateContainer(userCtx.UserID, userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -70,10 +62,6 @@ func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -81,7 +69,7 @@ func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    container, err := h.service.GetContainerByID(containerID, *userCtx.FamilyID)
+    container, err := h.service.GetContainerByID(containerID, userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -92,10 +80,6 @@ func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request)
 
 func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -109,7 +93,7 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    container, err := h.service.UpdateContainer(containerID, *userCtx.FamilyID, &req)
+    container, err := h.service.UpdateContainer(containerID, userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -119,10 +103,6 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -130,7 +110,7 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteContainer(containerID, *userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteContainer(containerID, userCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -139,10 +119,6 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
-    if userCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "user not associated with a family")
-        return
-    }
 
     vars := mux.Vars(r)
     qrCode := strings.TrimSpace(vars["qrcode"])
@@ -151,7 +127,7 @@ func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    container, err := h.service.GetContainerByQR(qrCode, *userCtx.FamilyID)
+    container, err := h.service.GetContainerByQR(qrCode, userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return

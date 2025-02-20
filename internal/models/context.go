@@ -1,10 +1,10 @@
 package models
 
 type UserContext struct {
-    UserID        int
-    FamilyID      *int
-    Role          UserRole
-    ModuleAccess  map[ModuleID][]Permission
+    UserID       int                        `json:"userId"`
+    FamilyID     int                        `json:"familyId"`    
+    Role         UserRole                   `json:"role"`
+    ModuleAccess map[ModuleID][]Permission  `json:"moduleAccess"`
 }
 
 func (ctx *UserContext) CanAccess(module ModuleID, permission Permission) bool {
