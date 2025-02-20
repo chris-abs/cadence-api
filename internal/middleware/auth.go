@@ -32,7 +32,7 @@ func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, erro
             u.role,
             f.modules
         FROM users u
-        LEFT JOIN families f ON u.family_id = f.id
+        INNER JOIN family f ON u.family_id = f.id
         WHERE u.id = $1`
 
     var (
@@ -55,17 +55,15 @@ func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, erro
 
     ctx.ModuleAccess = make(map[models.ModuleID][]models.Permission)
 
-    if modulesJSON != nil {
-        var modules []models.Module
-        if err := json.Unmarshal(modulesJSON, &modules); err != nil {
-            return nil, fmt.Errorf("error parsing modules: %v", err)
-        }
-        
-        for _, module := range modules {
-            if module.IsEnabled {
-                if perms, exists := module.Settings.Permissions[ctx.Role]; exists {
-                    ctx.ModuleAccess[module.ID] = perms
-                }
+    var modules []models.Module
+    if err := json.Unmarshal(modulesJSON, &modules); err != nil {
+        return nil, fmt.Errorf("error parsing modules: %v", err)
+    }
+    
+    for _, module := range modules {
+        if module.IsEnabled {
+            if perms, exists := module.Settings.Permissions[ctx.Role]; exists {
+                ctx.ModuleAccess[module.ID] = perms
             }
         }
     }
@@ -114,11 +112,12 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
         }
 
         moduleID := extractModuleFromPath(r.URL.Path)
-        permission := mapHTTPMethodToPermission(r.Method)
-        
-        if !userCtx.CanAccess(moduleID, permission) {
-            http.Error(w, "Insufficient permissions", http.StatusForbidden)
-            return
+        if moduleID != "" {
+            permission := mapHTTPMethodToPermission(r.Method)
+            if !userCtx.CanAccess(moduleID, permission) {
+                http.Error(w, "Insufficient permissions", http.StatusForbidden)
+                return
+            }
         }
 
         ctx := context.WithValue(r.Context(), "user", userCtx)
@@ -129,7 +128,12 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 func extractModuleFromPath(path string) models.ModuleID {
     parts := strings.Split(path, "/")
     if len(parts) > 1 {
-        return models.ModuleID(parts[1])
+        switch parts[1] {
+        case "storage", "meals", "services", "chores":
+            return models.ModuleID(parts[1])
+        default:
+            return ""
+        }
     }
     return ""
 }
