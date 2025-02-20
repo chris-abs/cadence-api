@@ -67,10 +67,10 @@ func (db *PostgresDB) createFamilyTables() error {
     CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);
     CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
 
-    -- Add foreign key constraint after both tables exist
+    -- Changed to NOT NULL and ON DELETE RESTRICT since users must have a family
     ALTER TABLE users 
     ADD CONSTRAINT fk_users_family 
-    FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE SET NULL;
+    FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT NOT NULL;
     `
     _, err := db.Exec(query)
     return err

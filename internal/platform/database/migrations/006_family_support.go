@@ -20,19 +20,27 @@ func MigrateFamilySupport(tx *sql.Tx) error {
             name VARCHAR(255) NOT NULL,
             owner_id INTEGER REFERENCES users(id),
             module_permissions JSONB NOT NULL DEFAULT '{
-                "storage": {"enabled": true, "actions": ["READ", "WRITE"]},
-                "meals": {"enabled": false, "actions": []},
-                "services": {"enabled": false, "actions": []},
-                "chores": {"enabled": false, "actions": []}
+                "storage": {
+                    "isEnabled": true,
+                    "settings": {
+                        "permissions": {
+                            "PARENT": ["READ", "WRITE", "MANAGE"],
+                            "CHILD": ["READ"]
+                        }
+                    }
+                },
+                "meals": {"isEnabled": false},
+                "services": {"isEnabled": false},
+                "chores": {"isEnabled": false}
             }'::jsonb,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL
         );`,
 
-        // Add family-related columns to users
+        // Add family-related columns to users - removed SET NULL
         `ALTER TABLE users 
          ADD COLUMN IF NOT EXISTS role user_role NOT NULL DEFAULT 'PARENT',
-         ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES family(id) ON DELETE SET NULL;`,
+         ADD COLUMN IF NOT EXISTS family_id INTEGER NOT NULL REFERENCES family(id);`,
 
         // Create family_invite table
         `CREATE TABLE IF NOT EXISTS family_invite (
