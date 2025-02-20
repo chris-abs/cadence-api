@@ -60,13 +60,10 @@ func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
     }
 
     if req.ContainerID != nil {
-        container, err := h.containerService.GetContainerByID(*req.ContainerID, userCtx.FamilyID)
-        if err != nil {
+        if _, err := h.containerService.GetContainerByID(*req.ContainerID, userCtx.FamilyID); err != nil {
             writeError(w, http.StatusNotFound, "container not found")
             return
         }
-        
-        // No need to check UserID since we're already checking family access
     }
 
     item, err := h.service.CreateItem(userCtx.FamilyID, &req)
@@ -104,8 +101,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
         return
     }
  
-    item, err := h.service.GetItemByID(itemID, userCtx.FamilyID)
-    if err != nil {
+	if _, err := h.service.GetItemByID(itemID, userCtx.FamilyID); err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
     }

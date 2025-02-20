@@ -15,7 +15,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
+func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*models.Item, error) {
     if req.Name == "" {
         return nil, fmt.Errorf("item name is required")
     }
@@ -25,6 +25,7 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
         Description: req.Description,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
+        FamilyID:    familyID,
         Images:      []models.ItemImage{},
         Tags:        make([]models.Tag, 0),
         CreatedAt:   time.Now().UTC(),
@@ -39,62 +40,56 @@ func (s *Service) CreateItem(req *CreateItemRequest) (*models.Item, error) {
     return createdItem, nil
 }
 
-func (s *Service) GetItemByID(id int) (*models.Item, error) {
-    return s.repo.GetByID(id)
+func (s *Service) GetItemByID(id int, familyID int) (*models.Item, error) {
+    return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) GetItemsByUserID(userID int) ([]*models.Item, error) {
-    return s.repo.GetByUserID(userID)
+func (s *Service) GetItemsByFamilyID(familyID int) ([]*models.Item, error) {
+    return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateItem(id int, req *UpdateItemRequest) (*models.Item, error) {
-    item, err := s.repo.GetByID(id)
-    if err != nil {
-        return nil, fmt.Errorf("item not found: %v", err)
+func (s *Service) UpdateItem(id int, familyID int, req *UpdateItemRequest) (*models.Item, error) {
+    item := &models.Item{
+        ID:          id,
+        Name:        req.Name,
+        Description: req.Description,
+        Quantity:    req.Quantity,
+        ContainerID: req.ContainerID,
+        FamilyID:    familyID,
+        UpdatedAt:   time.Now().UTC(),
     }
-
-    item.Name = req.Name
-    item.Description = req.Description
-    item.Quantity = req.Quantity
-    
-    if req.ContainerID != nil {
-        item.ContainerID = req.ContainerID
-    } else {
-        item.ContainerID = nil 
-    }
-    
-    item.UpdatedAt = time.Now().UTC()
 
     if req.Tags != nil {
         item.Tags = make([]models.Tag, len(req.Tags))
         for i, tagID := range req.Tags {
-            item.Tags[i] = models.Tag{ID: tagID}
+            item.Tags[i] = models.Tag{
+                ID:       tagID,
+                FamilyID: familyID,
+            }
         }
-    } else {
-        item.Tags = []models.Tag{} 
     }
 
     if err := s.repo.Update(item); err != nil {
         return nil, fmt.Errorf("failed to update item: %v", err)
     }
 
-    return s.repo.GetByID(id)
+    return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) AddItemImage(itemID int, url string) error {
-    item, err := s.repo.GetByID(itemID)
-    if err != nil {
-        return fmt.Errorf("item not found: %v", err)
+func (s *Service) AddItemImage(itemID int, familyID int, url string) error {
+    displayOrder := 0
+    item, err := s.repo.GetByID(itemID, familyID)
+    if err == nil {
+        displayOrder = len(item.Images)
     }
-
-    displayOrder := len(item.Images)
-    return s.repo.AddItemImage(itemID, url, displayOrder)
+    
+    return s.repo.AddItemImage(itemID, familyID, url, displayOrder)
 }
 
-func (s *Service) DeleteItemImage(itemID int, url string) error {
-    return s.repo.DeleteItemImage(itemID, url)
+func (s *Service) DeleteItemImage(itemID int, familyID int, url string) error {
+    return s.repo.DeleteItemImage(itemID, familyID, url)
 }
 
-func (s *Service) DeleteItem(id int) error {
-    return s.repo.Delete(id)
+func (s *Service) DeleteItem(id int, familyID int) error {
+    return s.repo.Delete(id, familyID)
 }
