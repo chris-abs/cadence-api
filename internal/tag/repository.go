@@ -19,14 +19,15 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(tag *models.Tag) error {
     query := `
-        INSERT INTO tag (name, colour, created_at, updated_at)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO tag (name, colour, family_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id`
 
     err := r.db.QueryRow(
         query,
         tag.Name,
         tag.Colour,
+        tag.FamilyID,
         tag.CreatedAt,
         tag.UpdatedAt,
     ).Scan(&tag.ID)
@@ -38,7 +39,7 @@ func (r *Repository) Create(tag *models.Tag) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int) (*models.Tag, error) {
+func (r *Repository) GetByID(id int, familyID int) (*models.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -54,7 +55,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
             FROM item_image
             GROUP BY item_id
         )
-        SELECT t.id, t.name, t.colour, t.created_at, t.updated_at,
+        SELECT t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at,
                COALESCE(
                    jsonb_agg(
                        DISTINCT jsonb_build_object(
@@ -64,6 +65,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
+                           'familyId', i.family_id,
                            'container', CASE 
                                WHEN c.id IS NOT NULL THEN
                                    jsonb_build_object(
@@ -73,7 +75,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                                        'qrCodeImage', c.qr_code_image,
                                        'number', c.number,
                                        'location', c.location,
-                                       'userId', c.user_id,
+                                       'familyId', c.family_id,
                                        'workspaceId', c.workspace_id,
                                        'workspace', CASE 
                                            WHEN w.id IS NOT NULL THEN
@@ -81,7 +83,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                                                    'id', w.id,
                                                    'name', w.name,
                                                    'description', w.description,
-                                                   'userId', w.user_id,
+                                                   'familyId', w.family_id,
                                                    'createdAt', w.created_at,
                                                    'updatedAt', w.updated_at
                                                )
@@ -93,42 +95,25 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
                                ELSE null
                            END,
                            'createdAt', i.created_at,
-                           'updatedAt', i.updated_at,
-                           'tags', COALESCE(
-                               (
-                                   SELECT jsonb_agg(
-                                       jsonb_build_object(
-                                           'id', it_tags.id,
-                                           'name', it_tags.name,
-                                           'colour', it_tags.colour,
-                                           'createdAt', it_tags.created_at,
-                                           'updatedAt', it_tags.updated_at
-                                       )
-                                   )
-                                   FROM tag it_tags
-                                   JOIN item_tag iit ON iit.tag_id = it_tags.id
-                                   WHERE iit.item_id = i.id
-                               ),
-                               '[]'::jsonb
-                           )
+                           'updatedAt', i.updated_at
                        )
                    ) FILTER (WHERE i.id IS NOT NULL),
                    '[]'
                ) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE t.id = $1
-        GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at`
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id
+        WHERE t.id = $1 AND t.family_id = $2
+        GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at`
 
     tag := new(models.Tag)
     var itemsJSON []byte
 
-    err := r.db.QueryRow(query, id).Scan(
-        &tag.ID, &tag.Name, &tag.Colour,
+    err := r.db.QueryRow(query, id, familyID).Scan(
+        &tag.ID, &tag.Name, &tag.Colour, &tag.FamilyID,
         &tag.CreatedAt, &tag.UpdatedAt,
         &itemsJSON,
     )
@@ -147,7 +132,7 @@ func (r *Repository) GetByID(id int) (*models.Tag, error) {
     return tag, nil
 }
 
-func (r *Repository) GetAll() ([]*models.Tag, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*models.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -164,7 +149,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
             GROUP BY item_id
         )
         SELECT t.id, t.name, COALESCE(t.colour, '') as colour, 
-               t.created_at, t.updated_at,
+               t.family_id, t.created_at, t.updated_at,
                COALESCE(
                    jsonb_agg(
                        DISTINCT jsonb_build_object(
@@ -174,6 +159,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
+                           'familyId', i.family_id,
                            'container', CASE 
                                WHEN c.id IS NOT NULL THEN
                                    jsonb_build_object(
@@ -183,7 +169,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                                        'qrCodeImage', c.qr_code_image,
                                        'number', c.number,
                                        'location', c.location,
-                                       'userId', c.user_id,
+                                       'familyId', c.family_id,
                                        'workspaceId', c.workspace_id,
                                        'workspace', CASE 
                                            WHEN w.id IS NOT NULL THEN
@@ -191,7 +177,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                                                    'id', w.id,
                                                    'name', w.name,
                                                    'description', w.description,
-                                                   'userId', w.user_id,
+                                                   'familyId', w.family_id,
                                                    'createdAt', w.created_at,
                                                    'updatedAt', w.updated_at
                                                )
@@ -203,38 +189,22 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
                                ELSE null
                            END,
                            'createdAt', i.created_at,
-                           'updatedAt', i.updated_at,
-                           'tags', COALESCE(
-                               (
-                                   SELECT jsonb_agg(
-                                       jsonb_build_object(
-                                           'id', it_tags.id,
-                                           'name', it_tags.name,
-                                           'colour', it_tags.colour,
-                                           'createdAt', it_tags.created_at,
-                                           'updatedAt', it_tags.updated_at
-                                       )
-                                   )
-                                   FROM tag it_tags
-                                   JOIN item_tag iit ON iit.tag_id = it_tags.id
-                                   WHERE iit.item_id = i.id
-                               ),
-                               '[]'::jsonb
-                           )
+                           'updatedAt', i.updated_at
                        )
                    ) FILTER (WHERE i.id IS NOT NULL),
                    '[]'
                ) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        GROUP BY t.id, t.name, t.colour, t.created_at, t.updated_at
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id
+        WHERE t.family_id = $1
+        GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at
         ORDER BY t.name ASC`
 
-    rows, err := r.db.Query(query)
+    rows, err := r.db.Query(query, familyID)
     if err != nil {
         return nil, err
     }
@@ -246,7 +216,7 @@ func (r *Repository) GetAll() ([]*models.Tag, error) {
         var itemsJSON []byte
 
         err := rows.Scan(
-            &tag.ID, &tag.Name, &tag.Colour,
+            &tag.ID, &tag.Name, &tag.Colour, &tag.FamilyID,
             &tag.CreatedAt, &tag.UpdatedAt,
             &itemsJSON,
         )
@@ -270,7 +240,7 @@ func (r *Repository) Update(tag *models.Tag) error {
         SET name = $2, 
             colour = $3, 
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
+        WHERE id = $1 AND family_id = $4
         RETURNING updated_at`
         
     err := r.db.QueryRow(
@@ -278,6 +248,7 @@ func (r *Repository) Update(tag *models.Tag) error {
         tag.ID,
         tag.Name,
         tag.Colour,
+        tag.FamilyID,
     ).Scan(&tag.UpdatedAt)
 
     if err != nil {
@@ -287,7 +258,7 @@ func (r *Repository) Update(tag *models.Tag) error {
     return nil
 }
 
-func (r *Repository) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
+func (r *Repository) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -299,10 +270,15 @@ func (r *Repository) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
         SELECT t.id, i.id
         FROM unnest($1::int[]) AS t(id)
         CROSS JOIN unnest($2::int[]) AS i(id)
+        WHERE EXISTS (
+            SELECT 1 FROM tag WHERE id = t.id AND family_id = $3
+        ) AND EXISTS (
+            SELECT 1 FROM item WHERE id = i.id AND family_id = $3
+        )
         ON CONFLICT (tag_id, item_id) DO NOTHING
     `
     
-    _, err = tx.Exec(insertQuery, pq.Array(tagIDs), pq.Array(itemIDs))
+    _, err = tx.Exec(insertQuery, pq.Array(tagIDs), pq.Array(itemIDs), familyID)
     if err != nil {
         return fmt.Errorf("error assigning tags: %v", err)
     }
@@ -310,21 +286,28 @@ func (r *Repository) AssignTagsToItems(tagIDs []int, itemIDs []int) error {
     return tx.Commit()
 }
 
-func (r *Repository) Delete(id int) error {
+func (r *Repository) Delete(id int, familyID int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
-    itemTagQuery := `DELETE FROM item_tag WHERE tag_id = $1`
-    _, err = tx.Exec(itemTagQuery, id)
+    itemTagQuery := `
+        DELETE FROM item_tag
+        WHERE tag_id = $1
+        AND EXISTS (
+            SELECT 1 FROM tag
+            WHERE id = $1 AND family_id = $2
+        )`
+    
+    _, err = tx.Exec(itemTagQuery, id, familyID)
     if err != nil {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    tagQuery := `DELETE FROM tag WHERE id = $1`
-    result, err := tx.Exec(tagQuery, id)
+    tagQuery := `DELETE FROM tag WHERE id = $1 AND family_id = $2`
+    result, err := tx.Exec(tagQuery, id, familyID)
     if err != nil {
         return fmt.Errorf("error deleting tag: %v", err)
     }
