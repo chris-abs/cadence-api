@@ -48,7 +48,44 @@ func (db *PostgresDB) createFamilyTables() error {
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         owner_id INTEGER REFERENCES users(id),
-        modules JSONB NOT NULL DEFAULT '[]',
+        modules JSONB NOT NULL DEFAULT '{
+            "storage": {
+                "isEnabled": true,
+                "settings": {
+                    "permissions": {
+                        "PARENT": ["READ", "WRITE", "MANAGE"],
+                        "CHILD": ["READ"]
+                    }
+                }
+            },
+            "meals": {
+                "isEnabled": false,
+                "settings": {
+                    "permissions": {
+                        "PARENT": ["READ", "WRITE", "MANAGE"],
+                        "CHILD": ["READ"]
+                    }
+                }
+            },
+            "services": {
+                "isEnabled": false,
+                "settings": {
+                    "permissions": {
+                        "PARENT": ["READ", "WRITE", "MANAGE"],
+                        "CHILD": ["READ"]
+                    }
+                }
+            },
+            "chores": {
+                "isEnabled": false,
+                "settings": {
+                    "permissions": {
+                        "PARENT": ["READ", "WRITE", "MANAGE"],
+                        "CHILD": ["READ"]
+                    }
+                }
+            }
+        }'::jsonb,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -78,14 +115,15 @@ func (db *PostgresDB) createFamilyTables() error {
 
 func (db *PostgresDB) createWorkspaceTable() error {
     query := `
-        CREATE TABLE IF NOT EXISTS workspace (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
+    CREATE TABLE IF NOT EXISTS workspace (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        family_id INTEGER REFERENCES family(id) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
 
         CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(user_id);
         CREATE INDEX IF NOT EXISTS idx_workspace_name_pattern ON workspace USING gin (name gin_trgm_ops);
@@ -98,19 +136,20 @@ func (db *PostgresDB) createWorkspaceTable() error {
 
 func (db *PostgresDB) createContainerTable() error {
     query := `
-        CREATE TABLE IF NOT EXISTS container (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(50),
-            description TEXT NOT NULL DEFAULT '',
-            qr_code VARCHAR(100) UNIQUE,           
-            qr_code_image TEXT,             
-            number INTEGER,         
-            location VARCHAR(50),
-            user_id INTEGER REFERENCES users(id) NOT NULL,
-            workspace_id INTEGER REFERENCES workspace(id),
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
+       CREATE TABLE IF NOT EXISTS container (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    description TEXT NOT NULL DEFAULT '',
+    qr_code VARCHAR(100) UNIQUE,           
+    qr_code_image TEXT,             
+    number INTEGER,         
+    location VARCHAR(50),
+    user_id INTEGER REFERENCES users(id) NOT NULL,
+    family_id INTEGER REFERENCES family(id) NOT NULL,
+    workspace_id INTEGER REFERENCES workspace(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
         CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
         CREATE INDEX IF NOT EXISTS idx_container_workspace_id ON container(workspace_id);
@@ -126,28 +165,30 @@ func (db *PostgresDB) createContainerTable() error {
 
 func (db *PostgresDB) createItemTables() error {
     query := `
-        CREATE TABLE IF NOT EXISTS tag (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(50) UNIQUE,
-            description TEXT NOT NULL DEFAULT '',
-            colour TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
+       CREATE TABLE IF NOT EXISTS tag (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    description TEXT NOT NULL DEFAULT '',
+    colour TEXT,
+    family_id INTEGER REFERENCES family(id) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
         CREATE INDEX IF NOT EXISTS idx_tag_name_pattern ON tag USING gin (name gin_trgm_ops);
         CREATE INDEX IF NOT EXISTS idx_tag_name_fts 
         ON tag USING gin (to_tsvector('english', name || ' ' || COALESCE(description, '')));
 
-        CREATE TABLE IF NOT EXISTS item (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100),
-            description TEXT,
-            quantity INTEGER,
-            container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
+    CREATE TABLE IF NOT EXISTS item (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    description TEXT,
+    quantity INTEGER,
+    container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
+    family_id INTEGER REFERENCES family(id) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
         CREATE TABLE IF NOT EXISTS item_image (
             id SERIAL PRIMARY KEY,
