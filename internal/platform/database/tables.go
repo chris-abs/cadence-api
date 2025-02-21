@@ -11,13 +11,20 @@ func (db *PostgresDB) initializeDatabaseExtensions() error {
 }
 
 func (db *PostgresDB) createEnums() error {
-    query := `DO $$ BEGIN
-        CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
-    EXCEPTION
-        WHEN duplicate_object THEN null;
+    // Only create if it doesn't exist
+    query := `DO $$ 
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+            CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
+        END IF;
     END $$;`
+    
     _, err := db.Exec(query)
-    return err
+    if err != nil {
+        return fmt.Errorf("failed to create enum: %v", err)
+    }
+
+    return nil
 }
 
 func (db *PostgresDB) createUsersTable() error {
@@ -104,10 +111,13 @@ func (db *PostgresDB) createFamilyTables() error {
     CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);
     CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
 
-    -- Changed to NOT NULL and ON DELETE RESTRICT since users must have a family
+    -- First make the column NOT NULL
+    ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
+    
+    -- Then add the foreign key constraint
     ALTER TABLE users 
     ADD CONSTRAINT fk_users_family 
-    FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT NOT NULL;
+    FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT;
     `
     _, err := db.Exec(query)
     return err
@@ -220,9 +230,22 @@ func (db *PostgresDB) createItemTables() error {
 }
 
 func (db *PostgresDB) InitializeTables() error {
+    fmt.Println("Starting enum creation...")
     initFuncs := []func() error{
         db.initializeDatabaseExtensions,
         db.createEnums,
+    }
+
+    for _, fn := range initFuncs {
+        if err := fn(); err != nil {
+            return fmt.Errorf("initialization failed: %v", err)
+        }
+    }
+
+    fmt.Println("Enums created successfully...")
+
+    // Then create tables
+    tableFuncs := []func() error{
         db.createUsersTable,
         db.createFamilyTables,
         db.createWorkspaceTable,
@@ -230,7 +253,7 @@ func (db *PostgresDB) InitializeTables() error {
         db.createItemTables,
     }
 
-    for _, fn := range initFuncs {
+    for _, fn := range tableFuncs {
         if err := fn(); err != nil {
             return fmt.Errorf("table initialization failed: %v", err)
         }

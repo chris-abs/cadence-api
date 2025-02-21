@@ -7,45 +7,15 @@ import (
 func (db *PostgresDB) Init() error {
     fmt.Println("Starting database initialization...")
 
-    if err := db.initializeSchema(); err != nil {
+    if err := db.InitializeTables(); err != nil {
         return fmt.Errorf("schema initialization failed: %v", err)
     }
 
-    db.migrationsManager.EnableMigration("006_family_support")
-    fmt.Println("Running data migration...")
-    if err := db.migrationsManager.Run(); err != nil {
-        return fmt.Errorf("migrations failed: %v", err)
-    }
-
-    // UNCOMMENTING WILL DROP ALL TABLES IN DEV
-    // if err := development.DropAllTables(db.DB); err != nil {
-    //     log.Fatal(err)
+    // db.migrationsManager.EnableMigration("006_family_support")
+    // fmt.Println("Running data migration...")
+    // if err := db.migrationsManager.Run(); err != nil {
+    //     return fmt.Errorf("migrations failed: %v", err)
     // }
-
-    return nil
-}
-
-func (db *PostgresDB) initializeSchema() error {
-
-    fmt.Println("Ensuring users table exists...")
-    if err := db.createUsersTable(); err != nil {
-        return err
-    }
-
-    fmt.Println("Ensuring workspace table exists...")
-    if err := db.createWorkspaceTable(); err != nil {
-        return err
-    }
-
-    fmt.Println("Ensuring container table exists...")
-    if err := db.createContainerTable(); err != nil {
-        return err
-    }
-
-    fmt.Println("Ensuring item table exists...")
-    if err := db.createItemTables(); err != nil {
-        return err
-    }
 
     return nil
 }
