@@ -110,17 +110,47 @@ func (db *PostgresDB) createFamilyTables() error {
 
     CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);
     CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
-
-    -- First make the column NOT NULL
-    ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
-    
-    -- Then add the foreign key constraint
-    ALTER TABLE users 
-    ADD CONSTRAINT fk_users_family 
-    FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT;
     `
-    _, err := db.Exec(query)
-    return err
+
+    if _, err := db.Exec(query); err != nil {
+        return err
+    }
+
+    constraintQuery := `
+    DO $$ 
+    BEGIN
+        -- Drop the constraint if it exists
+        IF EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_family'
+        ) THEN
+            ALTER TABLE users DROP CONSTRAINT fk_users_family;
+        END IF;
+
+        -- Make column NOT NULL if it isn't already
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'users' 
+            AND column_name = 'family_id' 
+            AND is_nullable = 'YES'
+        ) THEN
+            ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
+        END IF;
+
+        -- Add the constraint
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_family'
+        ) THEN
+            ALTER TABLE users 
+            ADD CONSTRAINT fk_users_family 
+            FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT;
+        END IF;
+    END $$;`
+
+    if _, err := db.Exec(constraintQuery); err != nil {
+        return err
+    }
+
+    return nil
 }
 
 func (db *PostgresDB) createWorkspaceTable() error {

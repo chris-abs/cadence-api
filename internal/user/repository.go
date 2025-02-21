@@ -28,8 +28,8 @@ func (r *Repository) CreateTx(tx *sql.Tx, user *models.User) error {
     }
 
     query := `
-        INSERT INTO users (email, password, first_name, last_name, image_url, role, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (email, password, first_name, last_name, image_url, role, family_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
 
     err = tx.QueryRow(
@@ -40,8 +40,9 @@ func (r *Repository) CreateTx(tx *sql.Tx, user *models.User) error {
         user.LastName,
         user.ImageURL,
         user.Role,
-        time.Now().UTC(),
-        time.Now().UTC(),
+        user.FamilyID,
+        user.CreatedAt,
+        user.UpdatedAt,
     ).Scan(&user.ID)
 
     if err != nil {
