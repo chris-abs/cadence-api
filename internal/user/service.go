@@ -53,13 +53,18 @@ func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
         FirstName: req.FirstName,
         LastName:  req.LastName,
         ImageURL:  req.ImageURL,
-        Role:      models.RoleParent,
+        Role:      nil,        
+        FamilyID:  nil,      
         CreatedAt: time.Now().UTC(),
         UpdatedAt: time.Now().UTC(),
     }
 
     if err := s.repo.CreateTx(tx, user); err != nil {
         return nil, fmt.Errorf("failed to create user: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
     }
 
     return s.repo.GetByID(user.ID)
@@ -112,13 +117,17 @@ func (s *Service) AcceptInvite(req *AcceptInviteRequest) (*models.User, error) {
         user = &models.User{
             Email:    invite.Email,
             Password: req.Password,
-            Role:     invite.Role,
+            Role:     &invite.Role,    
+            FamilyID: &invite.FamilyID, 
         }
 
         if err := s.repo.CreateTx(tx, user); err != nil {
             return nil, fmt.Errorf("failed to create user: %v", err)
         }
     } else {
+        if existingUser.FamilyID != nil {
+            return nil, fmt.Errorf("user already belongs to a family")
+        }
         user = existingUser
     }
 

@@ -105,12 +105,17 @@ func (h *Handler) handleAcceptInvite(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request) {
-   userCtx := r.Context().Value("user").(*models.UserContext)
-   
-   if userCtx.Role != models.RoleParent {
-       writeError(w, http.StatusForbidden, "only parents can view all users")
-       return
-   }
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusForbidden, "must be part of a family")
+        return
+    }
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can view all users")
+        return
+    }
 
    users, err := h.service.GetAllUsers()
    if err != nil {
