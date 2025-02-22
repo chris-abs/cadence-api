@@ -11,7 +11,6 @@ func (db *PostgresDB) initializeDatabaseExtensions() error {
 }
 
 func (db *PostgresDB) createEnums() error {
-    // Only create if it doesn't exist
     query := `DO $$ 
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -36,8 +35,8 @@ func (db *PostgresDB) createUsersTable() error {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         image_url TEXT,
-        role user_role, 
-        family_id INTEGER REFERENCES family(id), 
+        role user_role,  
+        family_id INTEGER REFERENCES family(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
