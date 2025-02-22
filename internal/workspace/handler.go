@@ -33,7 +33,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
     
-    workspaces, err := h.service.GetWorkspacesByFamilyID(userCtx.FamilyID, userCtx.UserID)
+    workspaces, err := h.service.GetWorkspacesByFamilyID(*userCtx.FamilyID, userCtx.UserID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -67,7 +67,7 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    workspace, err := h.service.GetWorkspaceByID(workspaceID, userCtx.FamilyID)
+    workspace, err := h.service.GetWorkspaceByID(workspaceID, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return

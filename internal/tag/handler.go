@@ -34,7 +34,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
 
-    tags, err := h.service.GetAllTags(userCtx.FamilyID)
+    tags, err := h.service.GetAllTags(*userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -51,7 +51,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.CreateTag(userCtx.FamilyID, &req)
+    tag, err := h.service.CreateTag(*userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -68,7 +68,7 @@ func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.GetTagByID(id, userCtx.FamilyID)
+    tag, err := h.service.GetTagByID(id, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -91,7 +91,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.UpdateTag(id, userCtx.FamilyID, &req)
+    tag, err := h.service.UpdateTag(id, *userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -108,7 +108,7 @@ func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.AssignTagsToItems(userCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
+    if err := h.service.AssignTagsToItems(*userCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -125,7 +125,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteTag(id, userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteTag(id, *userCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
