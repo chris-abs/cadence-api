@@ -117,13 +117,13 @@ func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-   users, err := h.service.GetAllUsers()
-   if err != nil {
-       writeError(w, http.StatusInternalServerError, err.Error())
-       return
-   }
+    users, err := h.service.GetAllUsers()
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
 
-   writeJSON(w, http.StatusOK, users)
+    writeJSON(w, http.StatusOK, users)
 }
 
 func (h *Handler) handleGetAuthenticatedUser(w http.ResponseWriter, r *http.Request) {
@@ -139,26 +139,26 @@ func (h *Handler) handleGetAuthenticatedUser(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
-   userCtx := r.Context().Value("user").(*models.UserContext)
-   
-   id, err := getIDFromRequest(r)
-   if err != nil {
-       writeError(w, http.StatusBadRequest, err.Error())
-       return
-   }
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-   user, err := h.service.GetUserByID(id)
-   if err != nil {
-       writeError(w, http.StatusNotFound, err.Error())
-       return
-   }
+    user, err := h.service.GetUserByID(id)
+    if err != nil {
+        writeError(w, http.StatusNotFound, err.Error())
+        return
+    }
 
-   if user.FamilyID != userCtx.FamilyID {
-       writeError(w, http.StatusForbidden, "access denied")
-       return
-   }
+    if user.FamilyID == nil || userCtx.FamilyID == nil || *user.FamilyID != *userCtx.FamilyID {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
 
-   writeJSON(w, http.StatusOK, user)
+    writeJSON(w, http.StatusOK, user)
 }
 
 func (h *Handler) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -170,10 +170,10 @@ func (h *Handler) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
        return
    }
 
-   if id != userCtx.UserID && userCtx.Role != models.RoleParent {
-       writeError(w, http.StatusForbidden, "access denied")
-       return
-   }
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
 
    if err := r.ParseMultipartForm(10 << 20); err != nil {
        writeError(w, http.StatusBadRequest, fmt.Sprintf("failed to parse form: %v", err))
@@ -216,10 +216,10 @@ func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
        return
    }
 
-   if userCtx.Role != models.RoleParent {
-       writeError(w, http.StatusForbidden, "only parents can delete users")
-       return
-   }
+   if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+    writeError(w, http.StatusForbidden, "only parents can delete users")
+    return
+}
 
    if err := h.service.DeleteUser(id); err != nil {
        writeError(w, http.StatusInternalServerError, err.Error())

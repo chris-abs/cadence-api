@@ -91,7 +91,7 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    workspace, err := h.service.UpdateWorkspace(workspaceID, userCtx.FamilyID, &req)
+    workspace, err := h.service.UpdateWorkspace(workspaceID, *userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -108,7 +108,7 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteWorkspace(workspaceID, userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
