@@ -29,23 +29,20 @@ func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, erro
         SELECT 
             u.id,
             u.family_id,
-            u.role,
-            f.modules
+            u.role
         FROM users u
-        INNER JOIN family f ON u.family_id = f.id
         WHERE u.id = $1`
 
-    var (
-        ctx models.UserContext
-        modulesJSON []byte
-    )
+    var ctx models.UserContext
+    var familyID sql.NullInt64
+    var role sql.NullString
 
     err := m.db.QueryRow(query, userID).Scan(
         &ctx.UserID,
-        &ctx.FamilyID,
-        &ctx.Role,
-        &modulesJSON,
+        &familyID,
+        &role,
     )
+
     if err == sql.ErrNoRows {
         return nil, fmt.Errorf("user not found")
     }
@@ -55,21 +52,34 @@ func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, erro
 
     ctx.ModuleAccess = make(map[models.ModuleID][]models.Permission)
 
-    var modules []models.Module
-    if err := json.Unmarshal(modulesJSON, &modules); err != nil {
-        return nil, fmt.Errorf("error parsing modules: %v", err)
-    }
-    
-    for _, module := range modules {
-        if module.IsEnabled {
-            if perms, exists := module.Settings.Permissions[ctx.Role]; exists {
-                ctx.ModuleAccess[module.ID] = perms
+    if familyID.Valid {
+        fid := int(familyID.Int64)  
+        ctx.FamilyID = &fid        
+
+        if role.Valid {
+            userRole := models.UserRole(role.String)
+            ctx.Role = &userRole
+        }
+
+        var modulesJSON []byte
+        err := m.db.QueryRow(`SELECT modules FROM family WHERE id = $1`, fid).Scan(&modulesJSON)
+        if err == nil {
+            var modules []models.Module
+            if err := json.Unmarshal(modulesJSON, &modules); err == nil {
+                for _, module := range modules {
+                    if module.IsEnabled {
+                        if perms, exists := module.Settings.Permissions[*ctx.Role]; exists {
+                            ctx.ModuleAccess[module.ID] = perms
+                        }
+                    }
+                }
             }
         }
     }
 
     return &ctx, nil
 }
+
 
 func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
@@ -113,6 +123,11 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 
         moduleID := extractModuleFromPath(r.URL.Path)
         if moduleID != "" {
+            if userCtx.FamilyID == nil {
+                http.Error(w, "Must be part of a family to access modules", http.StatusForbidden)
+                return
+            }
+
             permission := mapHTTPMethodToPermission(r.Method)
             if !userCtx.CanAccess(moduleID, permission) {
                 http.Error(w, "Insufficient permissions", http.StatusForbidden)
@@ -129,10 +144,14 @@ func extractModuleFromPath(path string) models.ModuleID {
     parts := strings.Split(path, "/")
     if len(parts) > 1 {
         switch parts[1] {
-        case "storage", "meals", "services", "chores":
-            return models.ModuleID(parts[1])
-        default:
-            return ""
+        case "workspaces", "containers", "items", "tags":
+            return models.ModuleStorage
+        case "meals":
+            return models.ModuleMeals
+        case "services":
+            return models.ModuleServices
+        case "chores":
+            return models.ModuleChores
         }
     }
     return ""
