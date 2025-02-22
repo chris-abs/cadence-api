@@ -36,8 +36,8 @@ func (db *PostgresDB) createUsersTable() error {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         image_url TEXT,
-        role user_role NOT NULL DEFAULT 'PARENT',
-        family_id INTEGER,
+        role user_role, 
+        family_id INTEGER REFERENCES family(id), 
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );

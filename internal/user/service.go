@@ -62,22 +62,6 @@ func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
         return nil, fmt.Errorf("failed to create user: %v", err)
     }
 
-    family, err := s.familyService.CreateFamily(&family.CreateFamilyRequest{
-        Name:    fmt.Sprintf("%s's Family", req.FirstName),
-        OwnerID: user.ID,
-    })
-    if err != nil {
-        return nil, fmt.Errorf("failed to create family: %v", err)
-    }
-
-    if err := s.repo.UpdateFamilyMembershipTx(tx, user.ID, family.ID, models.RoleParent); err != nil {
-        return nil, fmt.Errorf("failed to update user's family: %v", err)
-    }
-
-    if err := tx.Commit(); err != nil {
-        return nil, fmt.Errorf("failed to commit transaction: %v", err)
-    }
-
     return s.repo.GetByID(user.ID)
 }
 

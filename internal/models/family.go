@@ -5,7 +5,7 @@ import "time"
 type Family struct {
     ID          int       `json:"id"`
     Name        string    `json:"name"`
-    OwnerID     int      `json:"ownerId"`
+    OwnerID     int       `json:"ownerId"`
     CreatedAt   time.Time `json:"createdAt"`
     UpdatedAt   time.Time `json:"updatedAt"`
     Modules     []Module  `json:"modules"`
