@@ -50,49 +50,20 @@ func (db *PostgresDB) createUsersTable() error {
 
 
 func (db *PostgresDB) createFamilyTables() error {
-    query := `
+	query := `
     CREATE TABLE IF NOT EXISTS family (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        owner_id INTEGER REFERENCES users(id),
+        owner_id INTEGER, -- Remove the foreign key constraint initially
         modules JSONB NOT NULL DEFAULT '{
             "storage": {
-                "isEnabled": true,
-                "settings": {
-                    "permissions": {
-                        "PARENT": ["READ", "WRITE", "MANAGE"],
-                        "CHILD": ["READ"]
-                    }
-                }
+                "isEnabled": true
             },
             "meals": {
-                "isEnabled": false,
-                "settings": {
-                    "permissions": {
-                        "PARENT": ["READ", "WRITE", "MANAGE"],
-                        "CHILD": ["READ"]
-                    }
-                }
-            },
-            "services": {
-                "isEnabled": false,
-                "settings": {
-                    "permissions": {
-                        "PARENT": ["READ", "WRITE", "MANAGE"],
-                        "CHILD": ["READ"]
-                    }
-                }
-            },
-            "chores": {
-                "isEnabled": false,
-                "settings": {
-                    "permissions": {
-                        "PARENT": ["READ", "WRITE", "MANAGE"],
-                        "CHILD": ["READ"]
-                    }
-                }
+                "isEnabled": false
             }
         }'::jsonb,
+        status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -112,46 +83,23 @@ func (db *PostgresDB) createFamilyTables() error {
     CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
     `
 
-    if _, err := db.Exec(query); err != nil {
-        return err
-    }
+	if _, err := db.Exec(query); err != nil {
+		return err
+	}
 
-    constraintQuery := `
-    DO $$ 
-    BEGIN
-        -- Drop the constraint if it exists
-        IF EXISTS (
-            SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_family'
-        ) THEN
-            ALTER TABLE users DROP CONSTRAINT fk_users_family;
-        END IF;
+	addForeignKeyQuery := `
+    ALTER TABLE family
+    ADD CONSTRAINT fk_family_owner
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT;
+    `
 
-        -- Make column NOT NULL if it isn't already
-        IF EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'users' 
-            AND column_name = 'family_id' 
-            AND is_nullable = 'YES'
-        ) THEN
-            ALTER TABLE users ALTER COLUMN family_id SET NOT NULL;
-        END IF;
+	if _, err := db.Exec(addForeignKeyQuery); err != nil {
+		return err
+	}
 
-        -- Add the constraint
-        IF NOT EXISTS (
-            SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_family'
-        ) THEN
-            ALTER TABLE users 
-            ADD CONSTRAINT fk_users_family 
-            FOREIGN KEY (family_id) REFERENCES family(id) ON DELETE RESTRICT;
-        END IF;
-    END $$;`
-
-    if _, err := db.Exec(constraintQuery); err != nil {
-        return err
-    }
-
-    return nil
+	return nil
 }
+
 
 func (db *PostgresDB) createWorkspaceTable() error {
     query := `
