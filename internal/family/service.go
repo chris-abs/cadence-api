@@ -118,7 +118,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 		},
 		"chores": {
 			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-			"CHILD":  {models.PermissionRead, models.PermissionWrite}, 
+			"CHILD":  {models.PermissionRead, models.PermissionWrite},
 		},
 		"meals": {
 			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
@@ -132,16 +132,21 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 
 	modulePermissions, ok := permissions[moduleID]
 	if !ok {
-		return false, nil 
+		return false, nil
 	}
 
 	rolePermissions, ok := modulePermissions[userRole]
 	if !ok {
-		return false, nil 
+		return false, nil
 	}
 
-	if !s.IsModuleEnabled(familyID, moduleID) {
-		return false, nil 
+	isEnabled, err := s.IsModuleEnabled(familyID, moduleID)
+	if err != nil {
+		return false, err 
+	}
+
+	if !isEnabled {
+		return false, nil
 	}
 
 	for _, p := range rolePermissions {
@@ -152,6 +157,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 
 	return false, nil
 }
+
 
 func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
 	family, err := s.repo.GetByID(familyID)
