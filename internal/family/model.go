@@ -14,7 +14,10 @@ type CreateInviteRequest struct {
 }
 
 type UpdateModuleRequest struct {
-    ModuleID    models.ModuleID                          `json:"moduleId"`
-    IsEnabled   bool                                     `json:"isEnabled"`
-    Permissions map[models.UserRole][]models.Permission `json:"permissions"`
+    ModuleID  models.ModuleID `json:"moduleId"`
+    IsEnabled bool          `json:"isEnabled"`
+}
+
+type JoinFamilyRequest struct {
+    Token    string `json:"token"`
 }

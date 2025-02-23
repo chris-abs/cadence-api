@@ -23,7 +23,7 @@ func (s *Service) CreateFamily(req *CreateFamilyRequest, ownerID int) (*models.F
 	family := &models.Family{
 		Name:    req.Name,
 		OwnerID: ownerID,
-		Status:  models.FamilyStatusActive, 
+		Status:  models.FamilyStatusActive,
 	}
 
 	if err := s.repo.Create(family); err != nil {
@@ -75,14 +75,13 @@ func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) e
 	}
 
 	if family.Status != models.FamilyStatusActive {
-		return fmt.Errorf("family is not active") 
+		return fmt.Errorf("family is not active")
 	}
 
 	moduleFound := false
 	for i, module := range family.Modules {
 		if module.ID == req.ModuleID {
 			family.Modules[i].IsEnabled = req.IsEnabled
-			family.Modules[i].Settings.Permissions = req.Permissions
 			moduleFound = true
 			break
 		}
@@ -92,9 +91,6 @@ func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) e
 		family.Modules = append(family.Modules, models.Module{
 			ID:        req.ModuleID,
 			IsEnabled: req.IsEnabled,
-			Settings: models.ModuleSettings{
-				Permissions: req.Permissions,
-			},
 		})
 	}
 
@@ -112,22 +108,45 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 	}
 
 	if family.Status != models.FamilyStatusActive {
+		return false, nil
+	}
+
+	permissions := map[models.ModuleID]map[models.UserRole][]models.Permission{
+		"storage": {
+			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			"CHILD":  {models.PermissionRead},
+		},
+		"chores": {
+			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			"CHILD":  {models.PermissionRead, models.PermissionWrite}, 
+		},
+		"meals": {
+			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			"CHILD":  {models.PermissionRead},
+		},
+		"services": {
+			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			"CHILD":  {models.PermissionRead},
+		},
+	}
+
+	modulePermissions, ok := permissions[moduleID]
+	if !ok {
 		return false, nil 
 	}
 
-	for _, module := range family.Modules {
-		if module.ID == moduleID && module.IsEnabled {
-			permissions, exists := module.Settings.Permissions[userRole]
-			if !exists {
-				return false, nil
-			}
+	rolePermissions, ok := modulePermissions[userRole]
+	if !ok {
+		return false, nil 
+	}
 
-			for _, p := range permissions {
-				if p == permission {
-					return true, nil
-				}
-			}
-			return false, nil
+	if !s.IsModuleEnabled(familyID, moduleID) {
+		return false, nil 
+	}
+
+	for _, p := range rolePermissions {
+		if p == permission {
+			return true, nil
 		}
 	}
 
@@ -141,7 +160,7 @@ func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool,
 	}
 
 	if family.Status != models.FamilyStatusActive {
-		return false, nil 
+		return false, nil
 	}
 
 	for _, module := range family.Modules {
