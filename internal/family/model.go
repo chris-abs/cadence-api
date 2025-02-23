@@ -3,9 +3,10 @@ package family
 import "github.com/chrisabs/storage/internal/models"
 
 type CreateFamilyRequest struct {
-    Name        string             `json:"name"`
-    Modules     []models.ModuleID  `json:"modules"` 
+    Name    string          `json:"name"`
+    Modules []models.ModuleID `json:"modules"`
 }
+
 type CreateInviteRequest struct {
     FamilyID int             `json:"familyId"`
     Email    string          `json:"email"`
@@ -13,7 +14,7 @@ type CreateInviteRequest struct {
 }
 
 type UpdateModuleRequest struct {
-    ModuleID    models.ModuleID                          `json:"moduleId"`    
+    ModuleID    models.ModuleID                          `json:"moduleId"`
     IsEnabled   bool                                     `json:"isEnabled"`
-    Permissions map[models.UserRole][]models.Permission  `json:"permissions"`
+    Permissions map[models.UserRole][]models.Permission `json:"permissions"`
 }
