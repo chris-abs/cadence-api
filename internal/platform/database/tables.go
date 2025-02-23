@@ -35,7 +35,7 @@ func (db *PostgresDB) createUsersTable() error {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         image_url TEXT,
-        role user_role,  
+        role user_role NULL, 
         family_id INTEGER REFERENCES family(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -47,6 +47,7 @@ func (db *PostgresDB) createUsersTable() error {
     _, err := db.Exec(query)
     return err
 }
+
 
 func (db *PostgresDB) createFamilyTables() error {
     query := `
