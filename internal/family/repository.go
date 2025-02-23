@@ -22,22 +22,10 @@ func (r *Repository) Create(family *models.Family) error {
 		{
 			ID: "storage",
 			IsEnabled: true,
-			Settings: models.ModuleSettings{
-				Permissions: map[models.UserRole][]models.Permission{
-					models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-					models.RoleChild:  {models.PermissionRead},
-				},
-			},
 		},
 		{
 			ID: "meals",
 			IsEnabled: false,
-			Settings: models.ModuleSettings{
-				Permissions: map[models.UserRole][]models.Permission{
-					models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-					models.RoleChild:  {models.PermissionRead},
-				},
-			},
 		},
 	}
 
@@ -59,7 +47,7 @@ func (r *Repository) Create(family *models.Family) error {
 		family.OwnerID,
 		modulesJSON,
 		time.Now().UTC(),
-		models.FamilyStatusActive, 
+		models.FamilyStatusActive,
 	).Scan(&family.ID)
 
 	if err != nil {
@@ -85,7 +73,7 @@ func (r *Repository) GetByID(id int) (*models.Family, error) {
 		&modulesJSON,
 		&family.CreatedAt,
 		&family.UpdatedAt,
-		&family.Status, 
+		&family.Status,
 	)
 
 	if err == sql.ErrNoRows {

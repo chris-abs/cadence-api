@@ -44,7 +44,7 @@ func (h *Handler) handleCreateFamily(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userCtx := r.Context().Value("user").(*models.UserContext)
-	family, err := h.service.CreateFamily(&req, userCtx.UserID) 
+	family, err := h.service.CreateFamily(&req, userCtx.UserID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
