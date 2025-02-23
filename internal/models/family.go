@@ -2,17 +2,24 @@ package models
 
 import "time"
 
+type FamilyStatus string
+
+const (
+    FamilyStatusActive   FamilyStatus = "ACTIVE"
+    FamilyStatusInactive FamilyStatus = "INACTIVE"
+)
+
 type Family struct {
-    ID          int       `json:"id"`
-    Name        string    `json:"name"`
-    OwnerID     int       `json:"ownerId"`
-    CreatedAt   time.Time `json:"createdAt"`
-    UpdatedAt   time.Time `json:"updatedAt"`
-    Modules     []Module  `json:"modules"`
+    ID          int          `json:"id"`
+    Name        string       `json:"name"`
+    OwnerID     int          `json:"ownerId"`
+    Status      FamilyStatus `json:"status"` 
+    CreatedAt   time.Time    `json:"createdAt"`
+    UpdatedAt   time.Time    `json:"updatedAt"`
+    Modules     []Module     `json:"modules"`
 }
 
 type ModuleID string
-
 
 const (
     ModuleStorage  ModuleID = "storage"
@@ -28,7 +35,7 @@ type Module struct {
 }
 
 type ModuleSettings struct {
-    Permissions map[UserRole][]Permission `json:"permissions"` 
+    Permissions map[UserRole][]Permission `json:"permissions"`
 }
 
 type Permission string
