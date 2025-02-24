@@ -57,12 +57,12 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 
 	// Initialise services
-	familyService := family.NewService(familyRepo, userService)
 	userService := user.NewService(
 		userRepo,
-		familyService,
+		nil, 
 		s.config.JWTSecret,
 	)
+	familyService := family.NewService(familyRepo, userService)
 	workspaceService := workspace.NewService(workspaceRepo)
 	containerService := container.NewService(containerRepo)
 	itemService := item.NewService(itemRepo)
@@ -74,7 +74,7 @@ func (s *Server) Run() {
 	authMiddleware := middleware.NewAuthMiddleware(
 		s.config.JWTSecret,
 		s.db.DB,
-		familyService, // Pass familyService to authMiddleware
+		familyService, 
 	)
 
 	// Initialise handlers
