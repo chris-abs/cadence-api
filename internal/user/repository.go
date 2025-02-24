@@ -84,6 +84,39 @@ func (r *Repository) UpdateFamilyMembershipTx(tx *sql.Tx, userID int, familyID i
     return nil
 }
 
+func (r *Repository) UpdateFamily(user *models.User) error {
+	query := `
+        UPDATE users
+        SET family_id = $2,
+            role = $3,
+            updated_at = $4
+        WHERE id = $1`
+
+	result, err := r.db.Exec(
+		query,
+		user.ID,
+		user.FamilyID,
+		user.Role,
+		time.Now().UTC(),
+	)
+
+	if err != nil {
+		return fmt.Errorf("error updating user family: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking update result: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+
 func (r *Repository) GetByEmail(email string) (*models.User, error) {
     query := `
         SELECT id, email, password, first_name, last_name, image_url, 

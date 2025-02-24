@@ -57,7 +57,7 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 
 	// Initialise services
-	familyService := family.NewService(familyRepo)
+	familyService := family.NewService(familyRepo, userService)
 	userService := user.NewService(
 		userRepo,
 		familyService,

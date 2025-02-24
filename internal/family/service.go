@@ -11,11 +11,18 @@ import (
 
 type Service struct {
 	repo *Repository
+	userService interface {
+		GetUserByID(id int) (*models.User, error)
+	}
 }
 
-func NewService(repo *Repository) *Service {
+func NewService(repo *Repository, userService interface {
+	GetUserByID(id int) (*models.User, error)
+},
+) *Service {
 	return &Service{
 		repo: repo,
+		userService: userService,
 	}
 }
 
@@ -142,7 +149,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 
 	isEnabled, err := s.IsModuleEnabled(familyID, moduleID)
 	if err != nil {
-		return false, err 
+		return false, err
 	}
 
 	if !isEnabled {
@@ -157,7 +164,6 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 
 	return false, nil
 }
-
 
 func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
 	family, err := s.repo.GetByID(familyID)
@@ -203,4 +209,28 @@ func (s *Service) DeactivateFamily(familyID int) error {
 	}
 
 	return nil
+}
+
+func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, error) {
+	invite, err := s.ValidateInvite(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid invite: %v", err)
+	}
+
+	user, err := s.userService.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %v", err)
+	}
+
+	familyID := invite.FamilyID
+	role := invite.Role
+	user.FamilyID = &familyID
+	user.Role = &role
+
+
+	if err := s.DeleteInvite(invite.ID); err != nil {
+		fmt.Printf("failed to delete used invite: %v\n", err) 
+	}
+
+	return user, nil
 }

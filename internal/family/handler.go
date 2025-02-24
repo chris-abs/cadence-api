@@ -159,8 +159,20 @@ func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleJoinFamily(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement this handler
-	writeError(w, http.StatusNotImplemented, "not implemented")
+	var req JoinFamilyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	userCtx := r.Context().Value("user").(*models.UserContext)
+	user, err := h.service.JoinFamily(userCtx.UserID, &req)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, user)
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
