@@ -13,11 +13,13 @@ type Service struct {
 	repo *Repository
 	userService interface {
 		GetUserByID(id int) (*models.User, error)
+		UpdateFamily(user *models.User) error
 	}
 }
 
 func NewService(repo *Repository, userService interface {
 	GetUserByID(id int) (*models.User, error)
+	UpdateFamily(user *models.User) error
 },
 ) *Service {
 	return &Service{
@@ -227,6 +229,9 @@ func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, 
 	user.FamilyID = &familyID
 	user.Role = &role
 
+	if err := s.userService.UpdateFamily(user); err != nil {
+		return nil, fmt.Errorf("failed to update user family: %v", err)
+	}
 
 	if err := s.DeleteInvite(invite.ID); err != nil {
 		fmt.Printf("failed to delete used invite: %v\n", err) 
