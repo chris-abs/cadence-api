@@ -10,7 +10,6 @@ import (
 func (db *PostgresDB) Init() error {
 	fmt.Println("Starting database initialization...")
 
-	// Conditionally drop tables (for development purposes)
 	if os.Getenv("DROP_TABLES") == "true" {
 		fmt.Println("DROP_TABLES environment variable is set to true. Dropping all tables...")
 		if err := development.DropAllTables(db.DB); err != nil {
@@ -26,6 +25,10 @@ func (db *PostgresDB) Init() error {
 	if err := db.initializeSchema(); err != nil {
 		return fmt.Errorf("schema initialization failed: %v", err)
 	}
+
+    if err := db.addForeignKeyConstraints(); err != nil {
+        return fmt.Errorf("failed to add foreign key constraints: %v", err)
+    }
 
 	return nil
 }
@@ -57,4 +60,18 @@ func (db *PostgresDB) initializeSchema() error {
 	}
 
 	return nil
+}
+
+func (db *PostgresDB) addForeignKeyConstraints() error {
+    fmt.Println("Adding foreign key constraints...")
+    query := `
+        ALTER TABLE users ADD CONSTRAINT fk_users_family FOREIGN KEY (family_id) REFERENCES family(id);
+        ALTER TABLE family ADD CONSTRAINT fk_family_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT;
+    `
+    _, err := db.Exec(query)
+    if err != nil {
+        return fmt.Errorf("failed to add foreign key constraints: %v", err)
+    }
+    fmt.Println("Foreign key constraints added successfully.")
+    return nil
 }

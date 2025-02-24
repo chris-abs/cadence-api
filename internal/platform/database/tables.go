@@ -5,29 +5,29 @@ import (
 )
 
 func (db *PostgresDB) initializeDatabaseExtensions() error {
-    query := `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
-    _, err := db.Exec(query)
-    return err
+	query := `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
+	_, err := db.Exec(query)
+	return err
 }
 
 func (db *PostgresDB) createEnums() error {
-    query := `DO $$ 
+	query := `DO $$ 
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
             CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
         END IF;
     END $$;`
-    
-    _, err := db.Exec(query)
-    if err != nil {
-        return fmt.Errorf("failed to create enum: %v", err)
-    }
 
-    return nil
+	_, err := db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("failed to create enum: %v", err)
+	}
+
+	return nil
 }
 
 func (db *PostgresDB) createUsersTable() error {
-    query := `
+	query := `
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -35,26 +35,24 @@ func (db *PostgresDB) createUsersTable() error {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         image_url TEXT,
-        role user_role NULL, 
-        family_id INTEGER REFERENCES family(id),
+        role user_role NULL,
+        family_id INTEGER,  -- No foreign key constraint initially
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
     
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_family ON users(family_id);
     `
-    _, err := db.Exec(query)
-    return err
+	_, err := db.Exec(query)
+	return err
 }
-
 
 func (db *PostgresDB) createFamilyTables() error {
 	query := `
     CREATE TABLE IF NOT EXISTS family (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        owner_id INTEGER, -- Remove the foreign key constraint initially
+        owner_id INTEGER,  -- No foreign key constraint initially
         modules JSONB NOT NULL DEFAULT '{
             "storage": {
                 "isEnabled": true
@@ -67,42 +65,17 @@ func (db *PostgresDB) createFamilyTables() error {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
-    CREATE TABLE IF NOT EXISTS family_invite (
-        id SERIAL PRIMARY KEY,
-        family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
-        email VARCHAR(255) NOT NULL,
-        role user_role NOT NULL,
-        token VARCHAR(255) UNIQUE NOT NULL,
-        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);
-    CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
     `
 
 	if _, err := db.Exec(query); err != nil {
 		return err
 	}
 
-	addForeignKeyQuery := `
-    ALTER TABLE family
-    ADD CONSTRAINT fk_family_owner
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT;
-    `
-
-	if _, err := db.Exec(addForeignKeyQuery); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-
 func (db *PostgresDB) createWorkspaceTable() error {
-    query := `
+	query := `
     CREATE TABLE IF NOT EXISTS workspace (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
@@ -118,12 +91,12 @@ func (db *PostgresDB) createWorkspaceTable() error {
         CREATE INDEX IF NOT EXISTS idx_workspace_name_fts 
         ON workspace USING gin (to_tsvector('english', name || ' ' || COALESCE(description, '')));
     `
-    _, err := db.Exec(query)
-    return err
+	_, err := db.Exec(query)
+	return err
 }
 
 func (db *PostgresDB) createContainerTable() error {
-    query := `
+	query := `
        CREATE TABLE IF NOT EXISTS container (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
@@ -147,12 +120,12 @@ func (db *PostgresDB) createContainerTable() error {
         ON container USING gin (to_tsvector('english', 
             name || ' ' || COALESCE(description, '') || ' ' || COALESCE(location, '')));
     `
-    _, err := db.Exec(query)
-    return err
+	_, err := db.Exec(query)
+	return err
 }
 
 func (db *PostgresDB) createItemTables() error {
-    query := `
+	query := `
        CREATE TABLE IF NOT EXISTS tag (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
@@ -203,39 +176,6 @@ func (db *PostgresDB) createItemTables() error {
         CREATE INDEX IF NOT EXISTS idx_item_image_item_id ON item_image(item_id);
         CREATE INDEX IF NOT EXISTS idx_item_image_display_order ON item_image(item_id, display_order);
     `
-    _, err := db.Exec(query)
-    return err
-}
-
-func (db *PostgresDB) InitializeTables() error {
-    fmt.Println("Starting enum creation...")
-    initFuncs := []func() error{
-        db.initializeDatabaseExtensions,
-        db.createEnums,
-    }
-
-    for _, fn := range initFuncs {
-        if err := fn(); err != nil {
-            return fmt.Errorf("initialization failed: %v", err)
-        }
-    }
-
-    fmt.Println("Enums created successfully...")
-
-    // Then create tables
-    tableFuncs := []func() error{
-        db.createUsersTable,
-        db.createFamilyTables,
-        db.createWorkspaceTable,
-        db.createContainerTable,
-        db.createItemTables,
-    }
-
-    for _, fn := range tableFuncs {
-        if err := fn(); err != nil {
-            return fmt.Errorf("table initialization failed: %v", err)
-        }
-    }
-
-    return nil
+	_, err := db.Exec(query)
+	return err
 }
