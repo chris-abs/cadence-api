@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/chrisabs/storage/internal/middleware"
+	"github.com/chrisabs/storage/internal/models"
 	"github.com/gorilla/mux"
 )
 
@@ -30,13 +31,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
-        return
-    }
-
-    workspaces, err := h.service.GetWorkspacesByUserID(userID)
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    workspaces, err := h.service.GetWorkspacesByFamilyID(*userCtx.FamilyID, userCtx.UserID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -45,11 +42,7 @@ func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
-        return
-    }
+    userCtx := r.Context().Value("user").(*models.UserContext)
 
     var req CreateWorkspaceRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -57,7 +50,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    workspace, err := h.service.CreateWorkspace(userID, &req)
+    workspace, err := h.service.CreateWorkspace(userCtx, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -66,26 +59,17 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
-        return
-    }
-
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
     }
 
-    workspace, err := h.service.GetWorkspaceByID(workspaceID)
+    workspace, err := h.service.GetWorkspaceByID(workspaceID, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
-        return
-    }
-
-    if workspace.UserID != userID {
-        writeError(w, http.StatusForbidden, "access denied")
         return
     }
 
@@ -93,26 +77,11 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
-        return
-    }
-
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
-        return
-    }
-
-    workspace, err := h.service.GetWorkspaceByID(workspaceID)
-    if err != nil {
-        writeError(w, http.StatusNotFound, err.Error())
-        return
-    }
-
-    if workspace.UserID != userID {
-        writeError(w, http.StatusForbidden, "access denied")
         return
     }
 
@@ -122,39 +91,24 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    updatedWorkspace, err := h.service.UpdateWorkspace(workspaceID, &req)
+    workspace, err := h.service.UpdateWorkspace(workspaceID, *userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
-    writeJSON(w, http.StatusOK, updatedWorkspace)
+    writeJSON(w, http.StatusOK, workspace)
 }
 
 func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
-        return
-    }
-
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
     }
 
-    workspace, err := h.service.GetWorkspaceByID(workspaceID)
-    if err != nil {
-        writeError(w, http.StatusNotFound, err.Error())
-        return
-    }
-
-    if workspace.UserID != userID {
-        writeError(w, http.StatusForbidden, "access denied")
-        return
-    }
-
-    if err := h.service.DeleteWorkspace(workspaceID); err != nil {
+    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

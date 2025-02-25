@@ -25,8 +25,10 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
     defer tx.Rollback()
 
     containerQuery := `
-        INSERT INTO container (id, name, description qr_code, qr_code_image, number, location, user_id, workspace_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO container (
+            id, name, description, qr_code, qr_code_image, number, 
+            location, user_id, family_id, workspace_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id`
 
     var containerID int
@@ -40,6 +42,7 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
         container.Number,
         container.Location,
         container.UserID,
+        container.FamilyID,
         container.WorkspaceID,
         container.CreatedAt,
         container.UpdatedAt,
@@ -51,8 +54,10 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
 
     if len(itemRequests) > 0 {
         itemQuery := `
-            INSERT INTO item (name, description, quantity, container_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO item (
+                name, description, quantity, container_id, 
+                family_id, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id`
 
         for _, itemReq := range itemRequests {
@@ -63,6 +68,7 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
                 itemReq.Description,
                 itemReq.Quantity,
                 containerID,
+                container.FamilyID,
                 time.Now().UTC(),
                 time.Now().UTC(),
             ).Scan(&itemID)
@@ -76,14 +82,14 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
     return tx.Commit()
 }
 
-func (r *Repository) GetByID(id int) (*models.Container, error) {
+func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
     containerQuery := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE c.id = $1`
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
+        WHERE c.id = $1 AND c.family_id = $2`
 
     container := new(models.Container)
     var workspaceID sql.NullInt64
@@ -92,16 +98,18 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
         Name        sql.NullString
         Description sql.NullString
         UserID      sql.NullInt64
+        FamilyID    sql.NullInt64
         CreatedAt   sql.NullTime
         UpdatedAt   sql.NullTime
     }
 
-    err := r.db.QueryRow(containerQuery, id).Scan(
+    err := r.db.QueryRow(containerQuery, id, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
+        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
-        &wsFields.UserID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -119,6 +127,7 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
             UserID:      int(wsFields.UserID.Int64),
+            FamilyID:    int(wsFields.FamilyID.Int64),
             CreatedAt:   wsFields.CreatedAt.Time,
             UpdatedAt:   wsFields.UpdatedAt.Time,
         }
@@ -139,7 +148,7 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
-               i.container_id, i.created_at, i.updated_at,
+               i.container_id, i.family_id, i.created_at, i.updated_at,
                COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                    jsonb_agg(
@@ -156,13 +165,13 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
         FROM item i
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN item_tag it ON i.id = it.item_id
-        LEFT JOIN tag t ON it.tag_id = t.id
-        WHERE i.container_id = $1
+        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id
+        WHERE i.container_id = $1 AND i.family_id = $2
         GROUP BY i.id, i.name, i.description, i.quantity, 
-                 i.container_id, i.created_at, i.updated_at,
+                 i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images`
 
-    rows, err := r.db.Query(itemsQuery, id)
+    rows, err := r.db.Query(itemsQuery, id, familyID)
     if err != nil {
         return nil, err
     }
@@ -175,7 +184,8 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
 
         err := rows.Scan(
             &item.ID, &item.Name, &item.Description,
-            &item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+            &item.Quantity, &item.ContainerID, &item.FamilyID,
+            &item.CreatedAt, &item.UpdatedAt,
             &imagesJSON, &tagsJSON,
         )
         if err != nil {
@@ -196,17 +206,17 @@ func (r *Repository) GetByID(id int) (*models.Container, error) {
     return container, nil
 }
 
-func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE c.user_id = $1
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
+        WHERE c.family_id = $1
         ORDER BY c.created_at DESC`
 
-    rows, err := r.db.Query(query, userID)
+    rows, err := r.db.Query(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error querying containers: %v", err)
     }
@@ -221,6 +231,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
             Name        sql.NullString
             Description sql.NullString
             UserID      sql.NullInt64
+            FamilyID    sql.NullInt64
             CreatedAt   sql.NullTime
             UpdatedAt   sql.NullTime
         }
@@ -228,9 +239,10 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
         err := rows.Scan(
             &container.ID, &container.Name, &container.Description, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
-            &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
+            &container.UserID, &container.FamilyID, &workspaceID, 
+            &container.CreatedAt, &container.UpdatedAt,
             &wsFields.ID, &wsFields.Name, &wsFields.Description,
-            &wsFields.UserID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+            &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container: %v", err)
@@ -244,6 +256,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
                 Name:        wsFields.Name.String,
                 Description: wsFields.Description.String,
                 UserID:      int(wsFields.UserID.Int64),
+                FamilyID:    int(wsFields.FamilyID.Int64),
                 CreatedAt:   wsFields.CreatedAt.Time,
                 UpdatedAt:   wsFields.UpdatedAt.Time,
             }
@@ -264,7 +277,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
                 GROUP BY item_id
             )
             SELECT i.id, i.name, i.description, i.quantity, 
-                   i.container_id, i.created_at, i.updated_at,
+                   i.container_id, i.family_id, i.created_at, i.updated_at,
                    COALESCE(img.images, '[]'::jsonb) as images,
                    COALESCE(
                        jsonb_agg(
@@ -281,13 +294,13 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
             FROM item i
             LEFT JOIN item_images img ON i.id = img.item_id
             LEFT JOIN item_tag it ON i.id = it.item_id
-            LEFT JOIN tag t ON it.tag_id = t.id
-            WHERE i.container_id = $1
+            LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id
+            WHERE i.container_id = $1 AND i.family_id = $2
             GROUP BY i.id, i.name, i.description, i.quantity, 
-                     i.container_id, i.created_at, i.updated_at,
+                     i.container_id, i.family_id, i.created_at, i.updated_at,
                      img.images`
 
-        itemRows, err := r.db.Query(itemsQuery, container.ID)
+        itemRows, err := r.db.Query(itemsQuery, container.ID, familyID)
         if err != nil {
             return nil, fmt.Errorf("error querying items: %v", err)
         }
@@ -301,7 +314,8 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
 
                 err := itemRows.Scan(
                     &item.ID, &item.Name, &item.Description,
-                    &item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
+                    &item.Quantity, &item.ContainerID, &item.FamilyID,
+                    &item.CreatedAt, &item.UpdatedAt,
                     &imagesJSON, &tagsJSON,
                 )
                 if err != nil {
@@ -326,29 +340,34 @@ func (r *Repository) GetByUserID(userID int) ([]*models.Container, error) {
     return containers, nil
 }
 
-func (r *Repository) GetByQR(qrCode string) (*models.Container, error) {
-    return r.GetByQRWithItems(qrCode, true)
-}
-
-func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models.Container, error) {
+func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.created_at, w.updated_at
+               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
-        WHERE c.qr_code = $1`
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
+        WHERE c.qr_code = $1 AND c.family_id = $2`
 
     container := new(models.Container)
     var workspaceID sql.NullInt64
-    var workspace models.Workspace
+    var wsFields struct {
+        ID          sql.NullInt64
+        Name        sql.NullString
+        Description sql.NullString
+        UserID      sql.NullInt64
+        FamilyID    sql.NullInt64
+        CreatedAt   sql.NullTime
+        UpdatedAt   sql.NullTime
+    }
 
-    err := r.db.QueryRow(query, qrCode).Scan(
+    err := r.db.QueryRow(query, qrCode, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &workspaceID, &container.CreatedAt, &container.UpdatedAt,
-        &workspace.ID, &workspace.Name, &workspace.Description,
-        &workspace.UserID, &workspace.CreatedAt, &workspace.UpdatedAt,
+        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.CreatedAt, &container.UpdatedAt,
+        &wsFields.ID, &wsFields.Name, &wsFields.Description,
+        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -358,81 +377,88 @@ func (r *Repository) GetByQRWithItems(qrCode string, includeItems bool) (*models
         return nil, err
     }
 
-    if workspaceID.Valid {
+    if workspaceID.Valid && wsFields.ID.Valid {
         wsID := int(workspaceID.Int64)
         container.WorkspaceID = &wsID
-        container.Workspace = &workspace
+        container.Workspace = &models.Workspace{
+            ID:          int(wsFields.ID.Int64),
+            Name:        wsFields.Name.String,
+            Description: wsFields.Description.String,
+            UserID:      int(wsFields.UserID.Int64),
+            FamilyID:    int(wsFields.FamilyID.Int64),
+            CreatedAt:   wsFields.CreatedAt.Time,
+            UpdatedAt:   wsFields.UpdatedAt.Time,
+        }
     }
 
-    if includeItems {
-        itemsQuery := `
-            WITH item_images AS (
-                SELECT item_id,
-                       jsonb_agg(
-                           jsonb_build_object(
-                               'url', url,
-                               'displayOrder', display_order,
-                               'createdAt', created_at,
-                               'updatedAt', updated_at
-                           ) ORDER BY display_order
-                       ) as images
-                FROM item_image
-                GROUP BY item_id
-            )
-            SELECT i.id, i.name, i.description, i.quantity, 
-                   i.container_id, i.created_at, i.updated_at,
-                   COALESCE(img.images, '[]'::jsonb) as images,
-                   COALESCE(
-                       jsonb_agg(
-                           DISTINCT jsonb_build_object(
-                               'id', t.id,
-                               'name', t.name,
-                               'colour', t.colour,
-                               'createdAt', t.created_at,
-                               'updatedAt', t.updated_at
-                           )
-                       ) FILTER (WHERE t.id IS NOT NULL),
-                       '[]'
-                   ) as tags
-            FROM item i
-            LEFT JOIN item_images img ON i.id = img.item_id
-            LEFT JOIN item_tag it ON i.id = it.item_id
-            LEFT JOIN tag t ON it.tag_id = t.id
-            WHERE i.container_id = $1
-            GROUP BY i.id, i.name, i.description, i.quantity, 
-                     i.container_id, i.created_at, i.updated_at,
-                     img.images`
+    itemsQuery := `
+        WITH item_images AS (
+            SELECT item_id,
+                   jsonb_agg(
+                       jsonb_build_object(
+                           'url', url,
+                           'displayOrder', display_order,
+                           'createdAt', created_at,
+                           'updatedAt', updated_at
+                       ) ORDER BY display_order
+                   ) as images
+            FROM item_image
+            GROUP BY item_id
+        )
+        SELECT i.id, i.name, i.description, i.quantity, 
+               i.container_id, i.family_id, i.created_at, i.updated_at,
+               COALESCE(img.images, '[]'::jsonb) as images,
+               COALESCE(
+                   jsonb_agg(
+                       DISTINCT jsonb_build_object(
+                           'id', t.id,
+                           'name', t.name,
+                           'colour', t.colour,
+                           'createdAt', t.created_at,
+                           'updatedAt', t.updated_at
+                       )
+                   ) FILTER (WHERE t.id IS NOT NULL),
+                   '[]'
+               ) as tags
+        FROM item i
+        LEFT JOIN item_images img ON i.id = img.item_id
+        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id
+        WHERE i.container_id = $1 AND i.family_id = $2
+        GROUP BY i.id, i.name, i.description, i.quantity, 
+                 i.container_id, i.family_id, i.created_at, i.updated_at,
+                 img.images`
 
-        rows, err := r.db.Query(itemsQuery, container.ID)
+    rows, err := r.db.Query(itemsQuery, container.ID, familyID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    container.Items = make([]models.Item, 0)
+    for rows.Next() {
+        var item models.Item
+        var imagesJSON, tagsJSON []byte
+
+        err := rows.Scan(
+            &item.ID, &item.Name, &item.Description,
+            &item.Quantity, &item.ContainerID, &item.FamilyID,
+            &item.CreatedAt, &item.UpdatedAt,
+            &imagesJSON, &tagsJSON,
+        )
         if err != nil {
             return nil, err
         }
-        defer rows.Close()
 
-        container.Items = make([]models.Item, 0)
-        for rows.Next() {
-            var item models.Item
-            var imagesJSON, tagsJSON []byte
-
-            err := rows.Scan(
-                &item.ID, &item.Name, &item.Description,
-                &item.Quantity, &item.ContainerID, &item.CreatedAt, &item.UpdatedAt,
-                &imagesJSON, &tagsJSON,
-            )
-            if err != nil {
-                return nil, err
-            }
-
-            if err := json.Unmarshal(imagesJSON, &item.Images); err != nil {
-                return nil, fmt.Errorf("error parsing images: %v", err)
-            }
-
-            if err := json.Unmarshal(tagsJSON, &item.Tags); err != nil {
-                return nil, fmt.Errorf("error parsing tags: %v", err)
-            }
-
-            container.Items = append(container.Items, item)
+        if err := json.Unmarshal(imagesJSON, &item.Images); err != nil {
+            return nil, fmt.Errorf("error parsing images: %v", err)
         }
+
+        if err := json.Unmarshal(tagsJSON, &item.Tags); err != nil {
+            return nil, fmt.Errorf("error parsing tags: %v", err)
+        }
+
+        container.Items = append(container.Items, item)
     }
 
     return container, nil
@@ -442,7 +468,7 @@ func (r *Repository) Update(container *models.Container) error {
     query := `
         UPDATE container
         SET name = $2, description = $3, location = $4, workspace_id = $5, updated_at = $6
-        WHERE id = $1`
+        WHERE id = $1 AND family_id = $7`
 
     var workspaceID sql.NullInt64
     if container.WorkspaceID != nil {
@@ -457,7 +483,9 @@ func (r *Repository) Update(container *models.Container) error {
         container.Location,
         workspaceID,
         time.Now().UTC(),
+        container.FamilyID,
     )
+
     if err != nil {
         return fmt.Errorf("error updating container: %v", err)
     }
@@ -474,7 +502,7 @@ func (r *Repository) Update(container *models.Container) error {
     return nil
 }
 
-func (r *Repository) Delete(id int) error {
+func (r *Repository) Delete(id int, familyID int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -483,26 +511,16 @@ func (r *Repository) Delete(id int) error {
 
     itemQuery := `
         UPDATE item 
-        SET container_id = NULL, updated_at = $2
-        WHERE container_id = $1`
+        SET container_id = NULL, updated_at = $3
+        WHERE container_id = $1 AND family_id = $2`
 
-    _, err = tx.Exec(itemQuery, id, time.Now().UTC())
+    _, err = tx.Exec(itemQuery, id, familyID, time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error updating items: %v", err)
     }
 
-    workspaceQuery := `
-        UPDATE container
-        SET workspace_id = NULL, updated_at = $2
-        WHERE id = $1`
-
-    _, err = tx.Exec(workspaceQuery, id, time.Now().UTC())
-    if err != nil {
-        return fmt.Errorf("error removing workspace reference: %v", err)
-    }
-
-    containerQuery := `DELETE FROM container WHERE id = $1`
-    result, err := tx.Exec(containerQuery, id)
+    containerQuery := `DELETE FROM container WHERE id = $1 AND family_id = $2`
+    result, err := tx.Exec(containerQuery, id, familyID)
     if err != nil {
         return fmt.Errorf("error deleting container: %v", err)
     }

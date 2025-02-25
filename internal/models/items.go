@@ -18,6 +18,7 @@ type Item struct {
     Quantity    int         `json:"quantity"`
     ContainerID *int        `json:"containerId,omitempty"`
     Container   *Container  `json:"container,omitempty"`
+    FamilyID    int         `json:"familyId"`    
     Tags        []Tag       `json:"tags"`
     CreatedAt   time.Time   `json:"createdAt"`
     UpdatedAt   time.Time   `json:"updatedAt"`

@@ -11,6 +11,7 @@ type Container struct {
     Number       int        `json:"number"`
     Location     string     `json:"location"`
     UserID       int        `json:"userId"`
+    FamilyID    int        `json:"familyId"`
     WorkspaceID  *int       `json:"workspaceId,omitempty"`
     Workspace    *Workspace `json:"workspace,omitempty"`
     Items        []Item     `json:"items"`

@@ -24,6 +24,8 @@ func DropAllTables(db *sql.DB) error {
         DROP TABLE IF EXISTS container CASCADE;
         DROP TABLE IF EXISTS workspace CASCADE;
         DROP TABLE IF EXISTS users CASCADE;
+        DROP TABLE IF EXISTS family_invite CASCADE;
+        DROP TABLE IF EXISTS family CASCADE;
     `
 
     fmt.Println("Executing drop tables...")

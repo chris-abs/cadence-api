@@ -1,34 +1,71 @@
 package middleware
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/chrisabs/storage/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 
 type AuthMiddleware struct {
-    jwtSecret string
-    db        *sql.DB
+	jwtSecret     string
+	db            *sql.DB
+	familyService interface {
+		HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+	}
 }
 
-func NewAuthMiddleware(jwtSecret string, db *sql.DB) *AuthMiddleware {
-    return &AuthMiddleware{
-        jwtSecret: jwtSecret,
-        db:        db,
-    }
+func NewAuthMiddleware(jwtSecret string, db *sql.DB, familyService interface {
+	HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+}) *AuthMiddleware {
+	return &AuthMiddleware{
+		jwtSecret:     jwtSecret,
+		db:            db,
+		familyService: familyService,
+	}
 }
 
-func (m *AuthMiddleware) userExists(userID string) (bool, error) {
-    var exists bool
-    query := `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)`
-    err := m.db.QueryRow(query, userID).Scan(&exists)
-    if err != nil {
-        return false, fmt.Errorf("error checking user existence: %v", err)
-    }
-    return exists, nil
+func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, error) {
+	query := `
+        SELECT 
+            u.id,
+            u.family_id,
+            u.role
+        FROM users u
+        WHERE u.id = $1`
+
+	var ctx models.UserContext
+	var familyID sql.NullInt64
+	var role sql.NullString
+
+	err := m.db.QueryRow(query, userID).Scan(
+		&ctx.UserID,
+		&familyID,
+		&role,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error fetching user context: %v", err)
+	}
+
+	if familyID.Valid {
+		fid := int(familyID.Int64)
+		ctx.FamilyID = &fid
+
+		if role.Valid {
+			userRole := models.UserRole(role.String)
+			ctx.Role = &userRole
+		}
+	}
+
+	return &ctx, nil
 }
 
 func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
@@ -62,15 +99,65 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
-		userID := fmt.Sprintf("%.0f", claims["userId"])
-        
-        exists, err := m.userExists(userID) 
-        if err != nil || !exists {
-            http.Error(w, "User not found", http.StatusUnauthorized)
-            return
-        }
 
-        r.Header.Set("UserId", userID)
-        next(w, r)
+		userID := int(claims["userId"].(float64))
+
+		userCtx, err := m.buildUserContext(userID)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		moduleID := extractModuleFromPath(r.URL.Path)
+		if moduleID != "" {
+			if userCtx.FamilyID == nil {
+				http.Error(w, "Must be part of a family to access modules", http.StatusForbidden)
+				return
+			}
+
+			permission := mapHTTPMethodToPermission(r.Method)
+			hasPermission, err := m.familyService.HasModulePermission(*userCtx.FamilyID, *userCtx.Role, moduleID, permission)
+			if err != nil {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			if !hasPermission {
+				http.Error(w, "Insufficient permissions", http.StatusForbidden)
+				return
+			}
+		}
+
+		ctx := context.WithValue(r.Context(), "user", userCtx)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
+
+func extractModuleFromPath(path string) models.ModuleID {
+	parts := strings.Split(path, "/")
+	if len(parts) > 1 {
+		switch parts[1] {
+		case "workspaces", "containers", "items", "tags":
+			return models.ModuleStorage
+		case "meals":
+			return models.ModuleMeals
+		case "services":
+			return models.ModuleServices
+		case "chores":
+			return models.ModuleChores
+		}
+	}
+	return ""
+}
+
+func mapHTTPMethodToPermission(method string) models.Permission {
+	switch method {
+	case http.MethodGet:
+		return models.PermissionRead
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return models.PermissionWrite
+	case http.MethodDelete:
+		return models.PermissionManage
+	default:
+		return models.PermissionRead
 	}
 }
