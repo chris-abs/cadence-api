@@ -29,17 +29,30 @@ func NewService(repo *Repository, userService interface {
 }
 
 func (s *Service) CreateFamily(req *CreateFamilyRequest, ownerID int) (*models.Family, error) {
-	family := &models.Family{
-		Name:    req.Name,
-		OwnerID: ownerID,
-		Status:  models.FamilyStatusActive,
-	}
+    family := &models.Family{
+        Name:    req.Name,
+        OwnerID: ownerID,
+        Status:  models.FamilyStatusActive,
+    }
 
-	if err := s.repo.Create(family); err != nil {
-		return nil, fmt.Errorf("failed to create family: %v", err)
-	}
+    if err := s.repo.Create(family); err != nil {
+        return nil, fmt.Errorf("failed to create family: %v", err)
+    }
 
-	return family, nil
+    user, err := s.userService.GetUserByID(ownerID)
+    if err != nil {
+        return family, fmt.Errorf("family created but failed to get user: %v", err)
+    }
+
+    parentRole := models.RoleParent
+    user.FamilyID = &family.ID
+    user.Role = &parentRole
+
+    if err := s.userService.UpdateFamily(user); err != nil {
+        return family, fmt.Errorf("family created but failed to update user family: %v", err)
+    }
+
+    return family, nil
 }
 
 func (s *Service) CreateInvite(req *CreateInviteRequest) (*models.FamilyInvite, error) {
