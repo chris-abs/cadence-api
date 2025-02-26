@@ -16,12 +16,12 @@ func NewService(repo *Repository) *Service {
     }
 }
 
-func (s *Service) Search(query string, userID int) (*SearchResponse, error) {
+func (s *Service) Search(query string, familyID int) (*SearchResponse, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
 
-    results, err := s.repo.Search(query, userID)
+    results, err := s.repo.Search(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to execute search: %v", err)
     }
@@ -29,12 +29,12 @@ func (s *Service) Search(query string, userID int) (*SearchResponse, error) {
     return results, nil
 }
 
-func (s *Service) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
+func (s *Service) SearchWorkspaces(query string, familyID int) (WorkspaceSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
 
-    results, err := s.repo.SearchWorkspaces(query, userID)
+    results, err := s.repo.SearchWorkspaces(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to execute workspace search: %v", err)
     }
@@ -42,12 +42,12 @@ func (s *Service) SearchWorkspaces(query string, userID int) (WorkspaceSearchRes
     return results, nil
 }
 
-func (s *Service) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
+func (s *Service) SearchContainers(query string, familyID int) (ContainerSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
 
-    results, err := s.repo.SearchContainers(query, userID)
+    results, err := s.repo.SearchContainers(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to execute container search: %v", err)
     }
@@ -55,12 +55,12 @@ func (s *Service) SearchContainers(query string, userID int) (ContainerSearchRes
     return results, nil
 }
 
-func (s *Service) SearchItems(query string, userID int) (ItemSearchResults, error) {
+func (s *Service) SearchItems(query string, familyID int) (ItemSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
 
-    results, err := s.repo.SearchItems(query, userID)
+    results, err := s.repo.SearchItems(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to execute item search: %v", err)
     }
@@ -68,12 +68,12 @@ func (s *Service) SearchItems(query string, userID int) (ItemSearchResults, erro
     return results, nil
 }
 
-func (s *Service) SearchTags(query string, userID int) (TagSearchResults, error) {
+func (s *Service) SearchTags(query string, familyID int) (TagSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
 
-    results, err := s.repo.SearchTags(query, userID)
+    results, err := s.repo.SearchTags(query, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to execute tag search: %v", err)
     }
@@ -81,12 +81,12 @@ func (s *Service) SearchTags(query string, userID int) (TagSearchResults, error)
     return results, nil
 }
 
-func (s *Service) FindContainerByQR(qrCode string, userID int) (*models.Container, error) {
+func (s *Service) FindContainerByQR(qrCode string, familyID int) (*models.Container, error) {
     if qrCode == "" {
         return nil, fmt.Errorf("QR code cannot be empty")
     }
 
-    container, err := s.repo.FindContainerByQR(qrCode, userID)
+    container, err := s.repo.FindContainerByQR(qrCode, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to find container: %v", err)
     }

@@ -16,7 +16,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
+func (r *Repository) Search(query string, familyID int) (*SearchResponse, error) {
     sqlQuery := `
     WITH workspace_matches AS (
         SELECT 
@@ -36,7 +36,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
             NULL as colour
         FROM workspace 
         WHERE 
-            user_id = $2 AND
+            family_id = $2 AND
             (
                 name ILIKE $1 OR
                 to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
@@ -62,7 +62,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
-            c.user_id = $2 AND
+            c.family_id = $2 AND
             (
                 c.name ILIKE $1 OR
                 to_tsvector('english', c.name) @@ websearch_to_tsquery('english', $1)
@@ -87,7 +87,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         FROM item i
         LEFT JOIN container c ON i.container_id = c.id
         WHERE 
-            c.user_id = $2 AND
+            c.family_id = $2 AND
             (
                 i.name ILIKE $1 OR
                 i.description ILIKE '%' || $1 || '%' OR
@@ -136,7 +136,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
         LEFT JOIN container c ON i.container_id = c.id
         LEFT JOIN workspace w ON c.workspace_id = w.id
         WHERE 
-            (c.user_id = $2 OR i.container_id IS NULL) AND
+            (c.family_id = $2 OR i.container_id IS NULL) AND
             (
                 t.name ILIKE $1 OR
                 t.name ILIKE $1 || '%' OR
@@ -159,7 +159,7 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     ) combined_results
     ORDER BY rank DESC;`
 
-    rows, err := r.db.Query(sqlQuery, query, userID)
+    rows, err := r.db.Query(sqlQuery, query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error executing search: %v", err)
     }
@@ -217,13 +217,13 @@ func (r *Repository) Search(query string, userID int) (*SearchResponse, error) {
     return response, nil
 }
 
-func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearchResults, error) {
+func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
             FROM workspace w
             WHERE 
-                w.user_id = $2 AND
+                w.family_id = $2 AND
                 (
                     LOWER(w.name) = LOWER($1) OR
                     w.name ILIKE $1 || '%' OR
@@ -234,7 +234,7 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
         );`
 
     var hasResults bool
-    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    err := r.db.QueryRow(quickCheckQuery, query, familyID).Scan(&hasResults)
     if err != nil {
         return nil, fmt.Errorf("error checking for results: %v", err)
     }
@@ -249,7 +249,7 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
                 w.id,
                 w.name,
                 w.description,
-                w.user_id,
+                w.family_id,
                 w.created_at,
                 w.updated_at,
                 (
@@ -279,7 +279,7 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
                 ) as rank
             FROM workspace w
             WHERE 
-                w.user_id = $2 AND
+                w.family_id = $2 AND
                 (
                     LOWER(w.name) = LOWER($1) OR
                     w.name ~* ('\m' || $1 || '\M') OR
@@ -308,11 +308,11 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
             ) as containers
         FROM ranked_workspaces rw
         LEFT JOIN container c ON rw.id = c.workspace_id
-        GROUP BY rw.id, rw.name, rw.description, rw.user_id, rw.created_at, rw.updated_at, rw.rank
+        GROUP BY rw.id, rw.name, rw.description, rw.family_id, rw.created_at, rw.updated_at, rw.rank
         ORDER BY rw.rank DESC
         LIMIT 50;`
 
-    rows, err := r.db.Query(sqlQuery, query, userID)
+    rows, err := r.db.Query(sqlQuery, query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error executing workspace search: %v", err)
     }
@@ -327,7 +327,7 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
             &result.ID,
             &result.Name,
             &result.Description,
-            &result.UserID,
+            &result.FamilyID,
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
@@ -347,13 +347,13 @@ func (r *Repository) SearchWorkspaces(query string, userID int) (WorkspaceSearch
     return results, nil
 }
 
-func (r *Repository) SearchContainers(query string, userID int) (ContainerSearchResults, error) {
+func (r *Repository) SearchContainers(query string, familyID int) (ContainerSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
             FROM container c
             WHERE 
-                c.user_id = $2 AND
+                c.family_id = $2 AND
                 (
                     LOWER(c.name) = LOWER($1) OR
                     c.name ILIKE $1 || '%' OR
@@ -365,7 +365,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
         );`
 
     var hasResults bool
-    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    err := r.db.QueryRow(quickCheckQuery, query, familyID).Scan(&hasResults)
     if err != nil {
         return nil, fmt.Errorf("error checking for results: %v", err)
     }
@@ -384,7 +384,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
                 c.qr_code_image,
                 c.number,
                 c.location,
-                c.user_id,
+                c.family_id,
                 c.workspace_id,
                 c.created_at,
                 c.updated_at,
@@ -417,7 +417,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
                 ) as rank
             FROM container c
             WHERE 
-                c.user_id = $2 AND
+                c.family_id = $2 AND
                 (
                     LOWER(c.name) = LOWER($1) OR
                     c.name ~* ('\m' || $1 || '\M') OR
@@ -448,7 +448,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
         ORDER BY rc.rank DESC
         LIMIT 50;`
 
-    rows, err := r.db.Query(sqlQuery, query, userID)
+    rows, err := r.db.Query(sqlQuery, query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error executing container search: %v", err)
     }
@@ -467,7 +467,7 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
             &result.QRCodeImage,
             &result.Number,
             &result.Location,
-            &result.UserID,
+            &result.FamilyID,
             &result.WorkspaceID,
             &result.CreatedAt,
             &result.UpdatedAt,
@@ -490,14 +490,14 @@ func (r *Repository) SearchContainers(query string, userID int) (ContainerSearch
     return results, nil
 }
 
-func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, error) {
+func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
             FROM item i
             LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (c.family_id = $2 OR i.container_id IS NULL) AND
                 (
                     LOWER(i.name) = LOWER($1) OR
                     i.name ~* ('\m' || $1 || '\M') OR
@@ -511,7 +511,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
         );`
 
     var hasResults bool
-    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    err := r.db.QueryRow(quickCheckQuery, query, familyID).Scan(&hasResults)
     if err != nil {
         return nil, fmt.Errorf("error checking for results: %v", err)
     }
@@ -555,7 +555,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
             FROM item i
             LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (c.family_id = $2 OR i.container_id IS NULL) AND
                 (
                     LOWER(i.name) = LOWER($1) OR
                     i.name ~* ('\m' || $1 || '\M') OR
@@ -622,7 +622,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
         ORDER BY i.rank DESC
         LIMIT 50;`
 
-    rows, err := r.db.Query(sqlQuery, query, userID)
+    rows, err := r.db.Query(sqlQuery, query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error executing item search: %v", err)
     }
@@ -670,7 +670,7 @@ func (r *Repository) SearchItems(query string, userID int) (ItemSearchResults, e
     return results, nil
 }
 
-func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, error) {
+func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
@@ -679,7 +679,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
             LEFT JOIN item i ON it.item_id = i.id
             LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (c.family_id = $2 OR i.container_id IS NULL) AND
                 (
                     t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
@@ -689,7 +689,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         );`
 
     var hasResults bool
-    err := r.db.QueryRow(quickCheckQuery, query, userID).Scan(&hasResults)
+    err := r.db.QueryRow(quickCheckQuery, query, familyID).Scan(&hasResults)
     if err != nil {
         return nil, fmt.Errorf("error checking for results: %v", err)
     }
@@ -726,7 +726,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
             LEFT JOIN item i ON it.item_id = i.id
             LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.user_id = $2 OR i.container_id IS NULL) AND
+                (c.family_id = $2 OR i.container_id IS NULL) AND
                 (
                     t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
@@ -764,7 +764,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
         ORDER BY rt.rank DESC
         LIMIT 50;`
 
-    rows, err := r.db.Query(sqlQuery, query, userID)
+    rows, err := r.db.Query(sqlQuery, query, familyID)
     if err != nil {
         return nil, fmt.Errorf("error executing tag search: %v", err)
     }
@@ -799,7 +799,7 @@ func (r *Repository) SearchTags(query string, userID int) (TagSearchResults, err
     return results, nil
 }
 
-func (r *Repository) FindContainerByQR(qrCode string, userID int) (*models.Container, error) {
+func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*models.Container, error) {
    query := `
        SELECT 
            c.*,
@@ -807,26 +807,26 @@ func (r *Repository) FindContainerByQR(qrCode string, userID int) (*models.Conta
                'id', w.id,
                'name', w.name,
                'description', w.description,
-               'userId', w.user_id,
+               'familyId', w.family_id,
                'createdAt', w.created_at,
                'updatedAt', w.updated_at
            ) as workspace
        FROM container c
        LEFT JOIN workspace w ON c.workspace_id = w.id
-       WHERE c.qr_code = $1 AND c.user_id = $2
+       WHERE c.qr_code = $1 AND c.family_id = $2
        LIMIT 1`
 
    container := new(models.Container)
    var workspaceJSON []byte
    
-   err := r.db.QueryRow(query, qrCode, userID).Scan(
+   err := r.db.QueryRow(query, qrCode, familyID).Scan(
        &container.ID,
        &container.Name,
        &container.QRCode,
        &container.QRCodeImage,
        &container.Number,
        &container.Location,
-       &container.UserID,
+       &container.FamilyID,
        &container.WorkspaceID,
        &container.CreatedAt,
        &container.UpdatedAt,

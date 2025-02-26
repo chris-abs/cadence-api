@@ -3,9 +3,9 @@ package recent
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/chrisabs/storage/internal/middleware"
+	"github.com/chrisabs/storage/internal/models"
 	"github.com/gorilla/mux"
 )
 
@@ -26,18 +26,28 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        http.Error(w, "invalid user ID", http.StatusBadRequest)
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
-    response, err := h.service.GetRecentEntities(userID)
+    response, err := h.service.GetRecentEntities(*userCtx.FamilyID)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
 
+    writeJSON(w, http.StatusOK, response)
+}
+
+func writeJSON(w http.ResponseWriter, status int, v interface{}) {
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+    w.WriteHeader(status)
+    json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+    writeJSON(w, status, map[string]string{"error": message})
 }

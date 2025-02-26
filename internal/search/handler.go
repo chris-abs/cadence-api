@@ -3,9 +3,9 @@ package search
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/chrisabs/storage/internal/middleware"
+	"github.com/chrisabs/storage/internal/models"
 	"github.com/gorilla/mux"
 )
 
@@ -27,15 +27,14 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/search/containers", h.authMiddleware.AuthHandler(h.handleContainerSearch)).Methods("GET")
     router.HandleFunc("/search/items", h.authMiddleware.AuthHandler(h.handleItemSearch)).Methods("GET")
     router.HandleFunc("/search/tags", h.authMiddleware.AuthHandler(h.handleTagSearch)).Methods("GET")
-
     router.HandleFunc("/search/containers/qr/{code}", h.authMiddleware.AuthHandler(h.handleContainerQRSearch)).Methods("GET")
-
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -45,7 +44,7 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.Search(query, userID)
+    results, err := h.service.Search(query, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -55,9 +54,10 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -67,7 +67,7 @@ func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    results, err := h.service.SearchWorkspaces(query, userID)
+    results, err := h.service.SearchWorkspaces(query, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -77,9 +77,10 @@ func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -89,7 +90,7 @@ func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    results, err := h.service.SearchContainers(query, userID)
+    results, err := h.service.SearchContainers(query, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -99,9 +100,10 @@ func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -111,7 +113,7 @@ func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.SearchItems(query, userID)
+    results, err := h.service.SearchItems(query, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -121,9 +123,10 @@ func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -133,7 +136,7 @@ func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.SearchTags(query, userID)
+    results, err := h.service.SearchTags(query, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -143,9 +146,10 @@ func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleContainerQRSearch(w http.ResponseWriter, r *http.Request) {
-    userID, err := strconv.Atoi(r.Header.Get("UserId"))
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid user ID")
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.FamilyID == nil {
+        writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
@@ -155,7 +159,7 @@ func (h *Handler) handleContainerQRSearch(w http.ResponseWriter, r *http.Request
         return
     }
 
-    container, err := h.service.FindContainerByQR(qrCode, userID)
+    container, err := h.service.FindContainerByQR(qrCode, *userCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
