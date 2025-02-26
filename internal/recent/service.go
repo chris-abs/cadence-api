@@ -8,7 +8,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) GetRecentEntities(userID int) (*Response, error) {
+func (s *Service) GetRecentEntities(familyID int) (*Response, error) {
     const defaultLimit = 10
-    return s.repo.GetRecentEntities(userID, defaultLimit)
+    return s.repo.GetRecentEntities(familyID, defaultLimit)
 }
