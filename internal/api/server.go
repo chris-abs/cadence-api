@@ -8,6 +8,7 @@ import (
 	"github.com/chrisabs/storage/internal/container"
 	"github.com/chrisabs/storage/internal/family"
 	"github.com/chrisabs/storage/internal/item"
+	"github.com/chrisabs/storage/internal/membership"
 	"github.com/chrisabs/storage/internal/middleware"
 	"github.com/chrisabs/storage/internal/platform/database"
 	"github.com/chrisabs/storage/internal/recent"
@@ -49,6 +50,7 @@ func (s *Server) Run() {
 	// Initialise repositories
 	userRepo := user.NewRepository(s.db.DB)
 	familyRepo := family.NewRepository(s.db.DB)
+	membershipRepo := membership.NewRepository(s.db.DB)
 	containerRepo := container.NewRepository(s.db.DB)
 	workspaceRepo := workspace.NewRepository(s.db.DB)
 	itemRepo := item.NewRepository(s.db.DB)
@@ -56,13 +58,24 @@ func (s *Server) Run() {
 	searchRepo := search.NewRepository(s.db.DB)
 	recentRepo := recent.NewRepository(s.db.DB)
 
-	// Initialise services
 	userService := user.NewService(
 		userRepo,
 		nil, 
 		s.config.JWTSecret,
 	)
-	familyService := family.NewService(familyRepo, userService)
+	
+	membershipService := membership.NewService(membershipRepo)
+	
+	familyService := family.NewService(
+		familyRepo,
+		userService,
+		membershipService,
+	)
+	
+	// Now we can set circular dependencies
+	userService.SetMembershipService(membershipService)
+	
+	// Initialize other services
 	workspaceService := workspace.NewService(workspaceRepo)
 	containerService := container.NewService(containerRepo)
 	itemService := item.NewService(itemRepo)
@@ -74,6 +87,7 @@ func (s *Server) Run() {
 	authMiddleware := middleware.NewAuthMiddleware(
 		s.config.JWTSecret,
 		s.db.DB,
+		membershipService,
 		familyService, 
 	)
 
@@ -83,6 +97,7 @@ func (s *Server) Run() {
 		familyService,
 		authMiddleware,
 	)
+	membershipHandler := membership.NewHandler(membershipService, authMiddleware)
 	workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
 	containerHandler := container.NewHandler(containerService, authMiddleware)
 	itemHandler := item.NewHandler(itemService, containerService, authMiddleware)
@@ -93,6 +108,7 @@ func (s *Server) Run() {
 	// Register routes
 	userHandler.RegisterRoutes(router)
 	familyHandler.RegisterRoutes(router)
+	membershipHandler.RegisterRoutes(router)
 	workspaceHandler.RegisterRoutes(router)
 	containerHandler.RegisterRoutes(router)
 	itemHandler.RegisterRoutes(router)
