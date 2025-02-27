@@ -26,10 +26,6 @@ func (db *PostgresDB) Init() error {
 		return fmt.Errorf("schema initialization failed: %v", err)
 	}
 
-    if err := db.addForeignKeyConstraints(); err != nil {
-        return fmt.Errorf("failed to add foreign key constraints: %v", err)
-    }
-
 	return nil
 }
 
@@ -44,10 +40,15 @@ func (db *PostgresDB) initializeSchema() error {
 		return err
 	}
 
+	fmt.Println("Ensuring family membership table exists...")
+	if err := db.createFamilyMembershipTable(); err != nil {
+		return err
+	}
+
 	fmt.Println("Ensuring family invite table exists...")
-    if err := db.createFamilyInviteTable(); err != nil {
-        return err
-    }
+	if err := db.createFamilyInviteTable(); err != nil {
+		return err
+	}
 
 	fmt.Println("Ensuring workspace table exists...")
 	if err := db.createWorkspaceTable(); err != nil {
@@ -65,37 +66,4 @@ func (db *PostgresDB) initializeSchema() error {
 	}
 
 	return nil
-}
-
-func (db *PostgresDB) addForeignKeyConstraints() error {
-    fmt.Println("Adding foreign key constraints...")
-    
-    query := `
-        DO $$
-        BEGIN
-            -- Add users.family_id foreign key if it doesn't exist
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE constraint_name = 'fk_users_family'
-            ) THEN
-                ALTER TABLE users ADD CONSTRAINT fk_users_family FOREIGN KEY (family_id) REFERENCES family(id);
-            END IF;
-            
-            -- Add family.owner_id foreign key if it doesn't exist
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.table_constraints
-                WHERE constraint_name = 'fk_family_owner'
-            ) THEN
-                ALTER TABLE family ADD CONSTRAINT fk_family_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT;
-            END IF;
-        END
-        $$;
-    `
-    
-    _, err := db.Exec(query)
-    if err != nil {
-        return fmt.Errorf("failed to add foreign key constraints: %v", err)
-    }
-    fmt.Println("Foreign key constraints check completed.")
-    return nil
 }
