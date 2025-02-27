@@ -18,17 +18,32 @@ type Service struct {
 		ValidateInvite(token string) (*models.FamilyInvite, error)
 		DeleteInvite(id int) error
 	}
+	membershipService interface {
+		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+	}
 }
 
-func NewService(repo *Repository, familyService interface {
-	ValidateInvite(token string) (*models.FamilyInvite, error)
-	DeleteInvite(id int) error
-}, jwtSecret string) *Service {
+func NewService(
+	repo *Repository,
+	familyService interface {
+		ValidateInvite(token string) (*models.FamilyInvite, error)
+		DeleteInvite(id int) error
+	},
+	jwtSecret string,
+) *Service {
 	return &Service{
 		repo:          repo,
 		familyService: familyService,
 		jwtSecret:     jwtSecret,
 	}
+}
+
+func (s *Service) SetMembershipService(membershipService interface {
+	CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+	GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+}) {
+	s.membershipService = membershipService
 }
 
 func (s *Service) generateJWT(userID int) (string, error) {
@@ -58,8 +73,6 @@ func (s *Service) CreateUser(req *CreateUserRequest) (*models.User, error) {
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		ImageURL:  req.ImageURL,
-		Role:      nil,
-		FamilyID:  nil,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
@@ -90,10 +103,22 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	return &AuthResponse{
+	var membership *models.FamilyMembership
+	if s.membershipService != nil {
+		membership, _ = s.membershipService.GetActiveMembershipForUser(user.ID)
+	}
+
+	response := &AuthResponse{
 		Token: token,
 		User:  *user,
-	}, nil
+	}
+
+	if membership != nil {
+		response.User.Role = &membership.Role
+		response.User.FamilyID = &membership.FamilyID
+	}
+
+	return response, nil
 }
 
 func (s *Service) AcceptInvite(req *AcceptInviteRequest) (*models.User, error) {
@@ -102,18 +127,13 @@ func (s *Service) AcceptInvite(req *AcceptInviteRequest) (*models.User, error) {
 		return nil, fmt.Errorf("invalid invite: %v", err)
 	}
 
-	tx, err := s.repo.BeginTx()
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
-
 	existingUser, err := s.repo.GetByEmail(invite.Email)
 	if err != nil && err.Error() != "user not found" {
 		return nil, fmt.Errorf("error checking existing user: %v", err)
 	}
 
 	var user *models.User
+
 	if existingUser == nil {
 		if req.Password == "" {
 			return nil, fmt.Errorf("password required for new user")
@@ -122,37 +142,64 @@ func (s *Service) AcceptInvite(req *AcceptInviteRequest) (*models.User, error) {
 		user = &models.User{
 			Email:    invite.Email,
 			Password: req.Password,
-			Role:     &invite.Role,
-			FamilyID: &invite.FamilyID,
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		}
+
+		tx, err := s.repo.BeginTx()
+		if err != nil {
+			return nil, fmt.Errorf("failed to start transaction: %v", err)
+		}
+		defer tx.Rollback()
 
 		if err := s.repo.CreateTx(tx, user); err != nil {
 			return nil, fmt.Errorf("failed to create user: %v", err)
 		}
-	} else {
-		if existingUser.FamilyID != nil {
-			return nil, fmt.Errorf("user already belongs to a family")
+
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("failed to commit transaction: %v", err)
 		}
+
+		user, err = s.repo.GetByID(user.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get created user: %v", err)
+		}
+	} else {
 		user = existingUser
 	}
 
-	if err := s.repo.UpdateFamilyMembershipTx(tx, user.ID, invite.FamilyID, invite.Role); err != nil {
-		return nil, fmt.Errorf("failed to update family membership: %v", err)
+	if s.membershipService != nil {
+		_, err = s.membershipService.CreateMembership(user.ID, invite.FamilyID, invite.Role, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create membership: %v", err)
+		}
 	}
 
 	if err := s.familyService.DeleteInvite(invite.ID); err != nil {
 		fmt.Printf("failed to delete used invite: %v\n", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+	user.Role = &invite.Role
+	user.FamilyID = &invite.FamilyID
 
-	return s.repo.GetByID(user.ID)
+	return user, nil
 }
 
 func (s *Service) GetUserByID(id int) (*models.User, error) {
-	return s.repo.GetByID(id)
+	user, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.membershipService != nil {
+		membership, err := s.membershipService.GetActiveMembershipForUser(id)
+		if err == nil && membership != nil {
+			user.Role = &membership.Role
+			user.FamilyID = &membership.FamilyID
+		}
+	}
+
+	return user, nil
 }
 
 func (s *Service) GetAllUsers() ([]*models.User, error) {
@@ -186,13 +233,9 @@ func (s *Service) UpdateUser(id int, firstName, lastName string, imageFile *mult
 		return nil, fmt.Errorf("failed to update user: %v", err)
 	}
 
-	return s.repo.GetByID(id)
+	return s.GetUserByID(id)
 }
 
 func (s *Service) DeleteUser(id int) error {
 	return s.repo.Delete(id)
-}
-
-func (s *Service) UpdateFamily(user *models.User) error {
-	return s.repo.UpdateFamily(user)
 }
