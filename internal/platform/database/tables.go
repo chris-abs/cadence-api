@@ -74,6 +74,27 @@ func (db *PostgresDB) createFamilyTables() error {
 	return nil
 }
 
+func (db *PostgresDB) createFamilyInviteTable() error {
+    query := `
+    CREATE TABLE IF NOT EXISTS family_invite (
+        id SERIAL PRIMARY KEY,
+        family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
+        email VARCHAR(255) NOT NULL,
+        role user_role NOT NULL,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);
+    CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);
+    `
+    
+    _, err := db.Exec(query)
+    return err
+}
+
 func (db *PostgresDB) createWorkspaceTable() error {
 	query := `
     CREATE TABLE IF NOT EXISTS workspace (

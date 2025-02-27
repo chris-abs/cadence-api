@@ -44,6 +44,11 @@ func (db *PostgresDB) initializeSchema() error {
 		return err
 	}
 
+	fmt.Println("Ensuring family invite table exists...")
+    if err := db.createFamilyInviteTable(); err != nil {
+        return err
+    }
+
 	fmt.Println("Ensuring workspace table exists...")
 	if err := db.createWorkspaceTable(); err != nil {
 		return err
