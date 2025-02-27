@@ -32,7 +32,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/family-memberships/active", h.authMiddleware.AuthHandler(h.handleGetActiveMembership)).Methods("GET")
 	router.HandleFunc("/family-memberships/{id}", h.authMiddleware.AuthHandler(h.handleUpdateMembership)).Methods("PUT")
 	router.HandleFunc("/family-memberships/{id}", h.authMiddleware.AuthHandler(h.handleDeleteMembership)).Methods("DELETE")
-	
+
 	router.HandleFunc("/families/{familyId}/memberships", h.authMiddleware.AuthHandler(h.handleGetFamilyMemberships)).Methods("GET")
 }
 
@@ -63,7 +63,6 @@ func (h *Handler) handleGetActiveMembership(w http.ResponseWriter, r *http.Reque
 func (h *Handler) handleGetFamilyMemberships(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
-	// User must be a member of the family to view its memberships
 	if userCtx.FamilyID == nil {
 		writeError(w, http.StatusForbidden, "user is not part of a family")
 		return
@@ -77,13 +76,11 @@ func (h *Handler) handleGetFamilyMemberships(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	// User can only view memberships for their own family
 	if *userCtx.FamilyID != familyID {
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	
-	// Only allow parents to view all memberships
 	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can view family memberships")
 		return
@@ -101,13 +98,11 @@ func (h *Handler) handleGetFamilyMemberships(w http.ResponseWriter, r *http.Requ
 func (h *Handler) handleUpdateMembership(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
-	// Check if user is a parent
 	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can update memberships")
 		return
 	}
 	
-	// Get membership ID from URL
 	vars := mux.Vars(r)
 	membershipIDStr := vars["id"]
 	membershipID, err := strconv.Atoi(membershipIDStr)
@@ -116,27 +111,23 @@ func (h *Handler) handleUpdateMembership(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	// Get membership details to check if it's in the user's family
 	membership, err := h.service.GetMembershipByID(membershipID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 	
-	// User can only update memberships in their own family
 	if userCtx.FamilyID == nil || membership.FamilyID != *userCtx.FamilyID {
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	
-	// Parse request body
 	var req UpdateMembershipRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	
-	// Update membership
 	updatedMembership, err := h.service.UpdateMembership(membershipID, req.Role, req.IsOwner)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -149,13 +140,11 @@ func (h *Handler) handleUpdateMembership(w http.ResponseWriter, r *http.Request)
 func (h *Handler) handleDeleteMembership(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
-	// Check if user is a parent
 	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can delete memberships")
 		return
 	}
 	
-	// Get membership ID from URL
 	vars := mux.Vars(r)
 	membershipIDStr := vars["id"]
 	membershipID, err := strconv.Atoi(membershipIDStr)
@@ -164,26 +153,22 @@ func (h *Handler) handleDeleteMembership(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	// Get membership details to check if it's in the user's family
 	membership, err := h.service.GetMembershipByID(membershipID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 	
-	// User can only delete memberships in their own family
 	if userCtx.FamilyID == nil || membership.FamilyID != *userCtx.FamilyID {
 		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	
-	// Don't allow deleting the owner's membership
 	if membership.IsOwner {
 		writeError(w, http.StatusForbidden, "cannot delete the family owner's membership")
 		return
 	}
 	
-	// Delete membership
 	if err := h.service.DeleteMembership(membershipID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
