@@ -27,6 +27,14 @@ func (r *Repository) Create(family *models.Family) error {
 			ID: "meals",
 			IsEnabled: false,
 		},
+		{
+			ID: "chores",
+			IsEnabled: false,
+		},
+		{
+			ID: "services",
+			IsEnabled: false,
+		},
 	}
 
 	family.Modules = defaultModules
