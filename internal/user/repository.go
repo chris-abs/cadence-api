@@ -28,8 +28,8 @@ func (r *Repository) CreateTx(tx *sql.Tx, user *models.User) error {
     }
 
     query := `
-        INSERT INTO users (email, password, first_name, last_name, image_url, role, family_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO users (email, password, first_name, last_name, image_url, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`
 
     err = tx.QueryRow(
@@ -39,8 +39,6 @@ func (r *Repository) CreateTx(tx *sql.Tx, user *models.User) error {
         user.FirstName,
         user.LastName,
         user.ImageURL,
-        user.Role,
-        user.FamilyID,
         user.CreatedAt,
         user.UpdatedAt,
     ).Scan(&user.ID)
@@ -52,75 +50,9 @@ func (r *Repository) CreateTx(tx *sql.Tx, user *models.User) error {
     return nil
 }
 
-func (r *Repository) UpdateFamilyMembershipTx(tx *sql.Tx, userID int, familyID int, role models.UserRole) error {
-    query := `
-        UPDATE users
-        SET family_id = $2,
-            role = $3,
-            updated_at = $4
-        WHERE id = $1`
-
-    result, err := tx.Exec(
-        query,
-        userID,
-        familyID,
-        role,
-        time.Now().UTC(),
-    )
-
-    if err != nil {
-        return fmt.Errorf("error updating user family membership: %v", err)
-    }
-
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return fmt.Errorf("error checking update result: %v", err)
-    }
-
-    if rowsAffected == 0 {
-        return fmt.Errorf("user not found")
-    }
-
-    return nil
-}
-
-func (r *Repository) UpdateFamily(user *models.User) error {
-	query := `
-        UPDATE users
-        SET family_id = $2,
-            role = $3,
-            updated_at = $4
-        WHERE id = $1`
-
-	result, err := r.db.Exec(
-		query,
-		user.ID,
-		user.FamilyID,
-		user.Role,
-		time.Now().UTC(),
-	)
-
-	if err != nil {
-		return fmt.Errorf("error updating user family: %v", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking update result: %v", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("user not found")
-	}
-
-	return nil
-}
-
-
 func (r *Repository) GetByEmail(email string) (*models.User, error) {
     query := `
-        SELECT id, email, password, first_name, last_name, image_url, 
-               family_id, role, created_at, updated_at
+        SELECT id, email, password, first_name, last_name, image_url, created_at, updated_at
         FROM users
         WHERE email = $1`
 
@@ -132,8 +64,6 @@ func (r *Repository) GetByEmail(email string) (*models.User, error) {
         &user.FirstName,
         &user.LastName,
         &user.ImageURL,
-        &user.FamilyID,
-        &user.Role,
         &user.CreatedAt,
         &user.UpdatedAt,
     )
@@ -150,8 +80,7 @@ func (r *Repository) GetByEmail(email string) (*models.User, error) {
 
 func (r *Repository) GetByID(id int) (*models.User, error) {
     query := `
-        SELECT id, email, first_name, last_name, image_url, 
-               family_id, role, created_at, updated_at
+        SELECT id, email, first_name, last_name, image_url, created_at, updated_at
         FROM users
         WHERE id = $1`
 
@@ -162,8 +91,6 @@ func (r *Repository) GetByID(id int) (*models.User, error) {
         &user.FirstName,
         &user.LastName,
         &user.ImageURL,
-        &user.FamilyID,
-        &user.Role,
         &user.CreatedAt,
         &user.UpdatedAt,
     )
@@ -180,8 +107,7 @@ func (r *Repository) GetByID(id int) (*models.User, error) {
 
 func (r *Repository) GetAll() ([]*models.User, error) {
     query := `
-        SELECT id, email, first_name, last_name, image_url, 
-               family_id, role, created_at, updated_at
+        SELECT id, email, first_name, last_name, image_url, created_at, updated_at
         FROM users
         ORDER BY created_at DESC`
 
@@ -200,8 +126,6 @@ func (r *Repository) GetAll() ([]*models.User, error) {
             &user.FirstName,
             &user.LastName,
             &user.ImageURL,
-            &user.FamilyID,
-            &user.Role,
             &user.CreatedAt,
             &user.UpdatedAt,
         )
