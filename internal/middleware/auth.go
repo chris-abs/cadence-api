@@ -12,60 +12,48 @@ import (
 )
 
 type AuthMiddleware struct {
-	jwtSecret     string
-	db            *sql.DB
+	jwtSecret        string
+	db               *sql.DB
+	membershipService interface {
+		GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+	}
 	familyService interface {
+		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
 		HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	}
 }
 
-func NewAuthMiddleware(jwtSecret string, db *sql.DB, familyService interface {
-	HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
-}) *AuthMiddleware {
+func NewAuthMiddleware(
+	jwtSecret string,
+	db *sql.DB,
+	membershipService interface {
+		GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+	},
+	familyService interface {
+		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
+		HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+	},
+) *AuthMiddleware {
 	return &AuthMiddleware{
-		jwtSecret:     jwtSecret,
-		db:            db,
-		familyService: familyService,
+		jwtSecret:        jwtSecret,
+		db:               db,
+		membershipService: membershipService,
+		familyService:    familyService,
 	}
 }
 
 func (m *AuthMiddleware) buildUserContext(userID int) (*models.UserContext, error) {
-	query := `
-        SELECT 
-            u.id,
-            u.family_id,
-            u.role
-        FROM users u
-        WHERE u.id = $1`
-
-	var ctx models.UserContext
-	var familyID sql.NullInt64
-	var role sql.NullString
-
-	err := m.db.QueryRow(query, userID).Scan(
-		&ctx.UserID,
-		&familyID,
-		&role,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
+	ctx := &models.UserContext{
+		UserID: userID,
 	}
-	if err != nil {
-		return nil, fmt.Errorf("error fetching user context: %v", err)
+	
+	membership, err := m.membershipService.GetActiveMembershipForUser(userID)
+	if err == nil && membership != nil {
+		ctx.FamilyID = &membership.FamilyID
+		ctx.Role = &membership.Role
 	}
-
-	if familyID.Valid {
-		fid := int(familyID.Int64)
-		ctx.FamilyID = &fid
-
-		if role.Valid {
-			userRole := models.UserRole(role.String)
-			ctx.Role = &userRole
-		}
-	}
-
-	return &ctx, nil
+	
+	return ctx, nil
 }
 
 func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
@@ -77,14 +65,16 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		bearerToken := strings.Split(authHeader, " ")
-		if len(bearerToken) != 2 {
-			http.Error(w, "Invalid token format", http.StatusUnauthorized)
+		if len(bearerToken) != 2 || bearerToken[0] != "Bearer" {
+			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
 			return
 		}
 
-		token, err := jwt.Parse(bearerToken[1], func(token *jwt.Token) (interface{}, error) {
+		tokenString := bearerToken[1]
+		claims := jwt.MapClaims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method")
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			return []byte(m.jwtSecret), nil
 		})
@@ -94,70 +84,46 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
+		userID, ok := claims["userId"].(float64)
 		if !ok {
 			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
 			return
 		}
 
-		userID := int(claims["userId"].(float64))
-
-		userCtx, err := m.buildUserContext(userID)
+		userCtx, err := m.buildUserContext(int(userID))
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		moduleID := extractModuleFromPath(r.URL.Path)
-		if moduleID != "" {
-			if userCtx.FamilyID == nil {
-				http.Error(w, "Must be part of a family to access modules", http.StatusForbidden)
-				return
-			}
-
-			permission := mapHTTPMethodToPermission(r.Method)
-			hasPermission, err := m.familyService.HasModulePermission(*userCtx.FamilyID, *userCtx.Role, moduleID, permission)
-			if err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-			if !hasPermission {
-				http.Error(w, "Insufficient permissions", http.StatusForbidden)
-				return
+			userCtx = &models.UserContext{
+				UserID: int(userID),
 			}
 		}
 
 		ctx := context.WithValue(r.Context(), "user", userCtx)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next(w, r.WithContext(ctx))
 	}
 }
 
-func extractModuleFromPath(path string) models.ModuleID {
-	parts := strings.Split(path, "/")
-	if len(parts) > 1 {
-		switch parts[1] {
-		case "workspaces", "containers", "items", "tags":
-			return models.ModuleStorage
-		case "meals":
-			return models.ModuleMeals
-		case "services":
-			return models.ModuleServices
-		case "chores":
-			return models.ModuleChores
-		}
-	}
-	return ""
-}
+func (m *AuthMiddleware) ModuleMiddleware(moduleID models.ModuleID, permission models.Permission) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return m.AuthHandler(func(w http.ResponseWriter, r *http.Request) {
+			userCtx := r.Context().Value("user").(*models.UserContext)
 
-func mapHTTPMethodToPermission(method string) models.Permission {
-	switch method {
-	case http.MethodGet:
-		return models.PermissionRead
-	case http.MethodPost, http.MethodPut, http.MethodPatch:
-		return models.PermissionWrite
-	case http.MethodDelete:
-		return models.PermissionManage
-	default:
-		return models.PermissionRead
+			if userCtx.FamilyID == nil || userCtx.Role == nil {
+				http.Error(w, "Access denied: Not a family member", http.StatusForbidden)
+				return
+			}
+
+			hasPermission, err := m.familyService.HasModulePermission(*userCtx.FamilyID, *userCtx.Role, moduleID, permission)
+			if err != nil {
+				http.Error(w, "Error checking permissions", http.StatusInternalServerError)
+				return
+			}
+
+			if !hasPermission {
+				http.Error(w, "Access denied: Insufficient permissions", http.StatusForbidden)
+				return
+			}
+
+			next(w, r)
+		})
 	}
 }
