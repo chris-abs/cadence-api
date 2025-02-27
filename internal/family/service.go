@@ -13,25 +13,39 @@ type Service struct {
 	repo *Repository
 	userService interface {
 		GetUserByID(id int) (*models.User, error)
-		UpdateFamily(user *models.User) error
+	}
+	membershipService interface {
+		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
+		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
+		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
+		IsUserFamilyOwner(userID, familyID int) (bool, error)
 	}
 }
 
-func NewService(repo *Repository, userService interface {
-	GetUserByID(id int) (*models.User, error)
-	UpdateFamily(user *models.User) error
-},
+func NewService(
+	repo *Repository,
+	userService interface {
+		GetUserByID(id int) (*models.User, error)
+	},
+	membershipService interface {
+		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
+		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
+		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
+		IsUserFamilyOwner(userID, familyID int) (bool, error)
+	},
 ) *Service {
 	return &Service{
 		repo: repo,
 		userService: userService,
+		membershipService: membershipService,
 	}
 }
 
 func (s *Service) CreateFamily(req *CreateFamilyRequest, ownerID int) (*models.Family, error) {
     family := &models.Family{
         Name:    req.Name,
-        OwnerID: ownerID,
         Status:  models.FamilyStatusActive,
     }
 
@@ -39,17 +53,9 @@ func (s *Service) CreateFamily(req *CreateFamilyRequest, ownerID int) (*models.F
         return nil, fmt.Errorf("failed to create family: %v", err)
     }
 
-    user, err := s.userService.GetUserByID(ownerID)
+    _, err := s.membershipService.CreateMembership(ownerID, family.ID, models.RoleParent, true)
     if err != nil {
-        return family, fmt.Errorf("family created but failed to get user: %v", err)
-    }
-
-    parentRole := models.RoleParent
-    user.FamilyID = &family.ID
-    user.Role = &parentRole
-
-    if err := s.userService.UpdateFamily(user); err != nil {
-        return family, fmt.Errorf("family created but failed to update user family: %v", err)
+        return family, fmt.Errorf("family created but failed to create membership: %v", err)
     }
 
     return family, nil
@@ -237,13 +243,9 @@ func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, 
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	familyID := invite.FamilyID
-	role := invite.Role
-	user.FamilyID = &familyID
-	user.Role = &role
-
-	if err := s.userService.UpdateFamily(user); err != nil {
-		return nil, fmt.Errorf("failed to update user family: %v", err)
+	_, err = s.membershipService.CreateMembership(userID, invite.FamilyID, invite.Role, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create membership: %v", err)
 	}
 
 	if err := s.DeleteInvite(invite.ID); err != nil {
