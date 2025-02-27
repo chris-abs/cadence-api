@@ -4,12 +4,6 @@ import (
 	"fmt"
 )
 
-func (db *PostgresDB) initializeDatabaseExtensions() error {
-	query := `CREATE EXTENSION IF NOT EXISTS pg_trgm;`
-	_, err := db.Exec(query)
-	return err
-}
-
 func (db *PostgresDB) createEnums() error {
 	query := `DO $$ 
     BEGIN
@@ -35,8 +29,6 @@ func (db *PostgresDB) createUsersTable() error {
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         image_url TEXT,
-        role user_role NULL,
-        family_id INTEGER,  -- No foreign key constraint initially
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -52,7 +44,6 @@ func (db *PostgresDB) createFamilyTables() error {
     CREATE TABLE IF NOT EXISTS family (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
-        owner_id INTEGER,  -- No foreign key constraint initially
         modules JSONB NOT NULL DEFAULT '{
             "storage": {
                 "isEnabled": true
@@ -74,8 +65,28 @@ func (db *PostgresDB) createFamilyTables() error {
 	return nil
 }
 
+func (db *PostgresDB) createFamilyMembershipTable() error {
+	query := `
+    CREATE TABLE IF NOT EXISTS family_membership (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
+        role user_role NOT NULL,
+        is_owner BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_family_membership_user ON family_membership(user_id);
+    CREATE INDEX IF NOT EXISTS idx_family_membership_family ON family_membership(family_id);
+    CREATE INDEX IF NOT EXISTS idx_family_membership_owner ON family_membership(family_id, is_owner);
+    `
+	_, err := db.Exec(query)
+	return err
+}
+
 func (db *PostgresDB) createFamilyInviteTable() error {
-    query := `
+	query := `
     CREATE TABLE IF NOT EXISTS family_invite (
         id SERIAL PRIMARY KEY,
         family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
