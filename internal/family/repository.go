@@ -45,14 +45,13 @@ func (r *Repository) Create(family *models.Family) error {
 	}
 
 	query := `
-		INSERT INTO family (name, owner_id, modules, created_at, updated_at, status)
-		VALUES ($1, $2, $3, $4, $4, $5)
+		INSERT INTO family (name, modules, created_at, updated_at, status)
+		VALUES ($1, $2, $3, $3, $4)
 		RETURNING id`
 
 	err = r.db.QueryRow(
 		query,
 		family.Name,
-		family.OwnerID,
 		modulesJSON,
 		time.Now().UTC(),
 		models.FamilyStatusActive,
@@ -67,7 +66,7 @@ func (r *Repository) Create(family *models.Family) error {
 
 func (r *Repository) GetByID(id int) (*models.Family, error) {
 	query := `
-		SELECT id, name, owner_id, modules, created_at, updated_at, status
+		SELECT id, name, modules, created_at, updated_at, status
 		FROM family
 		WHERE id = $1`
 
@@ -77,7 +76,6 @@ func (r *Repository) GetByID(id int) (*models.Family, error) {
 	err := r.db.QueryRow(query, id).Scan(
 		&family.ID,
 		&family.Name,
-		&family.OwnerID,
 		&modulesJSON,
 		&family.CreatedAt,
 		&family.UpdatedAt,
