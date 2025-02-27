@@ -10,13 +10,12 @@ const (
 )
 
 type Family struct {
-    ID          int          `json:"id"`
-    Name        string       `json:"name"`
-    OwnerID     int          `json:"ownerId"`
-    Status      FamilyStatus `json:"status"`
-    CreatedAt   time.Time    `json:"createdAt"`
-    UpdatedAt   time.Time    `json:"updatedAt"`
-    Modules     []Module     `json:"modules"`
+    ID        int          `json:"id"`
+    Name      string       `json:"name"`
+    Status    FamilyStatus `json:"status"`
+    CreatedAt time.Time    `json:"createdAt"`
+    UpdatedAt time.Time    `json:"updatedAt"`
+    Modules   []Module     `json:"modules"`
 }
 
 type ModuleID string
@@ -30,7 +29,7 @@ const (
 
 type Module struct {
     ID        ModuleID `json:"id"`
-    IsEnabled bool   `json:"isEnabled"`
+    IsEnabled bool     `json:"isEnabled"`
 }
 
 type FamilyInvite struct {

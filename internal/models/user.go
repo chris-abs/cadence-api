@@ -16,9 +16,7 @@ type User struct {
     FirstName  string      `json:"firstName"`
     LastName   string      `json:"lastName"`
     ImageURL   string      `json:"imageUrl"`
-    FamilyID   *int        `json:"familyId"`
-    Role       *UserRole   `json:"role"`
-    Containers []Container `json:"containers"`
+    Containers []Container `json:"containers,omitempty"`
     CreatedAt  time.Time   `json:"createdAt"`
     UpdatedAt  time.Time   `json:"updatedAt"`
 }
