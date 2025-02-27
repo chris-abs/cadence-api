@@ -114,8 +114,8 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 	}
 
 	if membership != nil {
-		response.User.Role = &membership.Role
-		response.User.FamilyID = &membership.FamilyID
+		response.FamilyID = &membership.FamilyID
+		response.Role = &membership.Role
 	}
 
 	return response, nil
@@ -179,9 +179,6 @@ func (s *Service) AcceptInvite(req *AcceptInviteRequest) (*models.User, error) {
 		fmt.Printf("failed to delete used invite: %v\n", err)
 	}
 
-	user.Role = &invite.Role
-	user.FamilyID = &invite.FamilyID
-
 	return user, nil
 }
 
@@ -189,14 +186,6 @@ func (s *Service) GetUserByID(id int) (*models.User, error) {
 	user, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, err
-	}
-
-	if s.membershipService != nil {
-		membership, err := s.membershipService.GetActiveMembershipForUser(id)
-		if err == nil && membership != nil {
-			user.Role = &membership.Role
-			user.FamilyID = &membership.FamilyID
-		}
 	}
 
 	return user, nil

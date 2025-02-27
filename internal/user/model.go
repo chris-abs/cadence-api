@@ -22,8 +22,10 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-    Token string      `json:"token"`
-    User  models.User `json:"user"`
+    Token    string           `json:"token"`
+    User     models.User      `json:"user"`
+    FamilyID *int             `json:"familyId,omitempty"`
+    Role     *models.UserRole `json:"role,omitempty"`
 }
 
 type AcceptInviteRequest struct {
