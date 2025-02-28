@@ -103,19 +103,20 @@ func (s *Service) Login(req *LoginRequest) (*AuthResponse, error) {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	var membership *models.FamilyMembership
-	if s.membershipService != nil {
-		membership, _ = s.membershipService.GetActiveMembershipForUser(user.ID)
-	}
-
 	response := &AuthResponse{
 		Token: token,
 		User:  *user,
 	}
 
-	if membership != nil {
-		response.FamilyID = &membership.FamilyID
-		response.Role = &membership.Role
+	if s.membershipService != nil {
+		membership, err := s.membershipService.GetActiveMembershipForUser(user.ID)
+		if err == nil && membership != nil {
+			response.FamilyID = &membership.FamilyID
+			response.Role = &membership.Role
+		} else {
+			response.FamilyID = nil
+			response.Role = nil
+		}
 	}
 
 	return response, nil
