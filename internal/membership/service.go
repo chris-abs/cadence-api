@@ -100,3 +100,30 @@ func (s *Service) IsUserFamilyOwner(userID int, familyID int) (bool, error) {
 
 	return false, nil
 }
+
+func (s *Service) IsUserInFamily(userID, familyID int) (bool, error) {
+	memberships, err := s.repo.GetByUserID(userID)
+	if err != nil {
+		return false, fmt.Errorf("error getting memberships: %v", err)
+	}
+
+	for _, m := range memberships {
+		if m.FamilyID == familyID {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *Service) GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error) {
+	membership, err := s.GetActiveMembershipForUser(userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	familyID := membership.FamilyID
+	role := membership.Role
+	
+	return &familyID, &role, nil
+}

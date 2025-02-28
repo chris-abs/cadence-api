@@ -15,12 +15,20 @@ import (
 type Handler struct {
    service        *Service
    authMiddleware *middleware.AuthMiddleware
+   membershipService interface {
+       IsUserInFamily(userID, familyID int) (bool, error)
+       GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error)
+   }
 }
 
-func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware, membershipService interface {
+    IsUserInFamily(userID, familyID int) (bool, error)
+    GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error)
+}) *Handler {
    return &Handler{
        service:        service,
        authMiddleware: authMiddleware,
+       membershipService: membershipService,
    }
 }
 
@@ -135,7 +143,17 @@ func (h *Handler) handleGetAuthenticatedUser(w http.ResponseWriter, r *http.Requ
        return
    }
 
-   writeJSON(w, http.StatusOK, user)
+   response := struct {
+       *models.User
+       FamilyID *int             `json:"familyId,omitempty"`
+       Role     *models.UserRole `json:"role,omitempty"`
+   }{
+       User:     user,
+       FamilyID: userCtx.FamilyID,
+       Role:     userCtx.Role,
+   }
+
+   writeJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
@@ -153,13 +171,38 @@ func (h *Handler) handleGetUser(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // TODO: We should be checking if the requested user is in the same family by directly using 
-    // the membership service. For now, we'll just check if the authenticated user's familyID
     if userCtx.FamilyID == nil {
-        writeError(w, http.StatusForbidden, "access denied")
+        writeError(w, http.StatusForbidden, "access denied - you must be part of a family")
         return
     }
     
+    isInFamily, err := h.membershipService.IsUserInFamily(id, *userCtx.FamilyID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, "error checking family membership")
+        return
+    }
+    
+    if !isInFamily {
+        writeError(w, http.StatusForbidden, "access denied - user is not in your family")
+        return
+    }
+
+    familyID, role, err := h.membershipService.GetUserFamilyAndRole(id)
+    if err == nil && familyID != nil && role != nil {
+        response := struct {
+            *models.User
+            FamilyID *int             `json:"familyId,omitempty"`
+            Role     *models.UserRole `json:"role,omitempty"`
+        }{
+            User:     user,
+            FamilyID: familyID,
+            Role:     role,
+        }
+        
+        writeJSON(w, http.StatusOK, response)
+        return
+    }
+
     writeJSON(w, http.StatusOK, user)
 }
 

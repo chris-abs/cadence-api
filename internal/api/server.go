@@ -72,7 +72,6 @@ func (s *Server) Run() {
 		membershipService,
 	)
 	
-	// Now we can set circular dependencies
 	userService.SetMembershipService(membershipService)
 	
 	// Initialize other services
@@ -92,7 +91,7 @@ func (s *Server) Run() {
 	)
 
 	// Initialise handlers
-	userHandler := user.NewHandler(userService, authMiddleware)
+	userHandler := user.NewHandler(userService, authMiddleware, membershipService)
 	familyHandler := family.NewHandler(
 		familyService,
 		authMiddleware,
