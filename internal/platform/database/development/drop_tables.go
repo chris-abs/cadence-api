@@ -25,6 +25,7 @@ func DropAllTables(db *sql.DB) error {
         DROP TABLE IF EXISTS workspace CASCADE;
         DROP TABLE IF EXISTS users CASCADE;
         DROP TABLE IF EXISTS family_invite CASCADE;
+        DROP TABLE IF EXISTS family_membership CASCADE;
         DROP TABLE IF EXISTS family CASCADE;
     `
 
