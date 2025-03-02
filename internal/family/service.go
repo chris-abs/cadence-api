@@ -3,7 +3,6 @@ package family
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -257,13 +256,13 @@ func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, 
 }
 
 
-func (s *Service) GetFamilyMembers(familyID int) ([]*models.User, error) {
+func (s *Service) GetFamilyMembers(familyID int) ([]FamilyMemberResponse, error) {
     memberships, err := s.membershipService.GetMembershipsByFamilyID(familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to get family memberships: %v", err)
     }
     
-    var users []*models.User
+    var members []FamilyMemberResponse
     
     for _, membership := range memberships {
         user, err := s.userService.GetUserByID(membership.UserID)
@@ -272,43 +271,13 @@ func (s *Service) GetFamilyMembers(familyID int) ([]*models.User, error) {
             continue
         }
         
-        userWithRole := &models.User{
-            ID:        user.ID,
-            Email:     user.Email,
-            FirstName: user.FirstName,
-            LastName:  user.LastName,
-            ImageURL:  user.ImageURL,
-            CreatedAt: user.CreatedAt,
-            UpdatedAt: user.UpdatedAt,
+        member := FamilyMemberResponse{
+            User: *user,
+            Role: membership.Role,
         }
         
-		// TODO: dogshit implementation - we should create a new sort of 'FamilyMemberResponse' - this would require
-		// pretty substantial FE changes.
-        userMap := map[string]interface{}{
-            "id":        userWithRole.ID,
-            "email":     userWithRole.Email,
-            "firstName": userWithRole.FirstName,
-            "lastName":  userWithRole.LastName,
-            "imageUrl":  userWithRole.ImageURL,
-            "createdAt": userWithRole.CreatedAt,
-            "updatedAt": userWithRole.UpdatedAt,
-            "role":      membership.Role,
-        }
-        
-        userBytes, err := json.Marshal(userMap)
-        if err != nil {
-            fmt.Printf("Error marshaling user %d: %v\n", membership.UserID, err)
-            continue
-        }
-        
-        var enhancedUser models.User
-        if err := json.Unmarshal(userBytes, &enhancedUser); err != nil {
-            fmt.Printf("Error unmarshaling user %d: %v\n", membership.UserID, err)
-            continue
-        }
-        
-        users = append(users, &enhancedUser)
+        members = append(members, member)
     }
     
-    return users, nil
+    return members, nil
 }

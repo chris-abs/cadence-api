@@ -21,3 +21,8 @@ type UpdateModuleRequest struct {
 type JoinFamilyRequest struct {
     Token    string `json:"token"`
 }
+
+type FamilyMemberResponse struct {
+    models.User
+    Role models.UserRole `json:"role"`
+}
