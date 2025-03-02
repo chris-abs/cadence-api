@@ -127,6 +127,29 @@ func (h *Handler) handleGetModules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, modules)
 }
 
+func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    if userCtx.FamilyID == nil || *userCtx.FamilyID != id {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
+
+    members, err := h.service.GetFamilyMembers(id)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, members)
+}
+
 func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
 	familyID, err := getIDFromRequest(r)
 	if err != nil {

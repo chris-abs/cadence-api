@@ -15,7 +15,7 @@ type CreateInviteRequest struct {
 
 type UpdateModuleRequest struct {
     ModuleID  models.ModuleID `json:"moduleId"`
-    IsEnabled bool          `json:"isEnabled"`
+    IsEnabled bool            `json:"isEnabled"`
 }
 
 type JoinFamilyRequest struct {
