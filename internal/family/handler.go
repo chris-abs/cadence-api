@@ -25,6 +25,7 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/families", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
 	router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleGetFamily)).Methods("GET")
+	router.HandleFunc("/families/{id}/members", h.authMiddleware.AuthHandler(h.handleGetFamilyMembers)).Methods("GET")
 
 	router.HandleFunc("/families/create", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
 	router.HandleFunc("/families/join", h.authMiddleware.AuthHandler(h.handleJoinFamily)).Methods("POST")
