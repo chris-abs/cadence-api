@@ -25,6 +25,7 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/families", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
 	router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleGetFamily)).Methods("GET")
+	router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleUpdateFamily)).Methods("PUT")
 	router.HandleFunc("/families/{id}/members", h.authMiddleware.AuthHandler(h.handleGetFamilyMembers)).Methods("GET")
 
 	router.HandleFunc("/families/create", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
@@ -149,6 +150,45 @@ func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request)
     }
 
     writeJSON(w, http.StatusOK, members)
+}
+
+func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    if userCtx.FamilyID == nil || *userCtx.FamilyID != id {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can update family settings")
+        return
+    }
+    
+    var req UpdateFamilyRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+    
+    if req.Name == "" {
+        writeError(w, http.StatusBadRequest, "family name is required")
+        return
+    }
+    
+    family, err := h.service.UpdateFamily(id, &req)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, family)
 }
 
 func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
