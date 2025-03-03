@@ -3,7 +3,7 @@ package family
 import "github.com/chrisabs/storage/internal/models"
 
 type CreateFamilyRequest struct {
-    Name    string          `json:"name"`
+    Name    string            `json:"name"`
     Modules []models.ModuleID `json:"modules"`
 }
 
@@ -11,6 +11,11 @@ type CreateInviteRequest struct {
     FamilyID int             `json:"familyId"`
     Email    string          `json:"email"`
     Role     models.UserRole `json:"role"`
+}
+
+type UpdateFamilyRequest struct {
+    Name   string              `json:"name"`
+    Status models.FamilyStatus `json:"status"`
 }
 
 type UpdateModuleRequest struct {

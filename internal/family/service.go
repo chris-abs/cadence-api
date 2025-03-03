@@ -96,6 +96,23 @@ func (s *Service) GetFamily(id int) (*models.Family, error) {
 	return s.repo.GetByID(id)
 }
 
+func (s *Service) UpdateFamily(familyID int, req *UpdateFamilyRequest) (*models.Family, error) {
+    family, err := s.repo.GetByID(familyID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get family: %v", err)
+    }
+    
+    family.Name = req.Name
+    family.Status = req.Status
+    family.UpdatedAt = time.Now().UTC()
+    
+    if err := s.repo.Update(family); err != nil {
+        return nil, fmt.Errorf("failed to update family: %v", err)
+    }
+    
+    return family, nil
+}
+
 func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) error {
 	family, err := s.repo.GetByID(familyID)
 	if err != nil {
