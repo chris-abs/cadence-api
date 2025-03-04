@@ -9,12 +9,14 @@ import (
 
 	"github.com/chrisabs/storage/internal/cloud"
 	"github.com/chrisabs/storage/internal/middleware"
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
+
 	"github.com/gorilla/mux"
 )
 
 type ContainerService interface {
-    GetContainerByID(id int, familyID int) (*models.Container, error)
+    GetContainerByID(id int, familyID int) (*entities.Container, error)
 }
 
 type Handler struct {

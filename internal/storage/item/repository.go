@@ -1,12 +1,12 @@
 package item
 
 import (
-    "database/sql"
-    "encoding/json"
-    "fmt"
-    "time"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"time"
 
-    "github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Repository struct {
@@ -17,7 +17,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Create(item *models.Item, tagNames []string) (*models.Item, error) {
+func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.Item, error) {
     tx, err := r.db.Begin()
     if err != nil {
         return nil, fmt.Errorf("error starting transaction: %v", err)
@@ -88,7 +88,7 @@ func (r *Repository) Create(item *models.Item, tagNames []string) (*models.Item,
     return r.GetByID(item.ID, item.FamilyID)
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*models.Item, error) {
+func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -163,7 +163,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Item, error) {
                  c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
                  w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at`
 
-    item := new(models.Item)
+    item := new(entities.Item)
     var imagesJSON, containerJSON, tagsJSON []byte
 
     err := r.db.QueryRow(query, id, familyID).Scan(
@@ -197,7 +197,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Item, error) {
     return item, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*models.Item, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -279,9 +279,9 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Item, error) {
     }
     defer rows.Close()
 
-    var items []*models.Item
+    var items []*entities.Item
     for rows.Next() {
-        item := new(models.Item)
+        item := new(entities.Item)
         var imagesJSON, containerJSON, tagsJSON []byte
 
         err := rows.Scan(
@@ -314,7 +314,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Item, error) {
     return items, nil
 }
 
-func (r *Repository) Update(item *models.Item) error {
+func (r *Repository) Update(item *entities.Item) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)

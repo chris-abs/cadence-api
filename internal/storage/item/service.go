@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Service struct {
@@ -15,19 +15,19 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*models.Item, error) {
+func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*entities.Item, error) {
     if req.Name == "" {
         return nil, fmt.Errorf("item name is required")
     }
 
-    item := &models.Item{
+    item := &entities.Item{
         Name:        req.Name,
         Description: req.Description,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
         FamilyID:    familyID,
-        Images:      []models.ItemImage{},
-        Tags:        make([]models.Tag, 0),
+        Images:      []entities.ItemImage{},
+        Tags:        make([]entities.Tag, 0),
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
     }
@@ -40,16 +40,16 @@ func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*models.Item
     return createdItem, nil
 }
 
-func (s *Service) GetItemByID(id int, familyID int) (*models.Item, error) {
+func (s *Service) GetItemByID(id int, familyID int) (*entities.Item, error) {
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) GetItemsByFamilyID(familyID int) ([]*models.Item, error) {
+func (s *Service) GetItemsByFamilyID(familyID int) ([]*entities.Item, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateItem(id int, familyID int, req *UpdateItemRequest) (*models.Item, error) {
-    item := &models.Item{
+func (s *Service) UpdateItem(id int, familyID int, req *UpdateItemRequest) (*entities.Item, error) {
+    item := &entities.Item{
         ID:          id,
         Name:        req.Name,
         Description: req.Description,
@@ -60,9 +60,9 @@ func (s *Service) UpdateItem(id int, familyID int, req *UpdateItemRequest) (*mod
     }
 
     if req.Tags != nil {
-        item.Tags = make([]models.Tag, len(req.Tags))
+        item.Tags = make([]entities.Tag, len(req.Tags))
         for i, tagID := range req.Tags {
-            item.Tags[i] = models.Tag{
+            item.Tags[i] = entities.Tag{
                 ID:       tagID,
                 FamilyID: familyID,
             }
