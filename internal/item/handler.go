@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/chrisabs/storage/internal/cloud"
 	"github.com/chrisabs/storage/internal/middleware"
 	"github.com/chrisabs/storage/internal/models"
-	"github.com/chrisabs/storage/internal/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -126,7 +126,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
         }
 
         if files := r.MultipartForm.File["images"]; len(files) > 0 {
-            s3Handler, err := storage.NewS3Handler()
+            s3Handler, err := cloud.NewS3Handler()
             if err != nil {
                 writeError(w, http.StatusInternalServerError, err.Error())
                 return
