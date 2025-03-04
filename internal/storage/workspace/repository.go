@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Repository struct {
@@ -16,7 +16,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Create(workspace *models.Workspace) error {
+func (r *Repository) Create(workspace *entities.Workspace) error {
     query := `
         INSERT INTO workspace (id, name, description, user_id, family_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -40,13 +40,13 @@ func (r *Repository) Create(workspace *models.Workspace) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*models.Workspace, error) {
+func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) {
     workspaceQuery := `
         SELECT w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM workspace w
         WHERE w.id = $1 AND w.family_id = $2`
 
-    workspace := new(models.Workspace)
+    workspace := new(entities.Workspace)
     err := r.db.QueryRow(workspaceQuery, id, familyID).Scan(
         &workspace.ID,
         &workspace.Name,
@@ -78,9 +78,9 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Workspace, error) {
     }
     defer rows.Close()
 
-    workspace.Containers = make([]models.Container, 0)
+    workspace.Containers = make([]entities.Container, 0)
     for rows.Next() {
-        var container models.Container
+        var container entities.Container
         var workspaceID sql.NullInt64
         err := rows.Scan(
             &container.ID,
@@ -111,7 +111,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Workspace, error) {
     return workspace, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*models.Workspace, error) {
+func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*entities.Workspace, error) {
     query := `
         SELECT id, name, description, user_id, family_id, created_at, updated_at 
         FROM workspace
@@ -124,9 +124,9 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*models.Workspac
     }
     defer rows.Close()
 
-    var workspaces []*models.Workspace
+    var workspaces []*entities.Workspace
     for rows.Next() {
-        workspace := new(models.Workspace)
+        workspace := new(entities.Workspace)
         err := rows.Scan(
             &workspace.ID,
             &workspace.Name,
@@ -153,11 +153,11 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*models.Workspac
             return nil, fmt.Errorf("error querying containers: %v", err)
         }
 
-        workspace.Containers = make([]models.Container, 0)
+        workspace.Containers = make([]entities.Container, 0)
         func() {
             defer containerRows.Close()
             for containerRows.Next() {
-                var container models.Container
+                var container entities.Container
                 var workspaceID sql.NullInt64
                 err := containerRows.Scan(
                     &container.ID,
@@ -192,7 +192,7 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*models.Workspac
     return workspaces, nil
 }
 
-func (r *Repository) Update(workspace *models.Workspace) error {
+func (r *Repository) Update(workspace *entities.Workspace) error {
     query := `
         UPDATE workspace
         SET name = $2, description = $3, updated_at = $4
