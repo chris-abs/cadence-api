@@ -3,7 +3,7 @@ package search
 import (
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Service struct {
@@ -81,7 +81,7 @@ func (s *Service) SearchTags(query string, familyID int) (TagSearchResults, erro
     return results, nil
 }
 
-func (s *Service) FindContainerByQR(qrCode string, familyID int) (*models.Container, error) {
+func (s *Service) FindContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
     if qrCode == "" {
         return nil, fmt.Errorf("QR code cannot be empty")
     }

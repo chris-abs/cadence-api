@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Repository struct {
@@ -799,7 +799,7 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
     return results, nil
 }
 
-func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*models.Container, error) {
+func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
    query := `
        SELECT 
            c.*,
@@ -816,7 +816,7 @@ func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*models.Con
        WHERE c.qr_code = $1 AND c.family_id = $2
        LIMIT 1`
 
-   container := new(models.Container)
+   container := new(entities.Container)
    var workspaceJSON []byte
    
    err := r.db.QueryRow(query, qrCode, familyID).Scan(
