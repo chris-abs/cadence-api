@@ -9,7 +9,7 @@ import (
 
 	"github.com/chrisabs/storage/internal/cloud"
 	"github.com/chrisabs/storage/internal/middleware"
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/models"
 	"github.com/gorilla/mux"
 )
 

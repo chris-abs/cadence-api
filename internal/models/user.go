@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+	"github.com/chrisabs/storage/internal/storage/models"
+
+)
 
 type UserRole string
 

@@ -1,7 +1,7 @@
 package search
 
 import (
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/models"
 )
 
 type SearchResult struct {

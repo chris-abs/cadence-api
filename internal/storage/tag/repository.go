@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/models"
 	"github.com/lib/pq"
 )
 

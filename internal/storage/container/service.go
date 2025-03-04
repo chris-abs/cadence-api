@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/models"
 	"github.com/chrisabs/storage/pkg/utils"
 )
 

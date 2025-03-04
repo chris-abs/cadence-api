@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/storage/internal/storage/models"
 )
 
 type Service struct {
