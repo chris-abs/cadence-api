@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 	"github.com/lib/pq"
 )
 
@@ -17,7 +17,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Create(tag *models.Tag) error {
+func (r *Repository) Create(tag *entities.Tag) error {
     query := `
         INSERT INTO tag (name, colour, family_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5)
@@ -39,7 +39,7 @@ func (r *Repository) Create(tag *models.Tag) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*models.Tag, error) {
+func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -109,7 +109,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Tag, error) {
         WHERE t.id = $1 AND t.family_id = $2
         GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at`
 
-    tag := new(models.Tag)
+    tag := new(entities.Tag)
     var itemsJSON []byte
 
     err := r.db.QueryRow(query, id, familyID).Scan(
@@ -132,7 +132,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Tag, error) {
     return tag, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*models.Tag, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -210,9 +210,9 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Tag, error) {
     }
     defer rows.Close()
 
-    var tags []*models.Tag
+    var tags []*entities.Tag
     for rows.Next() {
-        tag := new(models.Tag)
+        tag := new(entities.Tag)
         var itemsJSON []byte
 
         err := rows.Scan(
@@ -234,7 +234,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Tag, error) {
     return tags, nil
 }
 
-func (r *Repository) Update(tag *models.Tag) error {
+func (r *Repository) Update(tag *entities.Tag) error {
     query := `
         UPDATE tag
         SET name = $2, 

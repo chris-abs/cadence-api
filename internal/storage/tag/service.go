@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Service struct {
@@ -15,12 +15,12 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateTag(familyID int, req *CreateTagRequest) (*models.Tag, error) {
-    tag := &models.Tag{
+func (s *Service) CreateTag(familyID int, req *CreateTagRequest) (*entities.Tag, error) {
+    tag := &entities.Tag{
         Name:      req.Name,
         Colour:    req.Colour,
         FamilyID:  familyID,
-        Items:     make([]models.Item, 0),
+        Items:     make([]entities.Item, 0),
         CreatedAt: time.Now().UTC(),
         UpdatedAt: time.Now().UTC(),
     }
@@ -32,15 +32,15 @@ func (s *Service) CreateTag(familyID int, req *CreateTagRequest) (*models.Tag, e
     return s.repo.GetByID(tag.ID, familyID)
 }
 
-func (s *Service) GetTagByID(id int, familyID int) (*models.Tag, error) {
+func (s *Service) GetTagByID(id int, familyID int) (*entities.Tag, error) {
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) GetAllTags(familyID int) ([]*models.Tag, error) {
+func (s *Service) GetAllTags(familyID int) ([]*entities.Tag, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateTag(id int, familyID int, req *UpdateTagRequest) (*models.Tag, error) {
+func (s *Service) UpdateTag(id int, familyID int, req *UpdateTagRequest) (*entities.Tag, error) {
     tag, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("tag not found: %v", err)
