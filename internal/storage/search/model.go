@@ -1,7 +1,7 @@
 package search
 
 import (
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
 type SearchResult struct {
@@ -24,22 +24,22 @@ type SearchResponse struct {
 }
 
 type WorkspaceSearchResult struct {
-    models.Workspace
+    entities.Workspace
     Rank float64 `json:"rank"`
 }
 
 type ContainerSearchResult struct {
-    models.Container
+    entities.Container
     Rank float64 `json:"rank"`
 }
 
 type ItemSearchResult struct {
-    models.Item
+    entities.Item
     Rank float64 `json:"rank"`
 }
 
 type TagSearchResult struct {
-    models.Tag
+    entities.Tag
     Rank float64 `json:"rank"`
 }
 

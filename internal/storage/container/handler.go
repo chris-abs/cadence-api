@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chrisabs/storage/internal/middleware"
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/middleware"
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
 )
 

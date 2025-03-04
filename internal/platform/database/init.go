@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chrisabs/storage/internal/platform/database/development"
+	"github.com/chrisabs/cadence/internal/platform/database/development"
 )
 
 func (db *PostgresDB) Init() error {

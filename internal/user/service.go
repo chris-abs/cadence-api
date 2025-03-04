@@ -5,8 +5,8 @@ import (
 	"mime/multipart"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
-	"github.com/chrisabs/storage/internal/storage"
+	"github.com/chrisabs/cadence/internal/cloud"
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -207,7 +207,7 @@ func (s *Service) UpdateUser(id int, firstName, lastName string, imageFile *mult
 	user.UpdatedAt = time.Now().UTC()
 
 	if imageFile != nil {
-		s3Handler, err := storage.NewS3Handler()
+		s3Handler, err := cloud.NewS3Handler()
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize storage: %v", err)
 		}

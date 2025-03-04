@@ -5,7 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/models"
+	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
 type Service struct {
@@ -16,8 +17,8 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorkspaceRequest) (*models.Workspace, error) {
-    workspace := &models.Workspace{
+func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
+    workspace := &entities.Workspace{
         ID:          rand.Intn(10000),
         Name:        req.Name,
         Description: req.Description,
@@ -25,7 +26,7 @@ func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorksp
         FamilyID:    *userCtx.FamilyID,
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
-        Containers:  make([]models.Container, 0),
+        Containers:  make([]entities.Container, 0),
     }
 
     if err := s.repo.Create(workspace); err != nil {
@@ -35,7 +36,7 @@ func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorksp
     return s.repo.GetByID(workspace.ID, *userCtx.FamilyID)
 }
 
-func (s *Service) GetWorkspaceByID(id int, familyID int) (*models.Workspace, error) {
+func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, error) {
     workspace, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("error getting workspace: %v", err)
@@ -43,11 +44,11 @@ func (s *Service) GetWorkspaceByID(id int, familyID int) (*models.Workspace, err
     return workspace, nil
 }
 
-func (s *Service) GetWorkspacesByFamilyID(familyID int, userID int) ([]*models.Workspace, error) {
+func (s *Service) GetWorkspacesByFamilyID(familyID int, userID int) ([]*entities.Workspace, error) {
     return s.repo.GetByFamilyID(familyID, userID)
 }
 
-func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequest) (*models.Workspace, error) {
+func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequest) (*entities.Workspace, error) {
     workspace, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("workspace not found: %v", err)

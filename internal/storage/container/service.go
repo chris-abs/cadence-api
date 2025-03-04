@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
-	"github.com/chrisabs/storage/pkg/utils"
+	"github.com/chrisabs/cadence/internal/storage/entities"
+	"github.com/chrisabs/cadence/pkg/utils"
 )
 
 type Service struct {
@@ -17,7 +17,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainerRequest) (*models.Container, error) {
+func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainerRequest) (*entities.Container, error) {
     containerID := rand.Intn(10000)
     qrString, qrImage, err := utils.GenerateQRCode(containerID)
     if err != nil {
@@ -25,7 +25,7 @@ func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainer
         qrImage = ""
     }
 
-    container := &models.Container{
+    container := &entities.Container{
         ID:          containerID,
         Name:        req.Name,
         Description: req.Description,
@@ -47,7 +47,7 @@ func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainer
     return s.repo.GetByID(container.ID, familyID)
 }
 
-func (s *Service) GetContainerByID(id int, familyID int) (*models.Container, error) {
+func (s *Service) GetContainerByID(id int, familyID int) (*entities.Container, error) {
     container, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("error getting container: %v", err)
@@ -55,11 +55,11 @@ func (s *Service) GetContainerByID(id int, familyID int) (*models.Container, err
     return container, nil
 }
 
-func (s *Service) GetContainersByFamilyID(familyID int) ([]*models.Container, error) {
+func (s *Service) GetContainersByFamilyID(familyID int) ([]*entities.Container, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateContainer(id int, familyID int, req *UpdateContainerRequest) (*models.Container, error) {
+func (s *Service) UpdateContainer(id int, familyID int, req *UpdateContainerRequest) (*entities.Container, error) {
     container, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("container not found: %v", err)
@@ -85,6 +85,6 @@ func (s *Service) DeleteContainer(id int, familyID int) error {
     return nil
 }
 
-func (s *Service) GetContainerByQR(qrCode string, familyID int) (*models.Container, error) {
+func (s *Service) GetContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
     return s.repo.GetByQR(qrCode, familyID)
 }
