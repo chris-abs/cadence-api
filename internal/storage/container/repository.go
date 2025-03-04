@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/storage/models"
+	"github.com/chrisabs/storage/internal/storage/entities"
 )
 
 type Repository struct {
@@ -17,7 +17,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Create(container *models.Container, itemRequests []CreateItemRequest) error {
+func (r *Repository) Create(container *entities.Container, itemRequests []CreateItemRequest) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -82,7 +82,7 @@ func (r *Repository) Create(container *models.Container, itemRequests []CreateIt
     return tx.Commit()
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
+func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) {
     containerQuery := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
@@ -91,7 +91,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
         WHERE c.id = $1 AND c.family_id = $2`
 
-    container := new(models.Container)
+    container := new(entities.Container)
     var workspaceID sql.NullInt64
     var wsFields struct {
         ID          sql.NullInt64
@@ -122,7 +122,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
     if workspaceID.Valid && wsFields.ID.Valid {
         wsID := int(workspaceID.Int64)
         container.WorkspaceID = &wsID
-        container.Workspace = &models.Workspace{
+        container.Workspace = &entities.Workspace{
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
@@ -177,9 +177,9 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
     }
     defer rows.Close()
 
-    container.Items = make([]models.Item, 0)
+    container.Items = make([]entities.Item, 0)
     for rows.Next() {
-        var item models.Item
+        var item entities.Item
         var imagesJSON, tagsJSON []byte
 
         err := rows.Scan(
@@ -206,7 +206,7 @@ func (r *Repository) GetByID(id int, familyID int) (*models.Container, error) {
     return container, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
@@ -222,9 +222,9 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
     }
     defer rows.Close()
 
-    var containers []*models.Container
+    var containers []*entities.Container
     for rows.Next() {
-        container := new(models.Container)
+        container := new(entities.Container)
         var workspaceID sql.NullInt64
         var wsFields struct {
             ID          sql.NullInt64
@@ -251,7 +251,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
         if workspaceID.Valid && wsFields.ID.Valid {
             wsID := int(workspaceID.Int64)
             container.WorkspaceID = &wsID
-            container.Workspace = &models.Workspace{
+            container.Workspace = &entities.Workspace{
                 ID:          int(wsFields.ID.Int64),
                 Name:        wsFields.Name.String,
                 Description: wsFields.Description.String,
@@ -305,11 +305,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
             return nil, fmt.Errorf("error querying items: %v", err)
         }
 
-        container.Items = make([]models.Item, 0)
+        container.Items = make([]entities.Item, 0)
         func() {
             defer itemRows.Close()
             for itemRows.Next() {
-                var item models.Item
+                var item entities.Item
                 var imagesJSON, tagsJSON []byte
 
                 err := itemRows.Scan(
@@ -340,7 +340,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Container, error) {
     return containers, nil
 }
 
-func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, error) {
+func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
                c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
@@ -349,7 +349,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, er
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
         WHERE c.qr_code = $1 AND c.family_id = $2`
 
-    container := new(models.Container)
+    container := new(entities.Container)
     var workspaceID sql.NullInt64
     var wsFields struct {
         ID          sql.NullInt64
@@ -380,7 +380,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, er
     if workspaceID.Valid && wsFields.ID.Valid {
         wsID := int(workspaceID.Int64)
         container.WorkspaceID = &wsID
-        container.Workspace = &models.Workspace{
+        container.Workspace = &entities.Workspace{
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
@@ -435,9 +435,9 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, er
     }
     defer rows.Close()
 
-    container.Items = make([]models.Item, 0)
+    container.Items = make([]entities.Item, 0)
     for rows.Next() {
-        var item models.Item
+        var item entities.Item
         var imagesJSON, tagsJSON []byte
 
         err := rows.Scan(
@@ -464,7 +464,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*models.Container, er
     return container, nil
 }
 
-func (r *Repository) Update(container *models.Container) error {
+func (r *Repository) Update(container *entities.Container) error {
     query := `
         UPDATE container
         SET name = $2, description = $3, location = $4, workspace_id = $5, updated_at = $6
