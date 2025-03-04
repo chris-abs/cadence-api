@@ -3,7 +3,7 @@ package membership
 import (
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Service struct {

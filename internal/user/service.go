@@ -5,8 +5,8 @@ import (
 	"mime/multipart"
 	"time"
 
-	"github.com/chrisabs/storage/internal/cloud"
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/cloud"
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )

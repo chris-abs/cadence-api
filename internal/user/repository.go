@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

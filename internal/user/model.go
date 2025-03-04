@@ -1,6 +1,6 @@
 package user
 
-import "github.com/chrisabs/storage/internal/models"
+import "github.com/chrisabs/cadence/internal/models"
 
 type CreateUserRequest struct {
     Email     string `json:"email"`

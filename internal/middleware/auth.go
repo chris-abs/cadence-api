@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/chrisabs/storage/internal/models"
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 

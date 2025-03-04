@@ -1,6 +1,6 @@
 package family
 
-import "github.com/chrisabs/storage/internal/models"
+import "github.com/chrisabs/cadence/internal/models"
 
 type CreateFamilyRequest struct {
     Name    string            `json:"name"`

@@ -9,7 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	appconfig "github.com/chrisabs/storage/internal/config"
+	appconfig "github.com/chrisabs/cadence/internal/config"
 )
 
 type S3Handler struct {

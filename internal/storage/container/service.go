@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrisabs/storage/internal/storage/entities"
-	"github.com/chrisabs/storage/pkg/utils"
+	"github.com/chrisabs/cadence/internal/storage/entities"
+	"github.com/chrisabs/cadence/pkg/utils"
 )
 
 type Service struct {

@@ -3,7 +3,7 @@ package search
 import (
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/storage/entities"
+	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
 type Service struct {

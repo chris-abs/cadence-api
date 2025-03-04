@@ -7,7 +7,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/chrisabs/storage/internal/platform/database/migrations"
+	"github.com/chrisabs/cadence/internal/platform/database/migrations"
 )
 
 type PostgresDB struct {

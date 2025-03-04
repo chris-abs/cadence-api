@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/chrisabs/storage/internal/storage/entities"
+	"github.com/chrisabs/cadence/internal/storage/entities"
 	"github.com/lib/pq"
 )
 

@@ -1,4 +1,4 @@
-module github.com/chrisabs/storage
+module github.com/chrisabs/cadence
 
 go 1.23.4
 

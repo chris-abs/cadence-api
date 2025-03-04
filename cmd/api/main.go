@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/chrisabs/storage/internal/api"
-	"github.com/chrisabs/storage/internal/config"
-	"github.com/chrisabs/storage/internal/platform/database"
+	"github.com/chrisabs/cadence/internal/api"
+	"github.com/chrisabs/cadence/internal/config"
+	"github.com/chrisabs/cadence/internal/platform/database"
 )
 
 func main() {
