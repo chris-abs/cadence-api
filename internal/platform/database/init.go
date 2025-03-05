@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/chrisabs/cadence/internal/platform/database/development"
+	"github.com/chrisabs/cadence/internal/platform/database/schema"
 )
 
 func (db *PostgresDB) Init() error {
@@ -30,39 +31,43 @@ func (db *PostgresDB) Init() error {
 }
 
 func (db *PostgresDB) initializeSchema() error {
-	fmt.Println("Ensuring users table exists...")
-	if err := db.createUsersTable(); err != nil {
-		return err
+	fmt.Println("Initializing core schema...")
+	if err := schema.InitCoreSchema(db.DB); err != nil {
+		return fmt.Errorf("core schema initialization failed: %v", err)
 	}
 
-	fmt.Println("Ensuring family tables exist...")
-	if err := db.createFamilyTables(); err != nil {
-		return err
+	fmt.Println("Initializing module schemas...")
+	
+	if err := schema.InitStorageSchema(db.DB); err != nil {
+		return fmt.Errorf("storage module schema initialization failed: %v", err)
+	}
+	
+	if err := schema.InitChoresSchema(db.DB); err != nil {
+		return fmt.Errorf("chores module schema initialization failed: %v", err)
+	}
+	
+	if err := schema.InitMealsSchema(db.DB); err != nil {
+		return fmt.Errorf("meals module schema initialization failed: %v", err)
+	}
+	
+	if err := schema.InitServicesSchema(db.DB); err != nil {
+		return fmt.Errorf("services module schema initialization failed: %v", err)
 	}
 
-	fmt.Println("Ensuring family membership table exists...")
-	if err := db.createFamilyMembershipTable(); err != nil {
-		return err
-	}
+	return nil
+}
 
-	fmt.Println("Ensuring family invite table exists...")
-	if err := db.createFamilyInviteTable(); err != nil {
-		return err
-	}
+func (db *PostgresDB) createEnums() error {
+	query := `DO $$ 
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+            CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
+        END IF;
+    END $$;`
 
-	fmt.Println("Ensuring workspace table exists...")
-	if err := db.createWorkspaceTable(); err != nil {
-		return err
-	}
-
-	fmt.Println("Ensuring container table exists...")
-	if err := db.createContainerTable(); err != nil {
-		return err
-	}
-
-	fmt.Println("Ensuring item tables exist...")
-	if err := db.createItemTables(); err != nil {
-		return err
+	_, err := db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("failed to create enum: %v", err)
 	}
 
 	return nil
