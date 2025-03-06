@@ -60,8 +60,16 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		chores, err = h.service.GetChoresByAssigneeID(assigneeID, *userCtx.FamilyID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	} else {
 		chores, err = h.service.GetChoresByFamilyID(*userCtx.FamilyID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 	
 	if err != nil {
