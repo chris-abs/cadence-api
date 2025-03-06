@@ -251,6 +251,57 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, instance)
 }
 
+func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can verify chores")
+        return
+    }
+    
+    var req VerifyDayRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+    
+    if err := h.service.VerifyDay(userCtx.UserID, *userCtx.FamilyID, &req); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]string{"message": "day verified successfully"})
+}
+
+func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can review chores")
+        return
+    }
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    var req ReviewChoreRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+    
+    instance, err := h.service.ReviewChore(id, userCtx.UserID, *userCtx.FamilyID, &req)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, instance)
+}
+
 func (h *Handler) handleVerifyChoreInstance(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
