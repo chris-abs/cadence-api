@@ -18,10 +18,11 @@ const (
 type ChoreStatus string
 
 const (
-	StatusPending   ChoreStatus = "pending"
-	StatusCompleted ChoreStatus = "completed"
-	StatusVerified  ChoreStatus = "verified"
-	StatusMissed    ChoreStatus = "missed"
+    StatusPending   ChoreStatus = "pending"
+    StatusCompleted ChoreStatus = "completed"
+    StatusVerified  ChoreStatus = "verified"
+    StatusRejected  ChoreStatus = "rejected"  
+    StatusMissed    ChoreStatus = "missed"
 )
 
 type OccurrenceData struct {
