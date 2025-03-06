@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/chores/instances/{id}/verify", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyChoreInstance)).Methods("PUT")
 	
 	router.HandleFunc("/chores/verify-day", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyDay)).Methods("PUT")
-	
+
 	router.HandleFunc("/chores/stats", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreStats)).Methods("GET")
 
 	router.HandleFunc("/chores/generate", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleGenerateChoreInstances)).Methods("POST")
@@ -228,6 +228,38 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 	}
 	
 	writeJSON(w, http.StatusOK, instance)
+}
+
+func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    dateStr := r.URL.Query().Get("date")
+    assigneeIDStr := r.URL.Query().Get("assigneeId")
+    
+    if dateStr == "" || assigneeIDStr == "" {
+        writeError(w, http.StatusBadRequest, "date and assigneeId are required")
+        return
+    }
+    
+    date, err := time.Parse("2006-01-02", dateStr)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid date format")
+        return
+    }
+    
+    assigneeID, err := strconv.Atoi(assigneeIDStr)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid assigneeId")
+        return
+    }
+    
+    verification, err := h.service.GetDailyVerification(date, assigneeID, *userCtx.FamilyID)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, verification)
 }
 
 func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Request) {
