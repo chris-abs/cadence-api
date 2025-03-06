@@ -33,8 +33,11 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/chores/instances", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstances)).Methods("GET")
 	router.HandleFunc("/chores/instances/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstance)).Methods("GET")
 	router.HandleFunc("/chores/instances/{id}/complete", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleCompleteChoreInstance)).Methods("PUT")
+	router.HandleFunc("/chores/instances/{id}/review", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleReviewChore)).Methods("PUT")
 	router.HandleFunc("/chores/instances/{id}/verify", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyChoreInstance)).Methods("PUT")
-
+	
+	router.HandleFunc("/chores/verify-day", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyDay)).Methods("PUT")
+	
 	router.HandleFunc("/chores/stats", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreStats)).Methods("GET")
 
 	router.HandleFunc("/chores/generate", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleGenerateChoreInstances)).Methods("POST")
