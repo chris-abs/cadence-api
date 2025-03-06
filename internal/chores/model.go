@@ -37,6 +37,27 @@ type OccurrenceData struct {
 	IntervalUnit string        `json:"intervalUnit,omitempty"` 
 }
 
+type DailyVerification struct {
+    Date          time.Time   `json:"date"`
+    AssigneeID    int         `json:"assigneeId"`
+    FamilyID      int         `json:"familyId"`
+    IsVerified    bool        `json:"isVerified"`
+    VerifiedBy    *int        `json:"verifiedBy,omitempty"`
+    VerifiedAt    *time.Time  `json:"verifiedAt,omitempty"`
+    Notes         string      `json:"notes"`
+}
+
+type VerifyDayRequest struct {
+    Date        string `json:"date"`
+    AssigneeID  int    `json:"assigneeId"`
+    Notes       string `json:"notes"`
+}
+
+type ReviewChoreRequest struct {
+    Status      ChoreStatus `json:"status"` 
+    Notes       string      `json:"notes"`
+}
+
 type Chore struct {
 	ID             int                 `json:"id"`
 	Name           string              `json:"name"`
