@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/chores/entities"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
@@ -33,10 +34,10 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/chores/instances", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstances)).Methods("GET")
 	router.HandleFunc("/chores/instances/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstance)).Methods("GET")
 	router.HandleFunc("/chores/instances/{id}/complete", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleCompleteChoreInstance)).Methods("PUT")
-	router.HandleFunc("/chores/instances/{id}/review", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleReviewChore)).Methods("PUT")
-	router.HandleFunc("/chores/instances/{id}/verify", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyChoreInstance)).Methods("PUT")
 	
 	router.HandleFunc("/chores/verify-day", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyDay)).Methods("PUT")
+	router.HandleFunc("/chores/instances/{id}/review", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleReviewChore)).Methods("PUT")
+	router.HandleFunc("/chores/daily-verification", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetDailyVerification)).Methods("GET")
 
 	router.HandleFunc("/chores/stats", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreStats)).Methods("GET")
 
@@ -48,7 +49,7 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 	
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
 	
-	var chores []*Chore
+	var chores []*entities.Chore
 	var err error
 	
 	if assigneeIDStr != "" {
@@ -230,38 +231,6 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, instance)
 }
 
-func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
-    
-    dateStr := r.URL.Query().Get("date")
-    assigneeIDStr := r.URL.Query().Get("assigneeId")
-    
-    if dateStr == "" || assigneeIDStr == "" {
-        writeError(w, http.StatusBadRequest, "date and assigneeId are required")
-        return
-    }
-    
-    date, err := time.Parse("2006-01-02", dateStr)
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid date format")
-        return
-    }
-    
-    assigneeID, err := strconv.Atoi(assigneeIDStr)
-    if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid assigneeId")
-        return
-    }
-    
-    verification, err := h.service.GetDailyVerification(date, assigneeID, *userCtx.FamilyID)
-    if err != nil {
-        writeError(w, http.StatusInternalServerError, err.Error())
-        return
-    }
-    
-    writeJSON(w, http.StatusOK, verification)
-}
-
 func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
@@ -287,61 +256,32 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
-    
-    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-        writeError(w, http.StatusForbidden, "only parents can verify chores")
-        return
-    }
-    
-    var req VerifyDayRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        writeError(w, http.StatusBadRequest, "invalid request body")
-        return
-    }
-    
-    if err := h.service.VerifyDay(userCtx.UserID, *userCtx.FamilyID, &req); err != nil {
-        writeError(w, http.StatusInternalServerError, err.Error())
-        return
-    }
-    
-    writeJSON(w, http.StatusOK, map[string]string{"message": "day verified successfully"})
-}
-
-func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
-    
-    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-        writeError(w, http.StatusForbidden, "only parents can review chores")
-        return
-    }
-    
-    id, err := getIDFromRequest(r)
-    if err != nil {
-        writeError(w, http.StatusBadRequest, err.Error())
-        return
-    }
-    
-    var req ReviewChoreRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        writeError(w, http.StatusBadRequest, "invalid request body")
-        return
-    }
-    
-    instance, err := h.service.ReviewChore(id, userCtx.UserID, *userCtx.FamilyID, &req)
-    if err != nil {
-        writeError(w, http.StatusInternalServerError, err.Error())
-        return
-    }
-    
-    writeJSON(w, http.StatusOK, instance)
-}
-
-func (h *Handler) handleVerifyChoreInstance(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
 	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can verify chores")
+		return
+	}
+	
+	var req VerifyDayRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	
+	if err := h.service.VerifyDay(userCtx.UserID, *userCtx.FamilyID, &req); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, map[string]string{"message": "day verified successfully"})
+}
+
+func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
+	userCtx := r.Context().Value("user").(*models.UserContext)
+	
+	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+		writeError(w, http.StatusForbidden, "only parents can review chores")
 		return
 	}
 	
@@ -351,19 +291,51 @@ func (h *Handler) handleVerifyChoreInstance(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	
-	var req VerifyChoreInstanceRequest
+	var req ReviewChoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	
-	instance, err := h.service.VerifyChoreInstance(id, userCtx.UserID, *userCtx.FamilyID, &req)
+	instance, err := h.service.ReviewChore(id, userCtx.UserID, *userCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	
 	writeJSON(w, http.StatusOK, instance)
+}
+
+func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Request) {
+	userCtx := r.Context().Value("user").(*models.UserContext)
+	
+	dateStr := r.URL.Query().Get("date")
+	assigneeIDStr := r.URL.Query().Get("assigneeId")
+	
+	if dateStr == "" || assigneeIDStr == "" {
+		writeError(w, http.StatusBadRequest, "date and assigneeId are required")
+		return
+	}
+	
+	date, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid date format")
+		return
+	}
+	
+	assigneeID, err := strconv.Atoi(assigneeIDStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid assigneeId")
+		return
+	}
+	
+	verification, err := h.service.GetDailyVerification(date, assigneeID, *userCtx.FamilyID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, verification)
 }
 
 func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
