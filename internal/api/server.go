@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chrisabs/cadence/internal/chores"
 	"github.com/chrisabs/cadence/internal/config"
 	"github.com/chrisabs/cadence/internal/family"
 	"github.com/chrisabs/cadence/internal/membership"
@@ -57,6 +58,7 @@ func (s *Server) Run() {
 	tagRepo := tag.NewRepository(s.db.DB)
 	searchRepo := search.NewRepository(s.db.DB)
 	recentRepo := recent.NewRepository(s.db.DB)
+	choreRepo := chores.NewRepository(s.db.DB)  
 
 	userService := user.NewService(
 		userRepo,
@@ -81,6 +83,7 @@ func (s *Server) Run() {
 	tagService := tag.NewService(tagRepo)
 	searchService := search.NewService(searchRepo)
 	recentService := recent.NewService(recentRepo)
+	choreService := chores.NewService(choreRepo) 
 
 	// Initialise auth middleware with user validation
 	authMiddleware := middleware.NewAuthMiddleware(
@@ -103,6 +106,7 @@ func (s *Server) Run() {
 	tagHandler := tag.NewHandler(tagService, authMiddleware)
 	searchHandler := search.NewHandler(searchService, authMiddleware)
 	recentHandler := recent.NewHandler(recentService, authMiddleware)
+	choreHandler := chores.NewHandler(choreService, authMiddleware)  
 
 	// Register routes
 	userHandler.RegisterRoutes(router)
@@ -114,6 +118,7 @@ func (s *Server) Run() {
 	tagHandler.RegisterRoutes(router)
 	searchHandler.RegisterRoutes(router)
 	recentHandler.RegisterRoutes(router)
+	choreHandler.RegisterRoutes(router)  
 
 	handler := c.Handler(router)
 
