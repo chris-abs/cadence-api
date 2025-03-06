@@ -164,6 +164,62 @@ func (s *Service) CompleteChoreInstance(id int, userID int, familyID int, req *U
 	return s.repo.GetInstanceByID(id, familyID)
 }
 
+func (s *Service) VerifyDay(parentID int, familyID int, req *VerifyDayRequest) error {
+    date, err := time.Parse("2006-01-02", req.Date)
+    if err != nil {
+        return fmt.Errorf("invalid date format: %v", err)
+    }
+
+    instances, err := s.repo.GetInstancesByAssigneeAndDate(req.AssigneeID, familyID, date)
+    if err != nil {
+        return err
+    }
+
+    for _, instance := range instances {
+        if instance.Status == StatusCompleted {
+            instance.Status = StatusVerified
+            instance.VerifiedBy = &parentID
+            now := time.Now().UTC()
+            instance.CompletedAt = &now
+            
+            if err := s.repo.UpdateChoreInstance(instance); err != nil {
+                return err
+            }
+        }
+    }
+
+    verification := &DailyVerification{
+        Date:       date,
+        AssigneeID: req.AssigneeID,
+        FamilyID:   familyID,
+        IsVerified: true,
+        VerifiedBy: &parentID,
+        VerifiedAt: &time.Now().UTC(),
+        Notes:      req.Notes,
+    }
+    
+    return s.repo.SaveDailyVerification(verification)
+}
+
+func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewChoreRequest) (*ChoreInstance, error) {
+    instance, err := s.repo.GetInstanceByID(id, familyID)
+    if err != nil {
+        return nil, err
+    }
+    
+    instance.Status = req.Status
+    instance.Notes = req.Notes
+    if req.Status == StatusVerified {
+        instance.VerifiedBy = &parentID
+    }
+    
+    if err := s.repo.UpdateChoreInstance(instance); err != nil {
+        return nil, err
+    }
+    
+    return s.repo.GetInstanceByID(id, familyID)
+}
+
 func (s *Service) VerifyChoreInstance(id int, parentID int, familyID int, req *VerifyChoreInstanceRequest) (*ChoreInstance, error) {
 	instance, err := s.repo.GetInstanceByID(id, familyID)
 	if err != nil {
