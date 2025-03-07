@@ -37,6 +37,7 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
         FROM workspace 
         WHERE 
             family_id = $2 AND
+            is_deleted = false AND
             (
                 name ILIKE $1 OR
                 to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ 
@@ -60,9 +61,10 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
             w.name as workspace_name,
             NULL as colour
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.is_deleted = false
         WHERE 
             c.family_id = $2 AND
+            c.is_deleted = false AND
             (
                 c.name ILIKE $1 OR
                 to_tsvector('english', c.name) @@ websearch_to_tsquery('english', $1)
@@ -85,9 +87,10 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
             NULL as workspace_name,
             NULL as colour
         FROM item i
-        LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
         WHERE 
-            c.family_id = $2 AND
+            i.family_id = $2 AND
+            i.is_deleted = false AND
             (
                 i.name ILIKE $1 OR
                 i.description ILIKE '%' || $1 || '%' OR
@@ -112,7 +115,10 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
             NULL as workspace_name,
             t.colour
         FROM tag t
-        WHERE t.name ILIKE $1 OR t.name ILIKE $1 || '%' OR t.name ILIKE '%' || $1 || '%'
+        WHERE 
+            t.family_id = $2 AND
+            t.is_deleted = false AND
+            (t.name ILIKE $1 OR t.name ILIKE $1 || '%' OR t.name ILIKE '%' || $1 || '%')
     ),
     tagged_items AS (
         SELECT DISTINCT
@@ -132,11 +138,12 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
             NULL as colour
         FROM item i
         INNER JOIN item_tag it ON i.id = it.item_id
-        INNER JOIN tag t ON it.tag_id = t.id
-        LEFT JOIN container c ON i.container_id = c.id
-        LEFT JOIN workspace w ON c.workspace_id = w.id
+        INNER JOIN tag t ON it.tag_id = t.id AND t.is_deleted = false
+        LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.is_deleted = false
         WHERE 
-            (c.family_id = $2 OR i.container_id IS NULL) AND
+            i.family_id = $2 AND
+            i.is_deleted = false AND
             (
                 t.name ILIKE $1 OR
                 t.name ILIKE $1 || '%' OR
@@ -224,6 +231,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
             FROM workspace w
             WHERE 
                 w.family_id = $2 AND
+                w.is_deleted = false AND
                 (
                     LOWER(w.name) = LOWER($1) OR
                     w.name ILIKE $1 || '%' OR
@@ -280,6 +288,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
             FROM workspace w
             WHERE 
                 w.family_id = $2 AND
+                w.is_deleted = false AND
                 (
                     LOWER(w.name) = LOWER($1) OR
                     w.name ~* ('\m' || $1 || '\M') OR
@@ -307,7 +316,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
                 '[]'::jsonb
             ) as containers
         FROM ranked_workspaces rw
-        LEFT JOIN container c ON rw.id = c.workspace_id
+        LEFT JOIN container c ON rw.id = c.workspace_id AND c.is_deleted = false
         GROUP BY rw.id, rw.name, rw.description, rw.family_id, rw.created_at, rw.updated_at, rw.rank
         ORDER BY rw.rank DESC
         LIMIT 50;`
@@ -354,6 +363,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
             FROM container c
             WHERE 
                 c.family_id = $2 AND
+                c.is_deleted = false AND
                 (
                     LOWER(c.name) = LOWER($1) OR
                     c.name ILIKE $1 || '%' OR
@@ -418,6 +428,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
             FROM container c
             WHERE 
                 c.family_id = $2 AND
+                c.is_deleted = false AND
                 (
                     LOWER(c.name) = LOWER($1) OR
                     c.name ~* ('\m' || $1 || '\M') OR
@@ -444,7 +455,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
                 NULL
             ) as workspace
         FROM ranked_containers rc
-        LEFT JOIN workspace w ON rc.workspace_id = w.id
+        LEFT JOIN workspace w ON rc.workspace_id = w.id AND w.is_deleted = false
         ORDER BY rc.rank DESC
         LIMIT 50;`
 
@@ -495,9 +506,10 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
         SELECT EXISTS (
             SELECT 1
             FROM item i
-            LEFT JOIN container c ON i.container_id = c.id
+            LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
             WHERE 
-                (c.family_id = $2 OR i.container_id IS NULL) AND
+                i.family_id = $2 AND
+                i.is_deleted = false AND
                 (
                     LOWER(i.name) = LOWER($1) OR
                     i.name ~* ('\m' || $1 || '\M') OR
@@ -553,9 +565,9 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
                     END
                 ) as rank
             FROM item i
-            LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.family_id = $2 OR i.container_id IS NULL) AND
+                i.family_id = $2 AND
+                i.is_deleted = false AND
                 (
                     LOWER(i.name) = LOWER($1) OR
                     i.name ~* ('\m' || $1 || '\M') OR
@@ -610,9 +622,9 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
             ) as tags,
             COALESCE(ii.images, '[]'::jsonb) as images
         FROM ranked_items i
-        LEFT JOIN container c ON i.container_id = c.id
+        LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
         LEFT JOIN item_tag it ON i.id = it.item_id
-        LEFT JOIN tag t ON it.tag_id = t.id
+        LEFT JOIN tag t ON it.tag_id = t.id AND t.is_deleted = false
         LEFT JOIN item_images ii ON i.id = ii.item_id
         GROUP BY 
             i.id, i.name, i.description, i.quantity, i.container_id, 
@@ -675,11 +687,9 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
         SELECT EXISTS (
             SELECT 1
             FROM tag t
-            LEFT JOIN item_tag it ON t.id = it.tag_id
-            LEFT JOIN item i ON it.item_id = i.id
-            LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.family_id = $2 OR i.container_id IS NULL) AND
+                t.family_id = $2 AND
+                t.is_deleted = false AND
                 (
                     t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
@@ -722,11 +732,9 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
                     END
                 ) as rank
             FROM tag t
-            LEFT JOIN item_tag it ON t.id = it.tag_id
-            LEFT JOIN item i ON it.item_id = i.id
-            LEFT JOIN container c ON i.container_id = c.id
             WHERE 
-                (c.family_id = $2 OR i.container_id IS NULL) AND
+                t.family_id = $2 AND
+                t.is_deleted = false AND
                 (
                     t.name ILIKE $1 OR
                     t.name ILIKE $1 || '%' OR
@@ -759,7 +767,7 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
             ) as items
         FROM ranked_tags rt
         LEFT JOIN item_tag it ON rt.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id
+        LEFT JOIN item i ON it.item_id = i.id AND i.is_deleted = false
         GROUP BY rt.id, rt.name, rt.colour, rt.description, rt.created_at, rt.updated_at, rt.rank
         ORDER BY rt.rank DESC
         LIMIT 50;`
@@ -800,21 +808,21 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
 }
 
 func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
-   query := `
-       SELECT 
-           c.*,
-           jsonb_build_object(
-               'id', w.id,
-               'name', w.name,
-               'description', w.description,
-               'familyId', w.family_id,
-               'createdAt', w.created_at,
-               'updatedAt', w.updated_at
-           ) as workspace
-       FROM container c
-       LEFT JOIN workspace w ON c.workspace_id = w.id
-       WHERE c.qr_code = $1 AND c.family_id = $2
-       LIMIT 1`
+    query := `
+        SELECT 
+            c.*,
+            jsonb_build_object(
+                'id', w.id,
+                'name', w.name,
+                'description', w.description,
+                'familyId', w.family_id,
+                'createdAt', w.created_at,
+                'updatedAt', w.updated_at
+            ) as workspace
+        FROM container c
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.is_deleted = false
+        WHERE c.qr_code = $1 AND c.family_id = $2 AND c.is_deleted = false
+        LIMIT 1`
 
    container := new(entities.Container)
    var workspaceJSON []byte

@@ -23,10 +23,12 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/search", h.authMiddleware.AuthHandler(h.handleSearch)).Methods("GET")
+
     router.HandleFunc("/search/workspaces", h.authMiddleware.AuthHandler(h.handleWorkspaceSearch)).Methods("GET")
     router.HandleFunc("/search/containers", h.authMiddleware.AuthHandler(h.handleContainerSearch)).Methods("GET")
     router.HandleFunc("/search/items", h.authMiddleware.AuthHandler(h.handleItemSearch)).Methods("GET")
     router.HandleFunc("/search/tags", h.authMiddleware.AuthHandler(h.handleTagSearch)).Methods("GET")
+    
     router.HandleFunc("/search/containers/qr/{code}", h.authMiddleware.AuthHandler(h.handleContainerQRSearch)).Methods("GET")
 }
 
