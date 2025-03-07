@@ -88,8 +88,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
                c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
                w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
-        WHERE c.id = $1 AND c.family_id = $2`
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
+        WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
     container := new(entities.Container)
     var workspaceID sql.NullInt64
@@ -212,8 +212,8 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
                c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
                w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
-        WHERE c.family_id = $1
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
+        WHERE c.family_id = $1 AND c.is_deleted = false
         ORDER BY c.created_at DESC`
 
     rows, err := r.db.Query(query, familyID)
@@ -468,7 +468,7 @@ func (r *Repository) Update(container *entities.Container) error {
     query := `
         UPDATE container
         SET name = $2, description = $3, location = $4, workspace_id = $5, updated_at = $6
-        WHERE id = $1 AND family_id = $7`
+        WHERE id = $1 AND family_id = $7 AND is_deleted = false`
 
     var workspaceID sql.NullInt64
     if container.WorkspaceID != nil {
@@ -502,7 +502,7 @@ func (r *Repository) Update(container *entities.Container) error {
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int) error {
+func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -512,15 +512,19 @@ func (r *Repository) Delete(id int, familyID int) error {
     itemQuery := `
         UPDATE item 
         SET container_id = NULL, updated_at = $3
-        WHERE container_id = $1 AND family_id = $2`
+        WHERE container_id = $1 AND family_id = $2 AND is_deleted = false`
 
     _, err = tx.Exec(itemQuery, id, familyID, time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error updating items: %v", err)
     }
 
-    containerQuery := `DELETE FROM container WHERE id = $1 AND family_id = $2`
-    result, err := tx.Exec(containerQuery, id, familyID)
+    containerQuery := `
+        UPDATE container 
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = false`
+        
+    result, err := tx.Exec(containerQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
         return fmt.Errorf("error deleting container: %v", err)
     }
@@ -535,4 +539,27 @@ func (r *Repository) Delete(id int, familyID int) error {
     }
 
     return tx.Commit()
+}
+
+func (r *Repository) RestoreDeleted(id int, familyID int) error {
+    query := `
+        UPDATE container
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring container: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("container not found or not deleted")
+    }
+
+    return nil
 }
