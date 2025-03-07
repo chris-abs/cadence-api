@@ -260,11 +260,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                ) as tags
         FROM item i
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         LEFT JOIN item_tag it ON i.id = it.item_id
-        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id
-        WHERE i.family_id = $1
+        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id AND t.is_deleted = false
+        WHERE i.family_id = $1 AND i.is_deleted = false
         GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,

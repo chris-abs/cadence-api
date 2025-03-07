@@ -197,11 +197,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                ) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id
+        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id
-        WHERE t.family_id = $1
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
+        WHERE t.family_id = $1 AND t.is_deleted = false
         GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at
         ORDER BY t.name ASC`
 
@@ -294,7 +294,6 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     }
     defer tx.Rollback()
 
-    // Remove item-tag associations
     itemTagQuery := `
         DELETE FROM item_tag
         WHERE tag_id = $1
@@ -308,7 +307,6 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    // Soft delete the tag
     tagQuery := `
         UPDATE tag 
         SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
