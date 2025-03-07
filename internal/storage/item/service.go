@@ -90,6 +90,13 @@ func (s *Service) DeleteItemImage(itemID int, familyID int, url string) error {
     return s.repo.DeleteItemImage(itemID, familyID, url)
 }
 
-func (s *Service) DeleteItem(id int, familyID int) error {
-    return s.repo.Delete(id, familyID)
+func (s *Service) DeleteItem(id int, familyID int, deletedBy int) error {
+    return s.repo.Delete(id, familyID, deletedBy)
+}
+
+func (s *Service) RestoreItem(id int, familyID int) error {
+    if err := s.repo.RestoreDeleted(id, familyID); err != nil {
+        return fmt.Errorf("failed to restore item: %v", err)
+    }
+    return nil
 }

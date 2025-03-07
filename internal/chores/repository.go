@@ -53,15 +53,15 @@ func (r *Repository) CreateChore(chore *entities.Chore) error {
 }
 
 func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error) {
-	query := `
-		SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
-			   c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
-			   creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
-			   assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
-		FROM chore c
-		LEFT JOIN users creator ON c.creator_id = creator.id
-		LEFT JOIN users assignee ON c.assignee_id = assignee.id
-		WHERE c.id = $1 AND c.family_id = $2`
+    query := `
+        SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
+               c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
+               creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
+               assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
+        FROM chore c
+        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
 	chore := &entities.Chore{}
 	creator := &models.User{}
@@ -99,16 +99,16 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
 }
 
 func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error) {
-	query := `
-		SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
-			   c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
-			   creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
-			   assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
-		FROM chore c
-		LEFT JOIN users creator ON c.creator_id = creator.id
-		LEFT JOIN users assignee ON c.assignee_id = assignee.id
-		WHERE c.family_id = $1
-		ORDER BY c.created_at DESC`
+    query := `
+        SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
+               c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
+               creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
+               assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
+        FROM chore c
+        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        WHERE c.family_id = $1 AND c.is_deleted = false
+        ORDER BY c.created_at DESC`
 
 	rows, err := r.db.Query(query, familyID)
 	if err != nil {
@@ -146,12 +146,12 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
 }
 
 func (r *Repository) GetChoresByAssigneeID(assigneeID int, familyID int) ([]*entities.Chore, error) {
-	query := `
-		SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
-			   c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at
-		FROM chore c
-		WHERE c.assignee_id = $1 AND c.family_id = $2
-		ORDER BY c.created_at DESC`
+    query := `
+        SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
+               c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at
+        FROM chore c
+        WHERE c.assignee_id = $1 AND c.family_id = $2 AND c.is_deleted = false
+        ORDER BY c.created_at DESC`
 
 	rows, err := r.db.Query(query, assigneeID, familyID)
 	if err != nil {
@@ -192,7 +192,7 @@ func (r *Repository) UpdateChore(chore *entities.Chore) error {
 		UPDATE chore
 		SET name = $2, description = $3, assignee_id = $4, points = $5, 
 			occurrence_type = $6, occurrence_data = $7, updated_at = $8
-		WHERE id = $1 AND family_id = $9`
+		WHERE id = $1 AND family_id = $9 AND is_deleted = false`
 
 	result, err := r.db.Exec(
 		query,
@@ -223,35 +223,82 @@ func (r *Repository) UpdateChore(chore *entities.Chore) error {
 	return nil
 }
 
-func (r *Repository) DeleteChore(id int, familyID int) error {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %v", err)
-	}
-	defer tx.Rollback()
+func (r *Repository) DeleteChore(id int, familyID int, deletedBy int) error {
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	instanceQuery := `DELETE FROM chore_instance WHERE chore_id = $1 AND family_id = $2`
-	_, err = tx.Exec(instanceQuery, id, familyID)
-	if err != nil {
-		return fmt.Errorf("error deleting chore instances: %v", err)
-	}
+    instanceQuery := `
+        UPDATE chore_instance
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE chore_id = $1 AND family_id = $2 AND is_deleted = false`
+    
+    _, err = tx.Exec(instanceQuery, id, familyID, time.Now().UTC(), deletedBy)
+    if err != nil {
+        return fmt.Errorf("error soft deleting chore instances: %v", err)
+    }
 
-	choreQuery := `DELETE FROM chore WHERE id = $1 AND family_id = $2`
-	result, err := tx.Exec(choreQuery, id, familyID)
-	if err != nil {
-		return fmt.Errorf("error deleting chore: %v", err)
-	}
+    choreQuery := `
+        UPDATE chore
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = false`
+    
+    result, err := tx.Exec(choreQuery, id, familyID, time.Now().UTC(), deletedBy)
+    if err != nil {
+        return fmt.Errorf("error soft deleting chore: %v", err)
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking delete result: %v", err)
-	}
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking delete result: %v", err)
+    }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("chore not found")
-	}
+    if rowsAffected == 0 {
+        return fmt.Errorf("chore not found")
+    }
 
-	return tx.Commit()
+    return tx.Commit()
+}
+
+func (r *Repository) RestoreChore(id int, familyID int) error {
+    tx, err := r.db.Begin()
+    if err != nil {
+        return fmt.Errorf("error starting transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    choreQuery := `
+        UPDATE chore
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    result, err := tx.Exec(choreQuery, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring chore: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("chore not found or not deleted")
+    }
+
+    instanceQuery := `
+        UPDATE chore_instance
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE chore_id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    _, err = tx.Exec(instanceQuery, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring chore instances: %v", err)
+    }
+
+    return tx.Commit()
 }
 
 func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error {
@@ -282,16 +329,16 @@ func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error
 }
 
 func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
-	query := `
-		SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
-			   ci.status, ci.completed_at, ci.verified_by, ci.notes, 
-			   ci.created_at, ci.updated_at,
-			   a.id, a.email, a.first_name, a.last_name, a.image_url,
-			   v.id, v.email, v.first_name, v.last_name, v.image_url
-		FROM chore_instance ci
-		LEFT JOIN users a ON ci.assignee_id = a.id
-		LEFT JOIN users v ON ci.verified_by = v.id
-		WHERE ci.id = $1 AND ci.family_id = $2`
+    query := `
+        SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
+               ci.status, ci.completed_at, ci.verified_by, ci.notes, 
+               ci.created_at, ci.updated_at,
+               a.id, a.email, a.first_name, a.last_name, a.image_url,
+               v.id, v.email, v.first_name, v.last_name, v.image_url
+        FROM chore_instance ci
+        LEFT JOIN users a ON ci.assignee_id = a.id AND a.is_deleted = false
+        LEFT JOIN users v ON ci.verified_by = v.id AND v.is_deleted = false
+        WHERE ci.id = $1 AND ci.family_id = $2 AND ci.is_deleted = false`
 
 	instance := &entities.ChoreInstance{}
 	assignee := &models.User{}
@@ -336,13 +383,13 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
 }
 
 func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entities.ChoreInstance, error) {
-	query := `
-		SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
-			   ci.status, ci.completed_at, ci.verified_by, ci.notes, 
-			   ci.created_at, ci.updated_at
-		FROM chore_instance ci
-		WHERE ci.chore_id = $1 AND ci.family_id = $2
-		ORDER BY ci.due_date DESC`
+    query := `
+        SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
+               ci.status, ci.completed_at, ci.verified_by, ci.notes, 
+               ci.created_at, ci.updated_at
+        FROM chore_instance ci
+        WHERE ci.chore_id = $1 AND ci.family_id = $2 AND ci.is_deleted = false
+        ORDER BY ci.due_date DESC`
 
 	rows, err := r.db.Query(query, choreID, familyID)
 	if err != nil {
@@ -381,18 +428,18 @@ func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entitie
 }
 
 func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*entities.ChoreInstance, error) {
-	startOfDay := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, dueDate.Location())
-	endOfDay := startOfDay.Add(24 * time.Hour)
+    startOfDay := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, dueDate.Location())
+    endOfDay := startOfDay.Add(24 * time.Hour)
 
-	query := `
-		SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
-			   ci.status, ci.completed_at, ci.verified_by, ci.notes, 
-			   ci.created_at, ci.updated_at,
-			   c.name, c.points
-		FROM chore_instance ci
-		JOIN chore c ON ci.chore_id = c.id
-		WHERE ci.due_date >= $1 AND ci.due_date < $2 AND ci.family_id = $3
-		ORDER BY ci.due_date ASC`
+    query := `
+        SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
+               ci.status, ci.completed_at, ci.verified_by, ci.notes, 
+               ci.created_at, ci.updated_at,
+               c.name, c.points
+        FROM chore_instance ci
+        JOIN chore c ON ci.chore_id = c.id AND c.is_deleted = false
+        WHERE ci.due_date >= $1 AND ci.due_date < $2 AND ci.family_id = $3 AND ci.is_deleted = false
+        ORDER BY ci.due_date ASC`
 
 	rows, err := r.db.Query(query, startOfDay, endOfDay, familyID)
 	if err != nil {
@@ -561,10 +608,10 @@ func (r *Repository) CheckInstanceExists(choreID int, dueDate time.Time) (bool, 
 }
 
 func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error {
-	query := `
-		UPDATE chore_instance
-		SET status = $2, completed_at = $3, verified_by = $4, notes = $5, updated_at = $6
-		WHERE id = $1 AND family_id = $7`
+    query := `
+        UPDATE chore_instance
+        SET status = $2, completed_at = $3, verified_by = $4, notes = $5, updated_at = $6
+        WHERE id = $1 AND family_id = $7 AND is_deleted = false`
 
 	var completedAt *time.Time
 	var verifiedBy *int

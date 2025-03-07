@@ -35,15 +35,22 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware, mem
 func (h *Handler) RegisterRoutes(router *mux.Router) {
    // Public routes
    router.HandleFunc("/users/register", h.handleRegister).Methods("POST")
+
    router.HandleFunc("/users/login", h.handleLogin).Methods("POST")
+   
    router.HandleFunc("/users/accept-invite", h.handleAcceptInvite).Methods("POST")
 
    // Protected routes
    router.HandleFunc("/users", h.authMiddleware.AuthHandler(h.handleGetUsers)).Methods("GET")
+
    router.HandleFunc("/user", h.authMiddleware.AuthHandler(h.handleGetAuthenticatedUser)).Methods("GET")
+
    router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleGetUser)).Methods("GET")
    router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleUpdateUser)).Methods("PUT")
    router.HandleFunc("/users/{id}", h.authMiddleware.AuthHandler(h.handleDeleteUser)).Methods("DELETE")
+
+   router.HandleFunc("/users/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreUser)).Methods("PUT")
+
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -253,26 +260,48 @@ func (h *Handler) handleUpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
-   userCtx := r.Context().Value("user").(*models.UserContext)
-   
-   id, err := getIDFromRequest(r)
-   if err != nil {
-       writeError(w, http.StatusBadRequest, err.Error())
-       return
-   }
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+ 
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+     writeError(w, http.StatusForbidden, "only parents can delete users")
+     return
+    }
+ 
+    if err := h.service.DeleteUser(id, userCtx.UserID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+ 
+    writeJSON(w, http.StatusOK, map[string]string{"message": "user deleted successfully"})
+ }
 
-   if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-    writeError(w, http.StatusForbidden, "only parents can delete users")
-    return
-}
-
-   if err := h.service.DeleteUser(id); err != nil {
-       writeError(w, http.StatusInternalServerError, err.Error())
-       return
-   }
-
-   writeJSON(w, http.StatusOK, map[string]string{"message": "user deleted successfully"})
-}
+ func (h *Handler) handleRestoreUser(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+ 
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+     writeError(w, http.StatusForbidden, "only parents can restore users")
+     return
+    }
+ 
+    if err := h.service.RestoreUser(id); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+ 
+    writeJSON(w, http.StatusOK, map[string]string{"message": "user restored successfully"})
+ }
 
 func getIDFromRequest(r *http.Request) (int, error) {
    vars := mux.Vars(r)

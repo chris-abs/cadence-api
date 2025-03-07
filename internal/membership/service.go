@@ -67,8 +67,15 @@ func (s *Service) UpdateMembership(id int, role models.UserRole, isOwner bool) (
 	return membership, nil
 }
 
-func (s *Service) DeleteMembership(id int) error {
-	return s.repo.Delete(id)
+func (s *Service) DeleteMembership(id int, deletedBy int) error {
+    return s.repo.Delete(id, deletedBy)
+}
+
+func (s *Service) RestoreMembership(id int) error {
+    if err := s.repo.RestoreMembership(id); err != nil {
+        return fmt.Errorf("failed to restore membership: %v", err)
+    }
+    return nil
 }
 
 func (s *Service) HasUserRole(userID int, familyID int, role models.UserRole) (bool, error) {

@@ -61,9 +61,13 @@ func (s *Service) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int) e
     return s.repo.AssignTagsToItems(familyID, tagIDs, itemIDs)
 }
 
-func (s *Service) DeleteTag(id int, familyID int) error {
-    if _, err := s.repo.GetByID(id, familyID); err != nil {
-        return fmt.Errorf("tag not found: %v", err)
+func (s *Service) DeleteTag(id int, familyID int, deletedBy int) error {
+    return s.repo.Delete(id, familyID, deletedBy)
+}
+
+func (s *Service) RestoreTag(id int, familyID int) error {
+    if err := s.repo.RestoreDeleted(id, familyID); err != nil {
+        return fmt.Errorf("failed to restore tag: %v", err)
     }
-    return s.repo.Delete(id, familyID)
+    return nil
 }

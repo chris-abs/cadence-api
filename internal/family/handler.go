@@ -24,17 +24,24 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/families", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
+
 	router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleGetFamily)).Methods("GET")
 	router.HandleFunc("/families/{id}", h.authMiddleware.AuthHandler(h.handleUpdateFamily)).Methods("PUT")
+
 	router.HandleFunc("/families/{id}/members", h.authMiddleware.AuthHandler(h.handleGetFamilyMembers)).Methods("GET")
 
+	router.HandleFunc("/families/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreFamily)).Methods("PUT")
+
 	router.HandleFunc("/families/create", h.authMiddleware.AuthHandler(h.handleCreateFamily)).Methods("POST")
+
 	router.HandleFunc("/families/join", h.authMiddleware.AuthHandler(h.handleJoinFamily)).Methods("POST")
 
 	router.HandleFunc("/families/{id}/invites", h.authMiddleware.AuthHandler(h.handleCreateInvite)).Methods("POST")
+
 	router.HandleFunc("/families/invites/{token}", h.handleValidateInvite).Methods("GET")
 
 	router.HandleFunc("/families/{id}/modules", h.authMiddleware.AuthHandler(h.handleGetModules)).Methods("GET")
+	
 	router.HandleFunc("/families/{id}/modules/{moduleId}", h.authMiddleware.AuthHandler(h.handleUpdateModule)).Methods("PUT")
 }
 
@@ -252,4 +259,43 @@ func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    if err := h.service.DeleteFamily(id, userCtx.UserID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]string{"message": "family deleted successfully"})
+}
+
+func (h *Handler) handleRestoreFamily(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can restore families")
+        return
+    }
+    
+    if err := h.service.RestoreFamily(id); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]string{"message": "family restored successfully"})
 }

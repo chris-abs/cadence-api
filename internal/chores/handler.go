@@ -27,16 +27,23 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/chores", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChores)).Methods("GET")
 	router.HandleFunc("/chores", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleCreateChore)).Methods("POST")
+
 	router.HandleFunc("/chores/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChore)).Methods("GET")
 	router.HandleFunc("/chores/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleUpdateChore)).Methods("PUT")
 	router.HandleFunc("/chores/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleDeleteChore)).Methods("DELETE")
 
+	router.HandleFunc("/chores/{id}/restore", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleRestoreChore)).Methods("PUT")
+
 	router.HandleFunc("/chores/instances", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstances)).Methods("GET")
+
 	router.HandleFunc("/chores/instances/{id}", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreInstance)).Methods("GET")
+
 	router.HandleFunc("/chores/instances/{id}/complete", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionWrite)(h.handleCompleteChoreInstance)).Methods("PUT")
 	
 	router.HandleFunc("/chores/verify-day", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleVerifyDay)).Methods("PUT")
+
 	router.HandleFunc("/chores/instances/{id}/review", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionManage)(h.handleReviewChore)).Methods("PUT")
+	
 	router.HandleFunc("/chores/daily-verification", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetDailyVerification)).Methods("GET")
 
 	router.HandleFunc("/chores/stats", h.authMiddleware.ModuleMiddleware(models.ModuleChores, models.PermissionRead)(h.handleGetChoreStats)).Methods("GET")
@@ -141,20 +148,37 @@ func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
-	
-	id, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	
-	if err := h.service.DeleteChore(id, *userCtx.FamilyID); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusOK, map[string]string{"message": "chore deleted successfully"})
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    if err := h.service.DeleteChore(id, *userCtx.FamilyID, userCtx.UserID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]string{"message": "chore deleted successfully"})
+}
+
+func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    
+    if err := h.service.RestoreChore(id, *userCtx.FamilyID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]string{"message": "chore restored successfully"})
 }
 
 func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request) {

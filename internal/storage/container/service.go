@@ -78,13 +78,20 @@ func (s *Service) UpdateContainer(id int, familyID int, req *UpdateContainerRequ
     return container, nil
 }
 
-func (s *Service) DeleteContainer(id int, familyID int) error {
-    if err := s.repo.Delete(id, familyID); err != nil {
+func (s *Service) GetContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
+    return s.repo.GetByQR(qrCode, familyID)
+}
+
+func (s *Service) DeleteContainer(id int, familyID int, deletedBy int) error {
+    if err := s.repo.Delete(id, familyID, deletedBy); err != nil {
         return fmt.Errorf("failed to delete container: %v", err)
     }
     return nil
 }
 
-func (s *Service) GetContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
-    return s.repo.GetByQR(qrCode, familyID)
+func (s *Service) RestoreContainer(id int, familyID int) error {
+    if err := s.repo.RestoreDeleted(id, familyID); err != nil {
+        return fmt.Errorf("failed to restore container: %v", err)
+    }
+    return nil
 }

@@ -40,10 +40,10 @@ func (r *Repository) Create(membership *models.FamilyMembership) error {
 }
 
 func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
-	query := `
-		SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
-		FROM family_membership
-		WHERE id = $1`
+    query := `
+        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        FROM family_membership
+        WHERE id = $1 AND is_deleted = false`
 
 	membership := new(models.FamilyMembership)
 	err := r.db.QueryRow(query, id).Scan(
@@ -67,11 +67,11 @@ func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
 }
 
 func (r *Repository) GetByUserID(userID int) ([]*models.FamilyMembership, error) {
-	query := `
-		SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
-		FROM family_membership
-		WHERE user_id = $1
-		ORDER BY created_at DESC`
+    query := `
+        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        FROM family_membership
+        WHERE user_id = $1 AND is_deleted = false
+        ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
@@ -101,12 +101,12 @@ func (r *Repository) GetByUserID(userID int) ([]*models.FamilyMembership, error)
 }
 
 func (r *Repository) GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error) {
-	query := `
-		SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
-		FROM family_membership
-		WHERE user_id = $1
-		ORDER BY created_at DESC
-		LIMIT 1`
+    query := `
+        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        FROM family_membership
+        WHERE user_id = $1 AND is_deleted = false
+        ORDER BY created_at DESC
+        LIMIT 1`
 
 	membership := new(models.FamilyMembership)
 	err := r.db.QueryRow(query, userID).Scan(
@@ -130,11 +130,11 @@ func (r *Repository) GetActiveMembershipForUser(userID int) (*models.FamilyMembe
 }
 
 func (r *Repository) GetByFamilyID(familyID int) ([]*models.FamilyMembership, error) {
-	query := `
-		SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
-		FROM family_membership
-		WHERE family_id = $1
-		ORDER BY created_at DESC`
+    query := `
+        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        FROM family_membership
+        WHERE family_id = $1 AND is_deleted = false
+        ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(query, familyID)
 	if err != nil {
@@ -164,11 +164,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.FamilyMembership, er
 }
 
 func (r *Repository) GetFamilyOwner(familyID int) (*models.FamilyMembership, error) {
-	query := `
-		SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
-		FROM family_membership
-		WHERE family_id = $1 AND is_owner = true
-		LIMIT 1`
+    query := `
+        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        FROM family_membership
+        WHERE family_id = $1 AND is_owner = true AND is_deleted = false
+        LIMIT 1`
 
 	membership := new(models.FamilyMembership)
 	err := r.db.QueryRow(query, familyID).Scan(
@@ -192,12 +192,12 @@ func (r *Repository) GetFamilyOwner(familyID int) (*models.FamilyMembership, err
 }
 
 func (r *Repository) Update(membership *models.FamilyMembership) error {
-	query := `
-		UPDATE family_membership
-		SET role = $2, 
-			is_owner = $3,
-			updated_at = $4
-		WHERE id = $1`
+    query := `
+        UPDATE family_membership
+        SET role = $2, 
+            is_owner = $3,
+            updated_at = $4
+        WHERE id = $1 AND is_deleted = false`
 
 	result, err := r.db.Exec(
 		query,
@@ -223,21 +223,48 @@ func (r *Repository) Update(membership *models.FamilyMembership) error {
 	return nil
 }
 
-func (r *Repository) Delete(id int) error {
-	query := `DELETE FROM family_membership WHERE id = $1`
-	result, err := r.db.Exec(query, id)
-	if err != nil {
-		return fmt.Errorf("error deleting membership: %v", err)
-	}
+func (r *Repository) Delete(id int, deletedBy int) error {
+    query := `
+        UPDATE family_membership 
+        SET is_deleted = true, deleted_at = $2, deleted_by = $3, updated_at = $2
+        WHERE id = $1 AND is_deleted = false`
+    
+    result, err := r.db.Exec(query, id, time.Now().UTC(), deletedBy)
+    if err != nil {
+        return fmt.Errorf("error soft deleting membership: %v", err)
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking delete result: %v", err)
-	}
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking delete result: %v", err)
+    }
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("membership not found")
-	}
+    if rowsAffected == 0 {
+        return fmt.Errorf("membership not found")
+    }
 
-	return nil
+    return nil
+}
+
+func (r *Repository) RestoreMembership(id int) error {
+    query := `
+        UPDATE family_membership
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $2
+        WHERE id = $1 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring membership: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("membership not found or not deleted")
+    }
+
+    return nil
 }

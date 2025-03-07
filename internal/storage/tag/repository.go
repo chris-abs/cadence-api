@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/chrisabs/cadence/internal/storage/entities"
 	"github.com/lib/pq"
@@ -102,11 +103,11 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                ) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id
+        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id
-        WHERE t.id = $1 AND t.family_id = $2
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
+        WHERE t.id = $1 AND t.family_id = $2 AND t.is_deleted = false
         GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at`
 
     tag := new(entities.Tag)
@@ -196,11 +197,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                ) as items
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
-        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id
+        LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id
-        WHERE t.family_id = $1
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
+        WHERE t.family_id = $1 AND t.is_deleted = false
         GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at
         ORDER BY t.name ASC`
 
@@ -240,7 +241,7 @@ func (r *Repository) Update(tag *entities.Tag) error {
         SET name = $2, 
             colour = $3, 
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND family_id = $4
+        WHERE id = $1 AND family_id = $4 AND is_deleted = false
         RETURNING updated_at`
         
     err := r.db.QueryRow(
@@ -286,7 +287,7 @@ func (r *Repository) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int
     return tx.Commit()
 }
 
-func (r *Repository) Delete(id int, familyID int) error {
+func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -298,7 +299,7 @@ func (r *Repository) Delete(id int, familyID int) error {
         WHERE tag_id = $1
         AND EXISTS (
             SELECT 1 FROM tag
-            WHERE id = $1 AND family_id = $2
+            WHERE id = $1 AND family_id = $2 AND is_deleted = false
         )`
     
     _, err = tx.Exec(itemTagQuery, id, familyID)
@@ -306,8 +307,12 @@ func (r *Repository) Delete(id int, familyID int) error {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    tagQuery := `DELETE FROM tag WHERE id = $1 AND family_id = $2`
-    result, err := tx.Exec(tagQuery, id, familyID)
+    tagQuery := `
+        UPDATE tag 
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = false`
+        
+    result, err := tx.Exec(tagQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
         return fmt.Errorf("error deleting tag: %v", err)
     }
@@ -322,4 +327,27 @@ func (r *Repository) Delete(id int, familyID int) error {
     }
 
     return tx.Commit()
+}
+
+func (r *Repository) RestoreDeleted(id int, familyID int) error {
+    query := `
+        UPDATE tag
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring tag: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("tag not found or not deleted")
+    }
+
+    return nil
 }

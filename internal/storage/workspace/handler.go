@@ -28,6 +28,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleGetWorkspaceByID)).Methods("GET")
     router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleUpdateWorkspace)).Methods("PUT")
     router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleDeleteWorkspace)).Methods("DELETE")
+
+    router.HandleFunc("/workspaces/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreWorkspace)).Methods("PUT")
 }
 
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -108,11 +110,29 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID, userCtx.UserID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
+    
     writeJSON(w, http.StatusOK, map[string]int{"deleted": workspaceID})
+}
+
+func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    workspaceID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    if err := h.service.RestoreWorkspace(workspaceID, *userCtx.FamilyID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, map[string]int{"restored": workspaceID})
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {

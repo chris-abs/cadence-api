@@ -54,7 +54,7 @@ func (r *Repository) GetByEmail(email string) (*models.User, error) {
     query := `
         SELECT id, email, password, first_name, last_name, image_url, created_at, updated_at
         FROM users
-        WHERE email = $1`
+        WHERE email = $1 AND is_deleted = false`
 
     user := new(models.User)
     err := r.db.QueryRow(query, email).Scan(
@@ -82,7 +82,7 @@ func (r *Repository) GetByID(id int) (*models.User, error) {
     query := `
         SELECT id, email, first_name, last_name, image_url, created_at, updated_at
         FROM users
-        WHERE id = $1`
+        WHERE id = $1 AND is_deleted = false`
 
     user := new(models.User)
     err := r.db.QueryRow(query, id).Scan(
@@ -109,6 +109,7 @@ func (r *Repository) GetAll() ([]*models.User, error) {
     query := `
         SELECT id, email, first_name, last_name, image_url, created_at, updated_at
         FROM users
+        WHERE is_deleted = false
         ORDER BY created_at DESC`
 
     rows, err := r.db.Query(query)
@@ -145,7 +146,7 @@ func (r *Repository) Update(user *models.User) error {
             last_name = $3, 
             image_url = $4,
             updated_at = $5
-        WHERE id = $1`
+        WHERE id = $1 AND is_deleted = false`
 
     result, err := r.db.Exec(
         query,
@@ -172,11 +173,14 @@ func (r *Repository) Update(user *models.User) error {
     return nil
 }
 
-func (r *Repository) Delete(id int) error {
-    query := `DELETE FROM users WHERE id = $1`
-    result, err := r.db.Exec(query, id)
+func (r *Repository) Delete(id int, deletedBy int) error {
+    query := `UPDATE users 
+              SET is_deleted = true, deleted_at = $2, deleted_by = $3, updated_at = $2
+              WHERE id = $1 AND is_deleted = false`
+    
+    result, err := r.db.Exec(query, id, time.Now().UTC(), deletedBy)
     if err != nil {
-        return fmt.Errorf("error deleting user: %v", err)
+        return fmt.Errorf("error soft deleting user: %v", err)
     }
 
     rowsAffected, err := result.RowsAffected()
@@ -186,6 +190,29 @@ func (r *Repository) Delete(id int) error {
 
     if rowsAffected == 0 {
         return fmt.Errorf("user not found")
+    }
+
+    return nil
+}
+
+func (r *Repository) RestoreUser(id int) error {
+    query := `
+        UPDATE users
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $2
+        WHERE id = $1 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring user: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("user not found or not deleted")
     }
 
     return nil
