@@ -29,7 +29,7 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
             name, description, quantity, container_id, 
             family_id, created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, created_at, updated_at`
+        RETURNING id, created_at, updated_at AND is_deleted = false`
 
     err = tx.QueryRow(
         itemQuery,
@@ -50,7 +50,7 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         var tagID int
         err := tx.QueryRow(`
             SELECT id FROM tag 
-            WHERE name = $1 AND family_id = $2`,
+            WHERE name = $1 AND family_id = $2 AND is_deleted = false`,
             tagName, item.FamilyID,
         ).Scan(&tagID)
 
@@ -151,11 +151,11 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                ) as tags
         FROM item i
         LEFT JOIN item_images img ON i.id = img.item_id
-        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
+        LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id AND c.is_deleted = false
+        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         LEFT JOIN item_tag it ON i.id = it.item_id
-        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id
-        WHERE i.id = $1 AND i.family_id = $2
+        LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id AND t.is_deleted = false
+        WHERE i.id = $1 AND i.family_id = $2 AND i.is_deleted = false
         GROUP BY i.id, i.name, i.description, i.quantity, 
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
@@ -322,10 +322,10 @@ func (r *Repository) Update(item *entities.Item) error {
     defer tx.Rollback()
 
     query := `
-        UPDATE item
+     UPDATE item
         SET name = $2, description = $3,
-            quantity = $4, container_id = $5, updated_at = $6
-        WHERE id = $1 AND family_id = $7`
+        quantity = $4, container_id = $5, updated_at = $6
+     WHERE id = $1 AND family_id = $7 AND is_deleted = false`
 
     result, err := tx.Exec(
         query,
@@ -418,32 +418,19 @@ func (r *Repository) DeleteItemImage(itemID int, familyID int, url string) error
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int) error {
+func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
-    imageQuery := `
-        DELETE FROM item_image
-        WHERE item_id = $1
-        AND EXISTS (
-            SELECT 1 FROM item
-            WHERE id = $1 AND family_id = $2
-        )`
-    
-    _, err = tx.Exec(imageQuery, id, familyID)
-    if err != nil {
-        return fmt.Errorf("error removing item images: %v", err)
-    }
-
     itemTagQuery := `
         DELETE FROM item_tag
         WHERE item_id = $1
         AND EXISTS (
             SELECT 1 FROM item
-            WHERE id = $1 AND family_id = $2
+            WHERE id = $1 AND family_id = $2 AND is_deleted = false
         )`
     
     _, err = tx.Exec(itemTagQuery, id, familyID)
@@ -451,8 +438,12 @@ func (r *Repository) Delete(id int, familyID int) error {
         return fmt.Errorf("error removing item-tag associations: %v", err)
     }
 
-    itemQuery := `DELETE FROM item WHERE id = $1 AND family_id = $2`
-    result, err := tx.Exec(itemQuery, id, familyID)
+    itemQuery := `
+        UPDATE item
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = false`
+        
+    result, err := tx.Exec(itemQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
         return fmt.Errorf("error deleting item: %v", err)
     }
@@ -467,4 +458,27 @@ func (r *Repository) Delete(id int, familyID int) error {
     }
 
     return tx.Commit()
+}
+
+func (r *Repository) RestoreDeleted(id int, familyID int) error {
+    query := `
+        UPDATE item
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring item: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("item not found or not deleted")
+    }
+
+    return nil
 }

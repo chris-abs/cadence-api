@@ -36,9 +36,12 @@ func NewHandler(service *Service, containerService ContainerService, authMiddlew
 func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleGetItems)).Methods("GET")
     router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleCreateItem)).Methods("POST")
+
     router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleGetItem)).Methods("GET")
     router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleUpdateItem)).Methods("PUT")
     router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleDeleteItem)).Methods("DELETE")
+
+    router.HandleFunc("/items/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreItem)).Methods("PUT")
 }
 
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
@@ -181,11 +184,27 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteItem(itemID, *userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteItem(itemID, *userCtx.FamilyID, userCtx.UserID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
     writeJSON(w, http.StatusOK, map[string]int{"deleted": itemID})
+}
+
+func (h *Handler) handleRestoreItem(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+
+    itemID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    if err := h.service.RestoreItem(itemID, *userCtx.FamilyID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    writeJSON(w, http.StatusOK, map[string]int{"restored": itemID})
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
