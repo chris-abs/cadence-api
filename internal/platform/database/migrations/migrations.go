@@ -50,6 +50,11 @@ func NewManager(db *sql.DB) *Manager {
                 Enabled: true,
                 Run:     MigrateFamilySupport,
             },
+            {
+                ID:      "007_soft_delete",
+                Enabled: true,
+                Run:     MigrateSoftDelete,
+            },
         },
     }
 }
