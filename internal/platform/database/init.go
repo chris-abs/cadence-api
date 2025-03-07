@@ -11,6 +11,14 @@ import (
 func (db *PostgresDB) Init() error {
 	fmt.Println("Starting database initialization...")
 
+	// db.migrationsManager = migrations.NewManager(db.DB)
+	// db.migrationsManager.EnableMigration("007_soft_delete")
+
+	// fmt.Println("Running soft delete migration...")
+	// if err := db.migrationsManager.Run(); err != nil {
+   	// 	 return fmt.Errorf("migrations failed: %v", err)
+	// }
+
 	if os.Getenv("DROP_TABLES") == "true" {
 		fmt.Println("DROP_TABLES environment variable is set to true. Dropping all tables...")
 		if err := development.DropAllTables(db.DB); err != nil {
