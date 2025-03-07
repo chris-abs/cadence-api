@@ -30,7 +30,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     containerCountQuery := `
         SELECT COUNT(*) 
         FROM container 
-        WHERE family_id = $1
+        WHERE family_id = $1 AND is_deleted = false
     `
     if err := tx.QueryRow(containerCountQuery, familyID).Scan(&response.Containers.Total); err != nil {
         return nil, fmt.Errorf("failed to get container count: %v", err)
@@ -39,7 +39,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     containerQuery := `
         SELECT id, name, created_at 
         FROM container 
-        WHERE family_id = $1 
+        WHERE family_id = $1 AND is_deleted = false
         ORDER BY created_at DESC 
         LIMIT $2
     `
@@ -60,7 +60,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     itemCountQuery := `
         SELECT COUNT(DISTINCT i.id) 
         FROM item i
-        WHERE i.family_id = $1
+        WHERE i.family_id = $1 AND i.is_deleted = false
     `
     if err := tx.QueryRow(itemCountQuery, familyID).Scan(&response.Items.Total); err != nil {
         return nil, fmt.Errorf("failed to get item count: %v", err)
@@ -69,7 +69,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     itemQuery := `
         SELECT i.id, i.name, i.created_at 
         FROM item i
-        WHERE i.family_id = $1
+        WHERE i.family_id = $1 AND i.is_deleted = false
         ORDER BY i.created_at DESC 
         LIMIT $2
     `
@@ -91,7 +91,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     tagCountQuery := `
         SELECT COUNT(DISTINCT t.id)
         FROM tag t
-        WHERE t.family_id = $1
+        WHERE t.family_id = $1 AND t.is_deleted = false
     `
     if err := tx.QueryRow(tagCountQuery, familyID).Scan(&response.Tags.Total); err != nil {
         return nil, fmt.Errorf("failed to get tag count: %v", err)
@@ -100,7 +100,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     tagQuery := `
         SELECT DISTINCT t.id, t.name, t.created_at 
         FROM tag t
-        WHERE t.family_id = $1
+        WHERE t.family_id = $1 AND t.is_deleted = false
         ORDER BY t.created_at DESC 
         LIMIT $2
     `
@@ -121,7 +121,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     workspaceCountQuery := `
         SELECT COUNT(*) 
         FROM workspace 
-        WHERE family_id = $1
+        WHERE family_id = $1 AND is_deleted = false
     `
     if err := tx.QueryRow(workspaceCountQuery, familyID).Scan(&response.Workspaces.Total); err != nil {
         return nil, fmt.Errorf("failed to get workspace count: %v", err)
@@ -130,7 +130,7 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
     workspaceQuery := `
         SELECT id, name, created_at 
         FROM workspace 
-        WHERE family_id = $1
+        WHERE family_id = $1 AND is_deleted = false
         ORDER BY created_at DESC 
         LIMIT $2
     `
