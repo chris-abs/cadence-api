@@ -226,6 +226,13 @@ func (s *Service) UpdateUser(id int, firstName, lastName string, imageFile *mult
 	return s.GetUserByID(id)
 }
 
-func (s *Service) DeleteUser(id int) error {
-	return s.repo.Delete(id)
+func (s *Service) DeleteUser(id int, deletedBy int) error {
+    return s.repo.Delete(id, deletedBy)
+}
+
+func (s *Service) RestoreUser(id int) error {
+    if err := s.repo.RestoreUser(id); err != nil {
+        return fmt.Errorf("failed to restore user: %v", err)
+    }
+    return nil
 }

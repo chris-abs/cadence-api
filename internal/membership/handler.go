@@ -29,9 +29,13 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/family-memberships", h.authMiddleware.AuthHandler(h.handleGetUserMemberships)).Methods("GET")
+
 	router.HandleFunc("/family-memberships/active", h.authMiddleware.AuthHandler(h.handleGetActiveMembership)).Methods("GET")
+
 	router.HandleFunc("/family-memberships/{id}", h.authMiddleware.AuthHandler(h.handleUpdateMembership)).Methods("PUT")
 	router.HandleFunc("/family-memberships/{id}", h.authMiddleware.AuthHandler(h.handleDeleteMembership)).Methods("DELETE")
+
+	router.HandleFunc("/family-memberships/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreMembership)).Methods("PUT")
 
 	router.HandleFunc("/families/{familyId}/memberships", h.authMiddleware.AuthHandler(h.handleGetFamilyMemberships)).Methods("GET")
 }
@@ -138,43 +142,67 @@ func (h *Handler) handleUpdateMembership(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleDeleteMembership(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
-	
-	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can delete memberships")
-		return
-	}
-	
-	vars := mux.Vars(r)
-	membershipIDStr := vars["id"]
-	membershipID, err := strconv.Atoi(membershipIDStr)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid membership ID")
-		return
-	}
-	
-	membership, err := h.service.GetMembershipByID(membershipID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
-	
-	if userCtx.FamilyID == nil || membership.FamilyID != *userCtx.FamilyID {
-		writeError(w, http.StatusForbidden, "access denied")
-		return
-	}
-	
-	if membership.IsOwner {
-		writeError(w, http.StatusForbidden, "cannot delete the family owner's membership")
-		return
-	}
-	
-	if err := h.service.DeleteMembership(membershipID); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can delete memberships")
+        return
+    }
+    
+    vars := mux.Vars(r)
+    membershipIDStr := vars["id"]
+    membershipID, err := strconv.Atoi(membershipIDStr)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid membership ID")
+        return
+    }
+    
+    membership, err := h.service.GetMembershipByID(membershipID)
+    if err != nil {
+        writeError(w, http.StatusNotFound, err.Error())
+        return
+    }
+    
+    if userCtx.FamilyID == nil || membership.FamilyID != *userCtx.FamilyID {
+        writeError(w, http.StatusForbidden, "access denied")
+        return
+    }
+    
+    if membership.IsOwner {
+        writeError(w, http.StatusForbidden, "cannot delete the family owner's membership")
+        return
+    }
+    
+    if err := h.service.DeleteMembership(membershipID, userCtx.UserID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
 
-	writeJSON(w, http.StatusOK, map[string]string{"message": "membership deleted successfully"})
+    writeJSON(w, http.StatusOK, map[string]string{"message": "membership deleted successfully"})
+}
+
+func (h *Handler) handleRestoreMembership(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+    
+    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can restore memberships")
+        return
+    }
+    
+    vars := mux.Vars(r)
+    membershipIDStr := vars["id"]
+    membershipID, err := strconv.Atoi(membershipIDStr)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid membership ID")
+        return
+    }
+    
+    if err := h.service.RestoreMembership(membershipID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, map[string]string{"message": "membership restored successfully"})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

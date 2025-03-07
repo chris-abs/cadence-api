@@ -298,3 +298,18 @@ func (s *Service) GetFamilyMembers(familyID int) ([]FamilyMemberResponse, error)
     
     return members, nil
 }
+
+
+func (s *Service) DeleteFamily(id int, deletedBy int) error {
+    if err := s.repo.Delete(id, deletedBy); err != nil {
+        return fmt.Errorf("failed to delete family: %v", err)
+    }
+    return nil
+}
+
+func (s *Service) RestoreFamily(id int) error {
+    if err := s.repo.RestoreFamily(id); err != nil {
+        return fmt.Errorf("failed to restore family: %v", err)
+    }
+    return nil
+}
