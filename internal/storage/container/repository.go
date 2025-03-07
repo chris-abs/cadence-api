@@ -342,12 +342,13 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
 
 func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, error) {
     query := `
-        SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
-        FROM container c
-        LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id
-        WHERE c.qr_code = $1 AND c.family_id = $2`
+    SELECT 
+        c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
+        c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+        w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+    FROM container c
+    LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
+    WHERE c.qr_code = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
     container := new(entities.Container)
     var workspaceID sql.NullInt64

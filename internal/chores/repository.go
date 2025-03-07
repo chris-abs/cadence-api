@@ -483,15 +483,16 @@ func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*
 
 func (r *Repository) GetInstancesByAssignee(assigneeID int, familyID int, startDate, endDate time.Time) ([]*entities.ChoreInstance, error) {
 	query := `
-		SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
-			   ci.status, ci.completed_at, ci.verified_by, ci.notes, 
-			   ci.created_at, ci.updated_at,
-			   c.name, c.points
-		FROM chore_instance ci
-		JOIN chore c ON ci.chore_id = c.id
-		WHERE ci.assignee_id = $1 AND ci.family_id = $2 
-		AND ci.due_date >= $3 AND ci.due_date <= $4
-		ORDER BY ci.due_date ASC`
+    SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
+        ci.status, ci.completed_at, ci.verified_by, ci.notes, 
+        ci.created_at, ci.updated_at,
+        c.name, c.points
+    FROM chore_instance ci
+    JOIN chore c ON ci.chore_id = c.id AND c.is_deleted = false
+    WHERE ci.assignee_id = $1 AND ci.family_id = $2 
+    AND ci.due_date >= $3 AND ci.due_date < $4
+    AND ci.is_deleted = false
+    ORDER BY ci.due_date ASC`
 
 	rows, err := r.db.Query(query, assigneeID, familyID, startDate, endDate)
 	if err != nil {
@@ -658,16 +659,18 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
 
 func (r *Repository) GetChoreStats(userID int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
 	query := `
-		SELECT 
-			COUNT(*) as total_assigned,
-			SUM(CASE WHEN status = 'completed' OR status = 'verified' THEN 1 ELSE 0 END) as total_completed,
-			SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as total_verified,
-			SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) as total_missed,
-			SUM(CASE WHEN status = 'completed' OR status = 'verified' THEN c.points ELSE 0 END) as points_earned
-		FROM chore_instance ci
-		JOIN chore c ON ci.chore_id = c.id
-		WHERE ci.assignee_id = $1 AND ci.family_id = $2 
-		AND ci.due_date >= $3 AND ci.due_date <= $4`
+    SELECT 
+        COUNT(*) as total_assigned,
+        SUM(CASE WHEN status = 'completed' OR status = 'verified' THEN 1 ELSE 0 END) as total_completed,
+        SUM(CASE WHEN status = 'verified' THEN 1 ELSE 0 END) as total_verified,
+        SUM(CASE WHEN status = 'missed' THEN 1 ELSE 0 END) as total_missed,
+        SUM(CASE WHEN status = 'completed' OR status = 'verified' THEN c.points ELSE 0 END) as points_earned
+    FROM chore_instance ci
+    JOIN chore c ON ci.chore_id = c.id AND c.is_deleted = false
+    WHERE ci.assignee_id = $1 AND ci.family_id = $2 
+    AND ci.due_date >= $3 AND ci.due_date <= $4
+    AND ci.is_deleted = false`
+
 
 	stats := &ChoreStats{}
 	var totalCompleted, totalVerified, totalMissed sql.NullInt64

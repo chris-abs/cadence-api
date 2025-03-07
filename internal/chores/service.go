@@ -268,21 +268,21 @@ func (s *Service) VerifyDay(parentID int, familyID int, req *VerifyDayRequest) e
 
 	instances, err := s.repo.GetInstancesByAssigneeAndDate(req.AssigneeID, familyID, date)
 	if err != nil {
-		return err
+    	return err
 	}
 
 	for _, instance := range instances {
-		if instance.Status == entities.StatusCompleted {
-			instance.Status = entities.StatusVerified
-			instance.VerifiedBy = &parentID
-			now := time.Now().UTC()
-			instance.CompletedAt = &now
-			
-			if err := s.repo.UpdateChoreInstance(instance); err != nil {
-				return err
-			}
-		}
-	}
+    if instance.Status == entities.StatusCompleted {
+        instance.Status = entities.StatusVerified
+        instance.VerifiedBy = &parentID
+        now := time.Now().UTC()
+        instance.CompletedAt = &now
+        
+        if err := s.repo.UpdateChoreInstance(instance); err != nil {
+            return err
+        }
+    }
+}
 
 	verification := &entities.DailyVerification{
 		Date:       date,
