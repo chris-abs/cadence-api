@@ -25,9 +25,12 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleGetTags)).Methods("GET")
     router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleCreateTag)).Methods("POST")
+    
     router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleGetTag)).Methods("GET")
     router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleUpdateTag)).Methods("PUT")
     router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleDeleteTag)).Methods("DELETE")
+
+    router.HandleFunc("/tags/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreTag)).Methods("PUT")
     router.HandleFunc("/tags/assign", h.authMiddleware.AuthHandler(h.handleAssignTags)).Methods("POST")
 }
 
@@ -125,11 +128,27 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteTag(id, *userCtx.FamilyID); err != nil {
+    if err := h.service.DeleteTag(id, *userCtx.FamilyID, userCtx.UserID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
     writeJSON(w, http.StatusOK, map[string]string{"message": "tag deleted successfully"})
+}
+
+func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
+    userCtx := r.Context().Value("user").(*models.UserContext)
+
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    if err := h.service.RestoreTag(id, *userCtx.FamilyID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    writeJSON(w, http.StatusOK, map[string]string{"message": "tag restored successfully"})
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
