@@ -107,7 +107,7 @@ func (s *Service) UpdateChore(id int, familyID int, req *UpdateChoreRequest) (*e
 	return updatedChore, nil
 }
 
-func (s *Service) DeleteChore(id int, familyID int) error {
+func (s *Service) DeleteChore(id int, familyID int, deletedBy int) error {
 	chore, err := s.repo.GetChoreByID(id, familyID)
 	if err != nil {
 		return fmt.Errorf("failed to get chore: %v", err)
@@ -122,11 +122,18 @@ func (s *Service) DeleteChore(id int, familyID int) error {
 		}
 	}
 
-	if err := s.repo.DeleteChore(id, familyID); err != nil {
-		return fmt.Errorf("failed to delete chore: %v", err)
-	}
+    if err := s.repo.DeleteChore(id, familyID, deletedBy); err != nil {
+        return fmt.Errorf("failed to delete chore: %v", err)
+    }
+    return nil
 
-	return nil
+}
+
+func (s *Service) RestoreChore(id int, familyID int) error {
+    if err := s.repo.RestoreChore(id, familyID); err != nil {
+        return fmt.Errorf("failed to restore chore: %v", err)
+    }
+    return nil
 }
 
 func (s *Service) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
