@@ -44,7 +44,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     workspaceQuery := `
         SELECT w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
         FROM workspace w
-        WHERE w.id = $1 AND w.family_id = $2`
+        WHERE w.id = $1 AND w.family_id = $2 AND w.is_deleted = false`
 
     workspace := new(entities.Workspace)
     err := r.db.QueryRow(workspaceQuery, id, familyID).Scan(
@@ -115,7 +115,7 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*entities.Worksp
     query := `
         SELECT id, name, description, user_id, family_id, created_at, updated_at 
         FROM workspace
-        WHERE family_id = $1
+        WHERE family_id = $1 AND is_deleted = false
         ORDER BY created_at DESC`
 
     rows, err := r.db.Query(query, familyID)
@@ -196,7 +196,7 @@ func (r *Repository) Update(workspace *entities.Workspace) error {
     query := `
         UPDATE workspace
         SET name = $2, description = $3, updated_at = $4
-        WHERE id = $1 AND family_id = $5`
+        WHERE id = $1 AND family_id = $5 AND is_deleted = false`
 
     result, err := r.db.Exec(
         query,
@@ -272,27 +272,31 @@ func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, fa
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int) error {
+func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
-    containerQuery := `
+    orphanQuery := `
         UPDATE container 
         SET workspace_id = NULL, updated_at = $3
-        WHERE workspace_id = $1 AND family_id = $2`
-
-    _, err = tx.Exec(containerQuery, id, familyID, time.Now().UTC())
+        WHERE workspace_id = $1 AND family_id = $2 AND is_deleted = false`
+    
+    _, err = tx.Exec(orphanQuery, id, familyID, time.Now().UTC())
     if err != nil {
-        return fmt.Errorf("error updating containers: %v", err)
+        return fmt.Errorf("error orphaning containers: %v", err)
     }
-
-    workspaceQuery := `DELETE FROM workspace WHERE id = $1 AND family_id = $2`
-    result, err := tx.Exec(workspaceQuery, id, familyID)
+    
+    deleteQuery := `
+        UPDATE workspace
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = false`
+    
+    result, err := tx.Exec(deleteQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
-        return fmt.Errorf("error deleting workspace: %v", err)
+        return fmt.Errorf("error soft deleting workspace: %v", err)
     }
 
     rowsAffected, err := result.RowsAffected()
@@ -301,8 +305,31 @@ func (r *Repository) Delete(id int, familyID int) error {
     }
 
     if rowsAffected == 0 {
-        return fmt.Errorf("workspace not found")
+        return fmt.Errorf("workspace not found or already deleted")
     }
 
     return tx.Commit()
+}
+
+func (r *Repository) RestoreDeleted(id int, familyID int) error {
+    query := `
+        UPDATE workspace
+        SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
+        WHERE id = $1 AND family_id = $2 AND is_deleted = true`
+    
+    result, err := r.db.Exec(query, id, familyID, time.Now().UTC())
+    if err != nil {
+        return fmt.Errorf("error restoring workspace: %v", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking restore result: %v", err)
+    }
+
+    if rowsAffected == 0 {
+        return fmt.Errorf("workspace not found or not deleted")
+    }
+
+    return nil
 }
