@@ -52,7 +52,7 @@ func (s *Service) SendInviteEmail(recipientEmail, inviteToken string, familyName
 		</head>
 		<body>
 			<h1>You've been invited to join %s on Cadence</h1>
-			<p>You've been invited to join a family on Cadence, the family organization platform.</p>
+			<p>You've been invited to join a family on Cadence, the family organisation platform.</p>
 			<p>To accept this invitation, please click the link below:</p>
 			<p><a href="https://app.chrisabbott.dev/invite?token=%s">Accept Invitation</a></p>
 			<p>If you don't have an account yet, you'll be able to create one.</p>
@@ -64,7 +64,7 @@ func (s *Service) SendInviteEmail(recipientEmail, inviteToken string, familyName
 	textBody := fmt.Sprintf(`
 		You've been invited to join %s on Cadence
 
-		You've been invited to join a family on Cadence, the family organization platform.
+		You've been invited to join a family on Cadence, the family organisation platform.
 		
 		To accept this invitation, copy and paste this link into your browser:
 		https://app.chrisabbott.dev/invite?token=%s
