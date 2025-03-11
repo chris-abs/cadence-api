@@ -15,6 +15,7 @@ type Config struct {
     AWSRegion          string
     S3Bucket           string
     SenderEmail        string
+    AppBaseURL         string
 }
 
 func LoadConfig() (*Config, error) {
@@ -49,6 +50,11 @@ func LoadConfig() (*Config, error) {
     }
 
     senderEmail := os.Getenv("SES_SENDER_EMAIL")
+
+    appBaseURL := os.Getenv("APP_BASE_URL")
+    if appBaseURL == "" {
+        appBaseURL = "http://localhost:3000"
+    }
 
 
     return &Config{
