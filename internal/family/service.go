@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/email"
 	"github.com/chrisabs/cadence/internal/models"
 )
 
@@ -21,6 +22,7 @@ type Service struct {
 		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
 		IsUserFamilyOwner(userID, familyID int) (bool, error)
 	}
+	emailService *email.Service
 }
 
 func NewService(
@@ -36,10 +38,16 @@ func NewService(
 		IsUserFamilyOwner(userID, familyID int) (bool, error)
 	},
 ) *Service {
+	emailService, err := email.NewService()
+	if err != nil {
+		fmt.Printf("Failed to initialize email service: %v\n", err)
+	}
+
 	return &Service{
 		repo: repo,
 		userService: userService,
 		membershipService: membershipService,
+		emailService: emailService,
 	}
 }
 
@@ -78,6 +86,23 @@ func (s *Service) CreateInvite(req *CreateInviteRequest) (*models.FamilyInvite, 
 
 	if err := s.repo.CreateInvite(invite); err != nil {
 		return nil, fmt.Errorf("failed to create invite: %v", err)
+	}
+
+	family, err := s.repo.GetByID(req.FamilyID)
+	if err != nil {
+		fmt.Printf("Error getting family for invite email: %v\n", err)
+	}
+
+	familyName := "a family"
+	if family != nil {
+		familyName = family.Name
+	}
+
+	if s.emailService != nil {
+		err := s.emailService.SendInviteEmail(req.Email, token, familyName)
+		if err != nil {
+			fmt.Printf("Failed to send invite email: %v\n", err)
+		}
 	}
 
 	return invite, nil
