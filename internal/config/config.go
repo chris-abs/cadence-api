@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-    JWTSecret         string
-    DatabaseURL       string
-    AWSAccessKeyID    string
+    JWTSecret          string
+    DatabaseURL        string
+    AWSAccessKeyID     string
     AWSSecretAccessKey string
-    AWSRegion         string
-    S3Bucket          string
+    AWSRegion          string
+    S3Bucket           string
+    SenderEmail        string
 }
 
 func LoadConfig() (*Config, error) {
@@ -47,11 +48,15 @@ func LoadConfig() (*Config, error) {
         return nil, fmt.Errorf("S3_BUCKET environment variable is required")
     }
 
+    senderEmail := os.Getenv("SES_SENDER_EMAIL")
+
+
     return &Config{
-        JWTSecret:         jwtSecret,
-        AWSAccessKeyID:    awsAccessKey,
+        JWTSecret:          jwtSecret,
+        AWSAccessKeyID:     awsAccessKey,
         AWSSecretAccessKey: awsSecretKey,
-        AWSRegion:         awsRegion,
-        S3Bucket:          s3Bucket,
+        AWSRegion:          awsRegion,
+        S3Bucket:           s3Bucket,
+        SenderEmail:        senderEmail,
     }, nil
 }
