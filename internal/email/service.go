@@ -1,4 +1,3 @@
-// internal/email/service.go
 package email
 
 import (
@@ -66,57 +65,53 @@ func (s *Service) SendInviteEmail(recipientEmail, inviteToken string, familyName
 	}
 	
 	htmlBody := fmt.Sprintf(`
-		<html>
-		<head>
-			<title>Family Invitation</title>
-			<style>
-				body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-				.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-				.header { background-color: #4a86e8; color: white; padding: 10px 20px; }
-				.content { padding: 20px; border: 1px solid #ddd; }
-				.button { display: inline-block; background-color: #4a86e8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; }
-				.footer { margin-top: 20px; font-size: 12px; color: #777; }
-				.token-box { background-color: #f5f5f5; padding: 10px; border: 1px solid #ddd; font-family: monospace; margin: 15px 0; }
-				.env-notice { background-color: #fff3cd; padding: 10px; border: 1px solid #ffeeba; margin: 15px 0; }
-			</style>
-		</head>
-		<body>
-			<div class="container">
-				<div class="header">
-					<h1>Cadence Family Invitation</h1>
-				</div>
-				<div class="content">
-					<h2>You've been invited to join %s</h2>
-					<p>You've been invited to join a family on Cadence, the family organisation platform.</p>
-					
-					%s
-					
-					<p>To accept this invitation, please click the button below:</p>
-					<p><a href="%s" class="button">Accept Invitation</a></p>
-					
-					<p>If the button doesn't work, you can copy and paste this URL into your browser:</p>
-					<p><a href="%s">%s</a></p>
-					
-					<div class="token-box">
-						<p>Your invitation token: <strong>%s</strong></p>
-					</div>
-					
-					<p>If you don't have an account yet, you'll be able to create one.</p>
-					<p>This invitation will expire in 7 days.</p>
-				</div>
-				<div class="footer">
-					<p>This email was sent from Cadence - a family organisation platform.</p>
-					<p>If you received this by mistake, please ignore this email.</p>
-				</div>
-			</div>
-		</body>
-		</html>
-	`, 
-	familyName, 
-	s.getEnvironmentNotice(),
-	inviteURL,
-	inviteURL, inviteURL,
-	inviteToken)
+    <html>
+    <head>
+        <title>Family Invitation</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <table width="100%%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+                <td bgcolor="#4a86e8" style="padding: 20px; color: white;">
+                    <h1 style="margin: 0;">Cadence Family Invitation</h1>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 20px;">
+                    <h2>You've been invited to join %s</h2>
+                    <p>You've been invited to join a family on Cadence, the family organization platform.</p>
+                    
+                    %s
+                    
+                    <p>To accept this invitation, please click the link below:</p>
+                    
+                    <table cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td style="padding: 10px 0;">
+                                <a href="%s" style="background-color: #4a86e8; color: white; padding: 10px 20px; text-decoration: none; display: inline-block;">Accept Invitation</a>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <p>If the button doesn't work, copy and paste this URL:</p>
+                    <p><a href="%s">%s</a></p>
+                    
+                    <div style="background-color: #f5f5f5; padding: 15px; border: 1px solid #ddd; margin: 15px 0;">
+                        <p style="margin: 0;"><strong>Your invitation token:</strong> %s</p>
+                    </div>
+                    
+                    <p>If you don't have an account yet, you'll be able to create one.</p>
+                    <p>This invitation will expire in 7 days.</p>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>`,
+    familyName,
+    s.getEnvironmentNotice(),
+    inviteURL,
+    inviteURL, inviteURL,
+    inviteToken)
 	
 	textBody := fmt.Sprintf(`
 		You've been invited to join %s on Cadence
@@ -161,6 +156,8 @@ func (s *Service) SendInviteEmail(recipientEmail, inviteToken string, familyName
 		},
 		Source: aws.String(s.sender),
 	}
+
+	fmt.Printf("DEBUG: Final HTML email content: %s\n", htmlBody[:200])
 
 	_, err := s.client.SendEmail(context.Background(), input)
 	if err != nil {
