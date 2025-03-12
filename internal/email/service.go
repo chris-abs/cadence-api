@@ -41,7 +41,7 @@ func NewService() (*Service, error) {
 	
 	environment := "development"
 	if cfg.AppBaseURL != "http://localhost:3000" && cfg.AppBaseURL != "" {
-		if cfg.AppBaseURL == "https://app.chrisabbott.dev" {
+		if cfg.AppBaseURL == "https://cadence.chrisabbott.dev" {
 			environment = "production"
 		} else {
 			environment = "staging"

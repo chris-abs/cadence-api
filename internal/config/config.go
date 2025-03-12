@@ -64,5 +64,6 @@ func LoadConfig() (*Config, error) {
         AWSRegion:          awsRegion,
         S3Bucket:           s3Bucket,
         SenderEmail:        senderEmail,
+        AppBaseURL:         appBaseURL,
     }, nil
 }
