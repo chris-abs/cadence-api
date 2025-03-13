@@ -275,15 +275,20 @@ func (s *Service) DeactivateFamily(familyID int) error {
 }
 
 func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, error) {
-	invite, err := s.ValidateInvite(req.Token)
-	if err != nil {
-		return nil, fmt.Errorf("invalid invite: %v", err)
-	}
+    invite, err := s.ValidateInvite(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid invite: %v", err)
+    }
 
-	user, err := s.userService.GetUserByID(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
+    user, err := s.userService.GetUserByID(userID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get user: %v", err)
+    }
+
+    if user.Email != invite.Email {
+        return nil, fmt.Errorf("this invitation was sent to %s, but you're logged in as %s", 
+            invite.Email, user.Email)
+    }
 
 	_, err = s.membershipService.CreateMembership(userID, invite.FamilyID, invite.Role, false)
 	if err != nil {
