@@ -36,7 +36,7 @@ type FamilyInvite struct {
     ID        int       `json:"id"`
     FamilyID  int       `json:"familyId"`
     Email     string    `json:"email"`
-    Role      UserRole  `json:"role"`
+    Role      ProfileRole  `json:"role"`
     Token     string    `json:"token"`
     ExpiresAt time.Time `json:"expiresAt"`
     CreatedAt time.Time `json:"createdAt"`
