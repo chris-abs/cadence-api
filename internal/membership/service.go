@@ -16,9 +16,9 @@ func NewService(repo *Repository) *Service {
 	}
 }
 
-func (s *Service) CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error) {
+func (s *Service) CreateMembership(profileId, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error) {
 	membership := &models.FamilyMembership{
-		UserID:   userID,
+		profileId:   profileId,
 		FamilyID: familyID,
 		Role:     role,
 		IsOwner:  isOwner,
@@ -35,12 +35,12 @@ func (s *Service) GetMembershipByID(id int) (*models.FamilyMembership, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *Service) GetMembershipsByUserID(userID int) ([]*models.FamilyMembership, error) {
-	return s.repo.GetByUserID(userID)
+func (s *Service) GetMembershipsByprofileId(profileId int) ([]*models.FamilyMembership, error) {
+	return s.repo.GetByprofileId(profileId)
 }
 
-func (s *Service) GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error) {
-	return s.repo.GetActiveMembershipForUser(userID)
+func (s *Service) GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error) {
+	return s.repo.GetActiveMembershipForUser(profileId)
 }
 
 func (s *Service) GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error) {
@@ -78,8 +78,8 @@ func (s *Service) RestoreMembership(id int) error {
     return nil
 }
 
-func (s *Service) HasUserRole(userID int, familyID int, role models.UserRole) (bool, error) {
-	memberships, err := s.repo.GetByUserID(userID)
+func (s *Service) HasUserRole(profileId int, familyID int, role models.UserRole) (bool, error) {
+	memberships, err := s.repo.GetByprofileId(profileId)
 	if err != nil {
 		return false, fmt.Errorf("error getting memberships: %v", err)
 	}
@@ -93,8 +93,8 @@ func (s *Service) HasUserRole(userID int, familyID int, role models.UserRole) (b
 	return false, nil
 }
 
-func (s *Service) IsUserFamilyOwner(userID int, familyID int) (bool, error) {
-	memberships, err := s.repo.GetByUserID(userID)
+func (s *Service) IsUserFamilyOwner(profileId int, familyID int) (bool, error) {
+	memberships, err := s.repo.GetByprofileId(profileId)
 	if err != nil {
 		return false, fmt.Errorf("error getting memberships: %v", err)
 	}
@@ -108,8 +108,8 @@ func (s *Service) IsUserFamilyOwner(userID int, familyID int) (bool, error) {
 	return false, nil
 }
 
-func (s *Service) IsUserInFamily(userID, familyID int) (bool, error) {
-	memberships, err := s.repo.GetByUserID(userID)
+func (s *Service) IsUserInFamily(profileId, familyID int) (bool, error) {
+	memberships, err := s.repo.GetByprofileId(profileId)
 	if err != nil {
 		return false, fmt.Errorf("error getting memberships: %v", err)
 	}
@@ -123,8 +123,8 @@ func (s *Service) IsUserInFamily(userID, familyID int) (bool, error) {
 	return false, nil
 }
 
-func (s *Service) GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error) {
-	membership, err := s.GetActiveMembershipForUser(userID)
+func (s *Service) GetUserFamilyAndRole(profileId int) (*int, *models.UserRole, error) {
+	membership, err := s.GetActiveMembershipForUser(profileId)
 	if err != nil {
 		return nil, nil, err
 	}

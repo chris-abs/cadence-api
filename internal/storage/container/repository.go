@@ -41,7 +41,7 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
         container.QRCodeImage,
         container.Number,
         container.Location,
-        container.UserID,
+        container.profileId,
         container.FamilyID,
         container.WorkspaceID,
         container.CreatedAt,
@@ -97,7 +97,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
         ID          sql.NullInt64
         Name        sql.NullString
         Description sql.NullString
-        UserID      sql.NullInt64
+        profileId      sql.NullInt64
         FamilyID    sql.NullInt64
         CreatedAt   sql.NullTime
         UpdatedAt   sql.NullTime
@@ -106,10 +106,10 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
     err := r.db.QueryRow(containerQuery, id, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.profileId, &container.FamilyID, &workspaceID, 
         &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
-        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+        &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -126,7 +126,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
-            UserID:      int(wsFields.UserID.Int64),
+            profileId:      int(wsFields.profileId.Int64),
             FamilyID:    int(wsFields.FamilyID.Int64),
             CreatedAt:   wsFields.CreatedAt.Time,
             UpdatedAt:   wsFields.UpdatedAt.Time,
@@ -230,7 +230,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
             ID          sql.NullInt64
             Name        sql.NullString
             Description sql.NullString
-            UserID      sql.NullInt64
+            profileId      sql.NullInt64
             FamilyID    sql.NullInt64
             CreatedAt   sql.NullTime
             UpdatedAt   sql.NullTime
@@ -239,10 +239,10 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
         err := rows.Scan(
             &container.ID, &container.Name, &container.Description, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
-            &container.UserID, &container.FamilyID, &workspaceID, 
+            &container.profileId, &container.FamilyID, &workspaceID, 
             &container.CreatedAt, &container.UpdatedAt,
             &wsFields.ID, &wsFields.Name, &wsFields.Description,
-            &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+            &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container: %v", err)
@@ -255,7 +255,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
                 ID:          int(wsFields.ID.Int64),
                 Name:        wsFields.Name.String,
                 Description: wsFields.Description.String,
-                UserID:      int(wsFields.UserID.Int64),
+                profileId:      int(wsFields.profileId.Int64),
                 FamilyID:    int(wsFields.FamilyID.Int64),
                 CreatedAt:   wsFields.CreatedAt.Time,
                 UpdatedAt:   wsFields.UpdatedAt.Time,
@@ -356,7 +356,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
         ID          sql.NullInt64
         Name        sql.NullString
         Description sql.NullString
-        UserID      sql.NullInt64
+        profileId      sql.NullInt64
         FamilyID    sql.NullInt64
         CreatedAt   sql.NullTime
         UpdatedAt   sql.NullTime
@@ -365,10 +365,10 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
     err := r.db.QueryRow(query, qrCode, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.profileId, &container.FamilyID, &workspaceID, 
         &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
-        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+        &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -385,7 +385,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
-            UserID:      int(wsFields.UserID.Int64),
+            profileId:      int(wsFields.profileId.Int64),
             FamilyID:    int(wsFields.FamilyID.Int64),
             CreatedAt:   wsFields.CreatedAt.Time,
             UpdatedAt:   wsFields.UpdatedAt.Time,

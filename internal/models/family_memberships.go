@@ -4,7 +4,7 @@ import "time"
 
 type FamilyMembership struct {
 	ID        int       `json:"id"`
-	UserID    int       `json:"userId"`
+	profileId    int       `json:"profileId"`
 	FamilyID  int       `json:"familyId"`
 	Role      UserRole  `json:"role"`
 	IsOwner   bool      `json:"isOwner"`

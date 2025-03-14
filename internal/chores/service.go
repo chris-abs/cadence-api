@@ -28,7 +28,7 @@ func (s *Service) SetCalendarService(calendarService CalendarService) {
 	s.calendarService = calendarService
 }
 
-func (s *Service) CreateChore(userID int, familyID int, req *CreateChoreRequest) (*entities.Chore, error) {
+func (s *Service) CreateChore(profileId int, familyID int, req *CreateChoreRequest) (*entities.Chore, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("chore name is required")
 	}
@@ -40,7 +40,7 @@ func (s *Service) CreateChore(userID int, familyID int, req *CreateChoreRequest)
 	chore := &entities.Chore{
 		Name:           req.Name,
 		Description:    req.Description,
-		CreatorID:      userID,
+		CreatorID:      profileId,
 		AssigneeID:     req.AssigneeID,
 		FamilyID:       familyID,
 		Points:         req.Points,
@@ -148,13 +148,13 @@ func (s *Service) GetInstancesByAssignee(assigneeID int, familyID int, startDate
 	return s.repo.GetInstancesByAssignee(assigneeID, familyID, startDate, endDate)
 }
 
-func (s *Service) CompleteChoreInstance(id int, userID int, familyID int, req *UpdateChoreInstanceRequest) (*entities.ChoreInstance, error) {
+func (s *Service) CompleteChoreInstance(id int, profileId int, familyID int, req *UpdateChoreInstanceRequest) (*entities.ChoreInstance, error) {
 	instance, err := s.repo.GetInstanceByID(id, familyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chore instance: %v", err)
 	}
 
-	if instance.AssigneeID != userID {
+	if instance.AssigneeID != profileId {
 		return nil, fmt.Errorf("only the assignee can mark this chore as completed")
 	}
 
@@ -204,8 +204,8 @@ func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewCho
 	return s.repo.GetInstanceByID(id, familyID)
 }
 
-func (s *Service) GetChoreStats(userID int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
-	return s.repo.GetChoreStats(userID, familyID, startDate, endDate)
+func (s *Service) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
+	return s.repo.GetChoreStats(profileId, familyID, startDate, endDate)
 }
 
 func (s *Service) GenerateDailyChoreInstances(familyID int) error {

@@ -1,7 +1,7 @@
 package models
 
 type UserContext struct {
-	UserID   int    `json:"userId"`
+	profileId   int    `json:"profileId"`
 	FamilyID *int   `json:"familyId"`
 	Role     *UserRole `json:"role"`
 }

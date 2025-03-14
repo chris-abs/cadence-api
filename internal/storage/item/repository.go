@@ -115,7 +115,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'userId', c.user_id,
+                        'profileId', c.user_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -124,7 +124,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'userId', w.user_id,
+                                    'profileId', w.user_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at
@@ -224,7 +224,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'userId', c.user_id,
+                        'profileId', c.user_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -233,7 +233,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'userId', w.user_id,
+                                    'profileId', w.user_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at

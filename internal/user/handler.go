@@ -16,14 +16,14 @@ type Handler struct {
    service        *Service
    authMiddleware *middleware.AuthMiddleware
    membershipService interface {
-       IsUserInFamily(userID, familyID int) (bool, error)
-       GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error)
+       IsUserInFamily(profileId, familyID int) (bool, error)
+       GetUserFamilyAndRole(profileId int) (*int, *models.UserRole, error)
    }
 }
 
 func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware, membershipService interface {
-    IsUserInFamily(userID, familyID int) (bool, error)
-    GetUserFamilyAndRole(userID int) (*int, *models.UserRole, error)
+    IsUserInFamily(profileId, familyID int) (bool, error)
+    GetUserFamilyAndRole(profileId int) (*int, *models.UserRole, error)
 }) *Handler {
    return &Handler{
        service:        service,
@@ -144,7 +144,7 @@ func (h *Handler) handleGetUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleGetAuthenticatedUser(w http.ResponseWriter, r *http.Request) {
    userCtx := r.Context().Value("user").(*models.UserContext)
    
-   user, err := h.service.GetUserByID(userCtx.UserID)
+   user, err := h.service.GetUserByID(userCtx.profileId)
    if err != nil {
        writeError(w, http.StatusNotFound, err.Error())
        return
@@ -273,7 +273,7 @@ func (h *Handler) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
      return
     }
  
-    if err := h.service.DeleteUser(id, userCtx.UserID); err != nil {
+    if err := h.service.DeleteUser(id, userCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

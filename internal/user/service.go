@@ -19,8 +19,8 @@ type Service struct {
 		DeleteInvite(id int) error
 	}
 	membershipService interface {
-		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
-		GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+		CreateMembership(profileId, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error)
 	}
 }
 
@@ -40,16 +40,16 @@ func NewService(
 }
 
 func (s *Service) SetMembershipService(membershipService interface {
-	CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
-	GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error)
+	CreateMembership(profileId, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+	GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error)
 }) {
 	s.membershipService = membershipService
 }
 
-func (s *Service) generateJWT(userID int) (string, error) {
+func (s *Service) generateJWT(profileId int) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["userId"] = userID
+	claims["profileId"] = profileId
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
 	return token.SignedString([]byte(s.jwtSecret))

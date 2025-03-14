@@ -43,7 +43,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetUserMemberships(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
-	memberships, err := h.service.GetMembershipsByUserID(userCtx.UserID)
+	memberships, err := h.service.GetMembershipsByprofileId(userCtx.profileId)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -55,7 +55,7 @@ func (h *Handler) handleGetUserMemberships(w http.ResponseWriter, r *http.Reques
 func (h *Handler) handleGetActiveMembership(w http.ResponseWriter, r *http.Request) {
 	userCtx := r.Context().Value("user").(*models.UserContext)
 	
-	membership, err := h.service.GetActiveMembershipForUser(userCtx.UserID)
+	membership, err := h.service.GetActiveMembershipForUser(userCtx.profileId)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -173,7 +173,7 @@ func (h *Handler) handleDeleteMembership(w http.ResponseWriter, r *http.Request)
         return
     }
     
-    if err := h.service.DeleteMembership(membershipID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteMembership(membershipID, userCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

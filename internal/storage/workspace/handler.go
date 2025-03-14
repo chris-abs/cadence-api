@@ -35,7 +35,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
     userCtx := r.Context().Value("user").(*models.UserContext)
     
-    workspaces, err := h.service.GetWorkspacesByFamilyID(*userCtx.FamilyID, userCtx.UserID)
+    workspaces, err := h.service.GetWorkspacesByFamilyID(*userCtx.FamilyID, userCtx.profileId)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -110,7 +110,7 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID, userCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

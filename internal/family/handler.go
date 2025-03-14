@@ -53,7 +53,7 @@ func (h *Handler) handleCreateFamily(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userCtx := r.Context().Value("user").(*models.UserContext)
-	family, err := h.service.CreateFamily(&req, userCtx.UserID)
+	family, err := h.service.CreateFamily(&req, userCtx.profileId)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -237,7 +237,7 @@ func (h *Handler) handleJoinFamily(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userCtx := r.Context().Value("user").(*models.UserContext)
-	user, err := h.service.JoinFamily(userCtx.UserID, &req)
+	user, err := h.service.JoinFamily(userCtx.profileId, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -270,7 +270,7 @@ func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := h.service.DeleteFamily(id, userCtx.UserID); err != nil {
+    if err := h.service.DeleteFamily(id, userCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

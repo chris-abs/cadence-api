@@ -16,11 +16,11 @@ type Service struct {
 		GetUserByID(id int) (*models.User, error)
 	}
 	membershipService interface {
-		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		CreateMembership(profileId, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
 		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
 		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
-		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
-		IsUserFamilyOwner(userID, familyID int) (bool, error)
+		HasUserRole(profileId, familyID int, role models.UserRole) (bool, error)
+		IsUserFamilyOwner(profileId, familyID int) (bool, error)
 	}
 	emailService *email.Service
 }
@@ -31,11 +31,11 @@ func NewService(
 		GetUserByID(id int) (*models.User, error)
 	},
 	membershipService interface {
-		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
+		CreateMembership(profileId, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
 		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
 		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
-		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
-		IsUserFamilyOwner(userID, familyID int) (bool, error)
+		HasUserRole(profileId, familyID int, role models.UserRole) (bool, error)
+		IsUserFamilyOwner(profileId, familyID int) (bool, error)
 	},
 ) *Service {
 	emailService, err := email.NewService()
@@ -274,13 +274,13 @@ func (s *Service) DeactivateFamily(familyID int) error {
 	return nil
 }
 
-func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, error) {
+func (s *Service) JoinFamily(profileId int, req *JoinFamilyRequest) (*models.User, error) {
     invite, err := s.ValidateInvite(req.Token)
     if err != nil {
         return nil, fmt.Errorf("invalid invite: %v", err)
     }
 
-    user, err := s.userService.GetUserByID(userID)
+    user, err := s.userService.GetUserByID(profileId)
     if err != nil {
         return nil, fmt.Errorf("failed to get user: %v", err)
     }
@@ -290,7 +290,7 @@ func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, 
             invite.Email, user.Email)
     }
 
-	_, err = s.membershipService.CreateMembership(userID, invite.FamilyID, invite.Role, false)
+	_, err = s.membershipService.CreateMembership(profileId, invite.FamilyID, invite.Role, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create membership: %v", err)
 	}
@@ -312,9 +312,9 @@ func (s *Service) GetFamilyMembers(familyID int) ([]FamilyMemberResponse, error)
     var members []FamilyMemberResponse
     
     for _, membership := range memberships {
-        user, err := s.userService.GetUserByID(membership.UserID)
+        user, err := s.userService.GetUserByID(membership.profileId)
         if err != nil {
-            fmt.Printf("Error fetching user %d: %v\n", membership.UserID, err)
+            fmt.Printf("Error fetching user %d: %v\n", membership.profileId, err)
             continue
         }
         

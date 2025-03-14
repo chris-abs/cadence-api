@@ -657,7 +657,7 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
 	return nil
 }
 
-func (r *Repository) GetChoreStats(userID int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
+func (r *Repository) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
 	query := `
     SELECT 
         COUNT(*) as total_assigned,
@@ -676,7 +676,7 @@ func (r *Repository) GetChoreStats(userID int, familyID int, startDate, endDate 
 	var totalCompleted, totalVerified, totalMissed sql.NullInt64
 	var pointsEarned sql.NullInt64
 
-	err := r.db.QueryRow(query, userID, familyID, startDate, endDate).Scan(
+	err := r.db.QueryRow(query, profileId, familyID, startDate, endDate).Scan(
 		&stats.TotalAssigned,
 		&totalCompleted,
 		&totalVerified,

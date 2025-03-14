@@ -25,7 +25,7 @@ func (r *Repository) Create(membership *models.FamilyMembership) error {
 
 	err := r.db.QueryRow(
 		query,
-		membership.UserID,
+		membership.profileId,
 		membership.FamilyID,
 		membership.Role,
 		membership.IsOwner,
@@ -48,7 +48,7 @@ func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
 	membership := new(models.FamilyMembership)
 	err := r.db.QueryRow(query, id).Scan(
 		&membership.ID,
-		&membership.UserID,
+		&membership.profileId,
 		&membership.FamilyID,
 		&membership.Role,
 		&membership.IsOwner,
@@ -66,14 +66,14 @@ func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
 	return membership, nil
 }
 
-func (r *Repository) GetByUserID(userID int) ([]*models.FamilyMembership, error) {
+func (r *Repository) GetByprofileId(profileId int) ([]*models.FamilyMembership, error) {
     query := `
         SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
         WHERE user_id = $1 AND is_deleted = false
         ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(query, userID)
+	rows, err := r.db.Query(query, profileId)
 	if err != nil {
 		return nil, fmt.Errorf("error getting memberships: %v", err)
 	}
@@ -84,7 +84,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.FamilyMembership, error)
 		membership := new(models.FamilyMembership)
 		err := rows.Scan(
 			&membership.ID,
-			&membership.UserID,
+			&membership.profileId,
 			&membership.FamilyID,
 			&membership.Role,
 			&membership.IsOwner,
@@ -100,7 +100,7 @@ func (r *Repository) GetByUserID(userID int) ([]*models.FamilyMembership, error)
 	return memberships, nil
 }
 
-func (r *Repository) GetActiveMembershipForUser(userID int) (*models.FamilyMembership, error) {
+func (r *Repository) GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error) {
     query := `
         SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
@@ -109,9 +109,9 @@ func (r *Repository) GetActiveMembershipForUser(userID int) (*models.FamilyMembe
         LIMIT 1`
 
 	membership := new(models.FamilyMembership)
-	err := r.db.QueryRow(query, userID).Scan(
+	err := r.db.QueryRow(query, profileId).Scan(
 		&membership.ID,
-		&membership.UserID,
+		&membership.profileId,
 		&membership.FamilyID,
 		&membership.Role,
 		&membership.IsOwner,
@@ -147,7 +147,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.FamilyMembership, er
 		membership := new(models.FamilyMembership)
 		err := rows.Scan(
 			&membership.ID,
-			&membership.UserID,
+			&membership.profileId,
 			&membership.FamilyID,
 			&membership.Role,
 			&membership.IsOwner,
@@ -173,7 +173,7 @@ func (r *Repository) GetFamilyOwner(familyID int) (*models.FamilyMembership, err
 	membership := new(models.FamilyMembership)
 	err := r.db.QueryRow(query, familyID).Scan(
 		&membership.ID,
-		&membership.UserID,
+		&membership.profileId,
 		&membership.FamilyID,
 		&membership.Role,
 		&membership.IsOwner,

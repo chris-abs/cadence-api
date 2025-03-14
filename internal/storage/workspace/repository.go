@@ -27,7 +27,7 @@ func (r *Repository) Create(workspace *entities.Workspace) error {
         workspace.ID,
         workspace.Name,
         workspace.Description,
-        workspace.UserID,
+        workspace.profileId,
         workspace.FamilyID,
         workspace.CreatedAt,
         workspace.UpdatedAt,
@@ -51,7 +51,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
         &workspace.ID,
         &workspace.Name,
         &workspace.Description,
-        &workspace.UserID,
+        &workspace.profileId,
         &workspace.FamilyID,
         &workspace.CreatedAt,
         &workspace.UpdatedAt,
@@ -90,7 +90,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
             &container.QRCodeImage,
             &container.Number,
             &container.Location,
-            &container.UserID,
+            &container.profileId,
             &container.FamilyID,
             &workspaceID,
             &container.CreatedAt,
@@ -111,7 +111,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     return workspace, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*entities.Workspace, error) {
+func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Workspace, error) {
     query := `
         SELECT id, name, description, user_id, family_id, created_at, updated_at 
         FROM workspace
@@ -131,7 +131,7 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*entities.Worksp
             &workspace.ID,
             &workspace.Name,
             &workspace.Description,
-            &workspace.UserID,
+            &workspace.profileId,
             &workspace.FamilyID,
             &workspace.CreatedAt,
             &workspace.UpdatedAt,
@@ -167,7 +167,7 @@ func (r *Repository) GetByFamilyID(familyID int, userID int) ([]*entities.Worksp
                     &container.QRCodeImage,
                     &container.Number,
                     &container.Location,
-                    &container.UserID,
+                    &container.profileId,
                     &container.FamilyID,
                     &workspaceID,
                     &container.CreatedAt,

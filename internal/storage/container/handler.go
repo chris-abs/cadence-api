@@ -56,7 +56,7 @@ func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    container, err := h.service.CreateContainer(userCtx.UserID, *userCtx.FamilyID, &req)
+    container, err := h.service.CreateContainer(userCtx.profileId, *userCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -133,7 +133,7 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteContainer(containerID, *userCtx.FamilyID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteContainer(containerID, *userCtx.FamilyID, userCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

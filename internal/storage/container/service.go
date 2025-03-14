@@ -17,7 +17,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainerRequest) (*entities.Container, error) {
+func (s *Service) CreateContainer(profileId int, familyID int, req *CreateContainerRequest) (*entities.Container, error) {
     containerID := rand.Intn(10000)
     qrString, qrImage, err := utils.GenerateQRCode(containerID)
     if err != nil {
@@ -33,7 +33,7 @@ func (s *Service) CreateContainer(userID int, familyID int, req *CreateContainer
         QRCodeImage: qrImage,
         Number:      rand.Intn(1000),
         Location:    req.Location,
-        UserID:      userID,
+        profileId:      profileId,
         FamilyID:    familyID,        
         WorkspaceID: req.WorkspaceID,
         CreatedAt:   time.Now().UTC(),

@@ -50,7 +50,7 @@ type ChoreStats struct {
 }
 
 type ChoreStatsRequest struct {
-	UserID    int        `json:"userId"`
+	profileId    int        `json:"profileId"`
 	StartDate time.Time  `json:"startDate"`
 	EndDate   time.Time  `json:"endDate"`
 }
