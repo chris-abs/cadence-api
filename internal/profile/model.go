@@ -10,7 +10,7 @@ type Profile struct {
 	ID       int            `json:"id"`
 	FamilyID int            `json:"familyId"`
 	Name     string         `json:"name"`
-	Role     models.UserRole `json:"role"`
+	Role     models.ProfileRole `json:"role"`
 	Pin      string         `json:"-"` 
 	ImageURL string         `json:"imageUrl"`
 	IsOwner  bool           `json:"isOwner"`
@@ -20,14 +20,14 @@ type Profile struct {
 
 type CreateProfileRequest struct {
 	Name     string         `json:"name"`
-	Role     models.UserRole `json:"role"`
+	Role     models.ProfileRole `json:"role"`
 	Pin      string         `json:"pin,omitempty"`
 	ImageURL string         `json:"imageUrl,omitempty"`
 }
 
 type UpdateProfileRequest struct {
 	Name     string         `json:"name"`
-	Role     models.UserRole `json:"role,omitempty"`
+	Role     models.ProfileRole `json:"role,omitempty"`
 	Pin      string         `json:"pin,omitempty"`
 	ImageURL string         `json:"imageUrl,omitempty"`
 }

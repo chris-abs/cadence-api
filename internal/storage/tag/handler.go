@@ -35,7 +35,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     tags, err := h.service.GetAllTags(*userCtx.FamilyID)
     if err != nil {
@@ -46,7 +46,7 @@ func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     var req CreateTagRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,7 +63,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -80,7 +80,7 @@ func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -103,7 +103,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     var req AssignTagsRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -120,7 +120,7 @@ func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -136,7 +136,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {

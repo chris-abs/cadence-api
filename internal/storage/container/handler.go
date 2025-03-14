@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     containers, err := h.service.GetContainersByFamilyID(*userCtx.FamilyID)
     if err != nil {
@@ -48,7 +48,7 @@ func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     var req CreateContainerRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -65,7 +65,7 @@ func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -83,7 +83,7 @@ func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -106,7 +106,7 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     vars := mux.Vars(r)
     qrCode := strings.TrimSpace(vars["qrcode"])
@@ -125,7 +125,7 @@ func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     containerID, err := getIDFromRequest(r)
     if err != nil {
@@ -141,7 +141,7 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleRestoreContainer(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
 
     containerID, err := getIDFromRequest(r)
     if err != nil {

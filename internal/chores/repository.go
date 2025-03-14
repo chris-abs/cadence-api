@@ -64,8 +64,8 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
 	chore := &entities.Chore{}
-	creator := &models.User{}
-	assignee := &models.User{}
+	creator := &models.Profile{}
+	assignee := &models.Profile{}
 	var occurrenceDataJSON []byte
 
 	err := r.db.QueryRow(query, id, familyID).Scan(
@@ -119,8 +119,8 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
 	var chores []*entities.Chore
 	for rows.Next() {
 		chore := &entities.Chore{}
-		creator := &models.User{}
-		assignee := &models.User{}
+		creator := &models.Profile{}
+		assignee := &models.Profile{}
 		var occurrenceDataJSON []byte
 
 		err := rows.Scan(
@@ -341,8 +341,8 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
         WHERE ci.id = $1 AND ci.family_id = $2 AND ci.is_deleted = false`
 
 	instance := &entities.ChoreInstance{}
-	assignee := &models.User{}
-	verifier := &models.User{}
+	assignee := &models.Profile{}
+	verifier := &models.Profile{}
 	var verifiedBy sql.NullInt64
 	var completedAt sql.NullTime
 

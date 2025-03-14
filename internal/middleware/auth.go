@@ -19,7 +19,7 @@ type AuthMiddleware struct {
 	}
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	}
 }
 
@@ -31,7 +31,7 @@ func NewAuthMiddleware(
 	},
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	},
 ) *AuthMiddleware {
 	return &AuthMiddleware{
@@ -42,8 +42,8 @@ func NewAuthMiddleware(
 	}
 }
 
-func (m *AuthMiddleware) buildUserContext(profileId int) (*models.UserContext, error) {
-	ctx := &models.UserContext{
+func (m *AuthMiddleware) buildUserContext(profileId int) (*models.ProfileContext, error) {
+	ctx := &models.ProfileContext{
 		profileId: profileId,
 	}
 	
@@ -92,7 +92,7 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 
 		userCtx, err := m.buildUserContext(int(profileId))
 		if err != nil {
-			userCtx = &models.UserContext{
+			userCtx = &models.ProfileContext{
 				profileId: int(profileId),
 			}
 		}
@@ -105,7 +105,7 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 func (m *AuthMiddleware) ModuleMiddleware(moduleID models.ModuleID, permission models.Permission) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return m.AuthHandler(func(w http.ResponseWriter, r *http.Request) {
-			userCtx := r.Context().Value("user").(*models.UserContext)
+			userCtx := r.Context().Value("user").(*models.ProfileContext)
 
 			if userCtx.FamilyID == nil || userCtx.Role == nil {
 				http.Error(w, "Access denied: Not a family member", http.StatusForbidden)

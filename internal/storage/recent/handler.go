@@ -26,7 +26,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")

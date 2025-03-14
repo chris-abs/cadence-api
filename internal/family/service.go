@@ -11,7 +11,7 @@ import (
 type Service struct {
 	repo *Repository
 	userService interface {
-		GetUserByID(id int) (*models.User, error)
+		GetUserByID(id int) (*models.Profile, error)
 	}
 	emailService *email.Service
 }
@@ -19,7 +19,7 @@ type Service struct {
 func NewService(
 	repo *Repository,
 	userService interface {
-		GetUserByID(id int) (*models.User, error)
+		GetUserByID(id int) (*models.Profile, error)
 	},
 ) *Service {
 	emailService, err := email.NewService()
@@ -101,7 +101,7 @@ func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) e
 	return nil
 }
 
-func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
+func (s *Service) HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
 	family, err := s.repo.GetByID(familyID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get family: %v", err)
@@ -111,7 +111,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 		return false, nil
 	}
 
-	permissions := map[models.ModuleID]map[models.UserRole][]models.Permission{
+	permissions := map[models.ModuleID]map[models.ProfileRole][]models.Permission{
 		"storage": {
 			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
 			"CHILD":  {models.PermissionRead},

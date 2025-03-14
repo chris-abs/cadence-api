@@ -33,7 +33,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
@@ -56,7 +56,7 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
@@ -79,7 +79,7 @@ func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
@@ -102,7 +102,7 @@ func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
@@ -125,7 +125,7 @@ func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
@@ -148,7 +148,7 @@ func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleContainerQRSearch(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    userCtx := r.Context().Value("user").(*models.ProfileContext)
     
     if userCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")

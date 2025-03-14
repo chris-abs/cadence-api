@@ -17,7 +17,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
+func (s *Service) CreateWorkspace(userCtx *models.ProfileContext, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
     workspace := &entities.Workspace{
         ID:          rand.Intn(10000),
         Name:        req.Name,
