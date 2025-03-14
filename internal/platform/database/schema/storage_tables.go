@@ -27,7 +27,7 @@ func createWorkspaceTable(db *sql.DB) error {
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         description TEXT,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
         family_id INTEGER REFERENCES family(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -53,7 +53,7 @@ func createContainerTable(db *sql.DB) error {
         qr_code_image TEXT,             
         number INTEGER,         
         location VARCHAR(50),
-        user_id INTEGER REFERENCES users(id) NOT NULL,
+        user_id INTEGER REFERENCES profile(id) NOT NULL,
         family_id INTEGER REFERENCES family(id) NOT NULL,
         workspace_id INTEGER REFERENCES workspace(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

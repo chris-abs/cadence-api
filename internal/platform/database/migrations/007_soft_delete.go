@@ -16,7 +16,7 @@ func MigrateSoftDelete(tx *sql.Tx) error {
             ALTER TABLE %s 
             ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false,
             ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE,
-            ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id)
+            ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES profile(id)
         `, table)
         
         if _, err := tx.Exec(query); err != nil {

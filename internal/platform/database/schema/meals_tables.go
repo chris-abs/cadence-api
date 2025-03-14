@@ -34,7 +34,7 @@ func createRecipeTable(db *sql.DB) error {
         cook_time INTEGER,
         serving_size INTEGER,
         image_url TEXT,
-        creator_id INTEGER REFERENCES users(id),
+        creator_id INTEGER REFERENCES profile(id),
         family_id INTEGER REFERENCES family(id) NOT NULL,
         ingredients JSONB NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -65,7 +65,7 @@ func createMealPlanTable(db *sql.DB) error {
     
     CREATE TABLE IF NOT EXISTS meal_plan_assignee (
         meal_plan_id INTEGER REFERENCES meal_plan(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
         role VARCHAR(50) NOT NULL,
         PRIMARY KEY (meal_plan_id, user_id)
     );
@@ -98,7 +98,7 @@ func createShoppingListTable(db *sql.DB) error {
         item_name VARCHAR(255) NOT NULL,
         quantity VARCHAR(100),
         is_purchased BOOLEAN DEFAULT FALSE,
-        purchased_by INTEGER REFERENCES users(id),
+        purchased_by INTEGER REFERENCES profile(id),
         recipe_id INTEGER REFERENCES recipe(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

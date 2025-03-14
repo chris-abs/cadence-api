@@ -18,7 +18,7 @@ func MigrateFamilySupport(tx *sql.Tx) error {
         `CREATE TABLE IF NOT EXISTS family (
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            owner_id INTEGER REFERENCES users(id),
+            owner_id INTEGER REFERENCES profile(id),
             module_permissions JSONB NOT NULL DEFAULT '{
                 "storage": {"enabled": true, "actions": ["READ", "WRITE"]},
                 "meals": {"enabled": false, "actions": []},
