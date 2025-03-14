@@ -1,33 +1,50 @@
 package family
 
-import "github.com/chrisabs/cadence/internal/models"
+import (
+	"time"
 
-type CreateFamilyRequest struct {
-    Name    string            `json:"name"`
-    Modules []models.ModuleID `json:"modules"`
+	"github.com/chrisabs/cadence/internal/models"
+)
+
+type FamilyAccount struct {
+	ID        int       `json:"id"`
+	Email     string    `json:"email"`
+	Password  string    `json:"-"` 
+	FamilyName string   `json:"familyName"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-type CreateInviteRequest struct {
-    FamilyID int             `json:"familyId"`
-    Email    string          `json:"email"`
-    Role     models.UserRole `json:"role"`
+type FamilySettings struct {
+	FamilyID  int              `json:"familyId"`
+	Modules   []models.Module  `json:"modules"`
+	Status    models.FamilyStatus `json:"status"`
+	CreatedAt time.Time        `json:"createdAt"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+}
+
+type CreateFamilyRequest struct {
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	FamilyName string `json:"familyName"`
+	OwnerName  string `json:"ownerName"` 
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AuthResponse struct {
+	Token    string        `json:"token"`
+	Family   FamilyAccount `json:"family"`
 }
 
 type UpdateFamilyRequest struct {
-    Name   string              `json:"name"`
-    Status models.FamilyStatus `json:"status"`
+	FamilyName string `json:"familyName"`
 }
 
 type UpdateModuleRequest struct {
-    ModuleID  models.ModuleID `json:"moduleId"`
-    IsEnabled bool            `json:"isEnabled"`
-}
-
-type JoinFamilyRequest struct {
-    Token    string `json:"token"`
-}
-
-type FamilyMemberResponse struct {
-    models.User
-    Role models.UserRole `json:"role"`
+	ModuleID  models.ModuleID `json:"moduleId"`
+	IsEnabled bool            `json:"isEnabled"`
 }
