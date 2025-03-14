@@ -1,22 +1,10 @@
 package profile
 
 import (
-	"time"
-
 	"github.com/chrisabs/cadence/internal/models"
 )
 
-type Profile struct {
-	ID       int            `json:"id"`
-	FamilyID int            `json:"familyId"`
-	Name     string         `json:"name"`
-	Role     models.ProfileRole `json:"role"`
-	Pin      string         `json:"-"` 
-	ImageURL string         `json:"imageUrl"`
-	IsOwner  bool           `json:"isOwner"`
-	CreatedAt time.Time     `json:"createdAt"`
-	UpdatedAt time.Time     `json:"updatedAt"`
-}
+
 
 type CreateProfileRequest struct {
 	Name     string         `json:"name"`
@@ -38,10 +26,10 @@ type SelectProfileRequest struct {
 }
 
 type ProfileResponse struct {
-	Token   string  `json:"token"`
-	Profile Profile `json:"profile"`
+	Token   string         `json:"token"`
+	Profile models.Profile `json:"profile"`
 }
 
 type ProfilesList struct {
-	Profiles []Profile `json:"profiles"`
+	Profiles []models.Profile `json:"profiles"`
 }
