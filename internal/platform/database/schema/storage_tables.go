@@ -27,13 +27,13 @@ func createWorkspaceTable(db *sql.DB) error {
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         description TEXT,
-        user_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
+        profile_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
         family_id INTEGER REFERENCES family(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(user_id);
+    CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(profile_id);
     CREATE INDEX IF NOT EXISTS idx_workspace_family ON workspace(family_id);
     CREATE INDEX IF NOT EXISTS idx_workspace_name_pattern ON workspace USING gin (name gin_trgm_ops);
     CREATE INDEX IF NOT EXISTS idx_workspace_name_fts 
@@ -53,7 +53,7 @@ func createContainerTable(db *sql.DB) error {
         qr_code_image TEXT,             
         number INTEGER,         
         location VARCHAR(50),
-        user_id INTEGER REFERENCES profile(id) NOT NULL,
+        profile_id INTEGER REFERENCES profile(id) NOT NULL,
         family_id INTEGER REFERENCES family(id) NOT NULL,
         workspace_id INTEGER REFERENCES workspace(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -63,7 +63,7 @@ func createContainerTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
     CREATE INDEX IF NOT EXISTS idx_container_family ON container(family_id);
     CREATE INDEX IF NOT EXISTS idx_container_workspace_id ON container(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_container_workspace_user ON container(workspace_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_container_workspace_user ON container(workspace_id, profile_id);
     CREATE INDEX IF NOT EXISTS idx_container_name_pattern ON container USING gin (name gin_trgm_ops);
     CREATE INDEX IF NOT EXISTS idx_container_combined_search 
     ON container USING gin (to_tsvector('english', 

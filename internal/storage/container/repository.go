@@ -27,7 +27,7 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
     containerQuery := `
         INSERT INTO container (
             id, name, description, qr_code, qr_code_image, number, 
-            location, user_id, family_id, workspace_id, created_at, updated_at
+            location, profile_id, family_id, workspace_id, created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id`
 
@@ -85,8 +85,8 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
 func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) {
     containerQuery := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+               c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
@@ -209,8 +209,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
 func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+               c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+               w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         WHERE c.family_id = $1 AND c.is_deleted = false
@@ -344,8 +344,8 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
     query := `
     SELECT 
         c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-        c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-        w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+        c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+        w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
     FROM container c
     LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
     WHERE c.qr_code = $1 AND c.family_id = $2 AND c.is_deleted = false`

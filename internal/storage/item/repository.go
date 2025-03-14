@@ -115,7 +115,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'profileId', c.user_id,
+                        'profileId', c.profile_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -124,7 +124,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'profileId', w.user_id,
+                                    'profileId', w.profile_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at
@@ -160,8 +160,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-                 w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at`
+                 c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at`
 
     item := new(entities.Item)
     var imagesJSON, containerJSON, tagsJSON []byte
@@ -224,7 +224,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'profileId', c.user_id,
+                        'profileId', c.profile_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -233,7 +233,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'profileId', w.user_id,
+                                    'profileId', w.profile_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at
@@ -269,8 +269,8 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-                 w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+                 c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         ORDER BY i.created_at DESC`
 
     rows, err := r.db.Query(query, familyID)

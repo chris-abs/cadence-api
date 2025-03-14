@@ -65,15 +65,15 @@ func createMealPlanTable(db *sql.DB) error {
     
     CREATE TABLE IF NOT EXISTS meal_plan_assignee (
         meal_plan_id INTEGER REFERENCES meal_plan(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
+        profile_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
         role VARCHAR(50) NOT NULL,
-        PRIMARY KEY (meal_plan_id, user_id)
+        PRIMARY KEY (meal_plan_id, profile_id)
     );
     
     CREATE INDEX IF NOT EXISTS idx_meal_plan_family ON meal_plan(family_id);
     CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
     CREATE INDEX IF NOT EXISTS idx_meal_plan_recipe ON meal_plan(recipe_id);
-    CREATE INDEX IF NOT EXISTS idx_meal_plan_assignee_user ON meal_plan_assignee(user_id);
+    CREATE INDEX IF NOT EXISTS idx_meal_plan_assignee_user ON meal_plan_assignee(profile_id);
     `
     
     _, err := db.Exec(query)

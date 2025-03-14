@@ -19,7 +19,7 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) Create(membership *models.FamilyMembership) error {
 	query := `
 		INSERT INTO family_membership (
-			user_id, family_id, role, is_owner, created_at, updated_at
+			profile_id, family_id, role, is_owner, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, $5, $5)
 		RETURNING id`
 
@@ -41,7 +41,7 @@ func (r *Repository) Create(membership *models.FamilyMembership) error {
 
 func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
     query := `
-        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        SELECT id, profile_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
         WHERE id = $1 AND is_deleted = false`
 
@@ -68,9 +68,9 @@ func (r *Repository) GetByID(id int) (*models.FamilyMembership, error) {
 
 func (r *Repository) GetByprofileId(profileId int) ([]*models.FamilyMembership, error) {
     query := `
-        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        SELECT id, profile_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
-        WHERE user_id = $1 AND is_deleted = false
+        WHERE profile_id = $1 AND is_deleted = false
         ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(query, profileId)
@@ -102,9 +102,9 @@ func (r *Repository) GetByprofileId(profileId int) ([]*models.FamilyMembership, 
 
 func (r *Repository) GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error) {
     query := `
-        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        SELECT id, profile_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
-        WHERE user_id = $1 AND is_deleted = false
+        WHERE profile_id = $1 AND is_deleted = false
         ORDER BY created_at DESC
         LIMIT 1`
 
@@ -131,7 +131,7 @@ func (r *Repository) GetActiveMembershipForUser(profileId int) (*models.FamilyMe
 
 func (r *Repository) GetByFamilyID(familyID int) ([]*models.FamilyMembership, error) {
     query := `
-        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        SELECT id, profile_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
         WHERE family_id = $1 AND is_deleted = false
         ORDER BY created_at DESC`
@@ -165,7 +165,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.FamilyMembership, er
 
 func (r *Repository) GetFamilyOwner(familyID int) (*models.FamilyMembership, error) {
     query := `
-        SELECT id, user_id, family_id, role, is_owner, created_at, updated_at
+        SELECT id, profile_id, family_id, role, is_owner, created_at, updated_at
         FROM family_membership
         WHERE family_id = $1 AND is_owner = true AND is_deleted = false
         LIMIT 1`

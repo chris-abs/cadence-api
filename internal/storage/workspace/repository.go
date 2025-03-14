@@ -18,7 +18,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(workspace *entities.Workspace) error {
     query := `
-        INSERT INTO workspace (id, name, description, user_id, family_id, created_at, updated_at)
+        INSERT INTO workspace (id, name, description, profile_id, family_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`
 
@@ -42,7 +42,7 @@ func (r *Repository) Create(workspace *entities.Workspace) error {
 
 func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) {
     workspaceQuery := `
-        SELECT w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+        SELECT w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM workspace w
         WHERE w.id = $1 AND w.family_id = $2 AND w.is_deleted = false`
 
@@ -67,7 +67,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     containersQuery := `
         SELECT 
             id, name, description, qr_code, qr_code_image, number, location, 
-            user_id, family_id, workspace_id, created_at, updated_at
+            profile_id, family_id, workspace_id, created_at, updated_at
         FROM container
         WHERE workspace_id = $1 AND family_id = $2
         ORDER BY created_at DESC`
@@ -113,7 +113,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
 
 func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Workspace, error) {
     query := `
-        SELECT id, name, description, user_id, family_id, created_at, updated_at 
+        SELECT id, name, description, profile_id, family_id, created_at, updated_at 
         FROM workspace
         WHERE family_id = $1 AND is_deleted = false
         ORDER BY created_at DESC`
@@ -143,7 +143,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Wor
         containersQuery := `
             SELECT 
                 id, name, description, qr_code, qr_code_image, number, location, 
-                user_id, family_id, workspace_id, created_at, updated_at
+                profile_id, family_id, workspace_id, created_at, updated_at
             FROM container
             WHERE workspace_id = $1 AND family_id = $2
             ORDER BY created_at DESC`
