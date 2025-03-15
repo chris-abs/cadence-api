@@ -15,7 +15,7 @@ type AuthMiddleware struct {
 	jwtSecret        string
 	db               *sql.DB
 	membershipService interface {
-		GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error)
+		GetActiveMembershipForProfile(profileId int) (*models.FamilyMembership, error)
 	}
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
@@ -27,7 +27,7 @@ func NewAuthMiddleware(
 	jwtSecret string,
 	db *sql.DB,
 	membershipService interface {
-		GetActiveMembershipForUser(profileId int) (*models.FamilyMembership, error)
+		GetActiveMembershipForProfile(profileId int) (*models.FamilyMembership, error)
 	},
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
@@ -42,12 +42,12 @@ func NewAuthMiddleware(
 	}
 }
 
-func (m *AuthMiddleware) buildUserContext(profileId int) (*models.ProfileContext, error) {
+func (m *AuthMiddleware) buildProfileContext(profileId int) (*models.ProfileContext, error) {
 	ctx := &models.ProfileContext{
 		profileId: profileId,
 	}
 	
-	membership, err := m.membershipService.GetActiveMembershipForUser(profileId)
+	membership, err := m.membershipService.GetActiveMembershipForProfile(profileId)
 	if err == nil && membership != nil {
 		ctx.FamilyID = &membership.FamilyID
 		ctx.Role = &membership.Role
@@ -90,7 +90,7 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		profileCtx, err := m.buildUserContext(int(profileId))
+		profileCtx, err := m.buildProfileContext(int(profileId))
 		if err != nil {
 			profileCtx = &models.ProfileContext{
 				profileId: int(profileId),
