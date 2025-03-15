@@ -68,8 +68,8 @@ func (db *PostgresDB) initializeSchema() error {
 func (db *PostgresDB) createEnums() error {
 	query := `DO $$ 
     BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
-            CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'profile_role') THEN
+            CREATE TYPE profile_role AS ENUM ('PARENT', 'CHILD');
         END IF;
     END $$;`
 

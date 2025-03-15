@@ -59,8 +59,8 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
                creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
                assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
         FROM chore c
-        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
-        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        LEFT JOIN profiles creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN profiles assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
 	chore := &entities.Chore{}
@@ -105,8 +105,8 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
                creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
                assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
         FROM chore c
-        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
-        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        LEFT JOIN profiles creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN profiles assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.family_id = $1 AND c.is_deleted = false
         ORDER BY c.created_at DESC`
 
@@ -336,8 +336,8 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
                a.id, a.email, a.first_name, a.last_name, a.image_url,
                v.id, v.email, v.first_name, v.last_name, v.image_url
         FROM chore_instance ci
-        LEFT JOIN users a ON ci.assignee_id = a.id AND a.is_deleted = false
-        LEFT JOIN users v ON ci.verified_by = v.id AND v.is_deleted = false
+        LEFT JOIN profiles a ON ci.assignee_id = a.id AND a.is_deleted = false
+        LEFT JOIN profiles v ON ci.verified_by = v.id AND v.is_deleted = false
         WHERE ci.id = $1 AND ci.family_id = $2 AND ci.is_deleted = false`
 
 	instance := &entities.ChoreInstance{}

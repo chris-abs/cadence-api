@@ -10,13 +10,13 @@ import (
 	"github.com/chrisabs/cadence/internal/membership"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/platform/database"
+	"github.com/chrisabs/cadence/internal/profile"
 	"github.com/chrisabs/cadence/internal/storage/container"
 	"github.com/chrisabs/cadence/internal/storage/item"
 	"github.com/chrisabs/cadence/internal/storage/recent"
 	"github.com/chrisabs/cadence/internal/storage/search"
 	"github.com/chrisabs/cadence/internal/storage/tag"
 	"github.com/chrisabs/cadence/internal/storage/workspace"
-	"github.com/chrisabs/cadence/internal/user"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -49,7 +49,7 @@ func (s *Server) Run() {
 	})
 
 	// Initialise repositories
-	userRepo := user.NewRepository(s.db.DB)
+	profileRepo := profile.NewRepository(s.db.DB)
 	familyRepo := family.NewRepository(s.db.DB)
 	membershipRepo := membership.NewRepository(s.db.DB)
 	containerRepo := container.NewRepository(s.db.DB)
@@ -60,8 +60,8 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 	choreRepo := chores.NewRepository(s.db.DB)  
 
-	profileService := user.NewService(
-		userRepo,
+	profileService := profile.NewService(
+		profileRepo,
 		nil, 
 		s.config.JWTSecret,
 	)
@@ -85,7 +85,7 @@ func (s *Server) Run() {
 	recentService := recent.NewService(recentRepo)
 	choreService := chores.NewService(choreRepo) 
 
-	// Initialise auth middleware with user validation
+	// Initialise auth middleware with profile validation
 	authMiddleware := middleware.NewAuthMiddleware(
 		s.config.JWTSecret,
 		s.db.DB,
@@ -94,7 +94,7 @@ func (s *Server) Run() {
 	)
 
 	// Initialise handlers
-	userHandler := user.NewHandler(profileService, authMiddleware, membershipService)
+	profileHandler := profile.NewHandler(profileService, authMiddleware, membershipService)
 	familyHandler := family.NewHandler(
 		familyService,
 		authMiddleware,
@@ -109,7 +109,7 @@ func (s *Server) Run() {
 	choreHandler := chores.NewHandler(choreService, authMiddleware)  
 
 	// Register routes
-	userHandler.RegisterRoutes(router)
+	profileHandler.RegisterRoutes(router)
 	familyHandler.RegisterRoutes(router)
 	membershipHandler.RegisterRoutes(router)
 	workspaceHandler.RegisterRoutes(router)

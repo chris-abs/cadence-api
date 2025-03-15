@@ -7,9 +7,9 @@ import (
 
 func MigrateFamilySupport(tx *sql.Tx) error {
     queries := []string{
-        // Create user_role enum
+        // Create profile_role enum
         `DO $$ BEGIN
-            CREATE TYPE user_role AS ENUM ('PARENT', 'CHILD');
+            CREATE TYPE profile_role AS ENUM ('PARENT', 'CHILD');
         EXCEPTION
             WHEN duplicate_object THEN null;
         END $$;`,
@@ -29,9 +29,9 @@ func MigrateFamilySupport(tx *sql.Tx) error {
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL
         );`,
 
-        // Add family-related columns to users
-        `ALTER TABLE users 
-         ADD COLUMN IF NOT EXISTS role user_role NOT NULL DEFAULT 'PARENT',
+        // Add family-related columns to profiles
+        `ALTER TABLE profiles 
+         ADD COLUMN IF NOT EXISTS role profile_role NOT NULL DEFAULT 'PARENT',
          ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES family(id) ON DELETE SET NULL;`,
 
         // Create family_invite table
@@ -39,7 +39,7 @@ func MigrateFamilySupport(tx *sql.Tx) error {
             id SERIAL PRIMARY KEY,
             family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
             email VARCHAR(255) NOT NULL,
-            role user_role NOT NULL,
+            role profile_role NOT NULL,
             token VARCHAR(255) UNIQUE NOT NULL,
             expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -47,7 +47,7 @@ func MigrateFamilySupport(tx *sql.Tx) error {
         );`,
 
         // Add indexes
-        `CREATE INDEX IF NOT EXISTS idx_users_family ON users(family_id);`,
+        `CREATE INDEX IF NOT EXISTS idx_profiles_family ON profiles(family_id);`,
         `CREATE INDEX IF NOT EXISTS idx_family_invite_token ON family_invite(token);`,
         `CREATE INDEX IF NOT EXISTS idx_family_invite_email ON family_invite(email);`,
     }

@@ -33,7 +33,7 @@ func createWorkspaceTable(db *sql.DB) error {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE INDEX IF NOT EXISTS idx_workspace_user ON workspace(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_workspace_profile ON workspace(profile_id);
     CREATE INDEX IF NOT EXISTS idx_workspace_family ON workspace(family_id);
     CREATE INDEX IF NOT EXISTS idx_workspace_name_pattern ON workspace USING gin (name gin_trgm_ops);
     CREATE INDEX IF NOT EXISTS idx_workspace_name_fts 
@@ -63,7 +63,7 @@ func createContainerTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
     CREATE INDEX IF NOT EXISTS idx_container_family ON container(family_id);
     CREATE INDEX IF NOT EXISTS idx_container_workspace_id ON container(workspace_id);
-    CREATE INDEX IF NOT EXISTS idx_container_workspace_user ON container(workspace_id, profile_id);
+    CREATE INDEX IF NOT EXISTS idx_container_workspace_profile ON container(workspace_id, profile_id);
     CREATE INDEX IF NOT EXISTS idx_container_name_pattern ON container USING gin (name gin_trgm_ops);
     CREATE INDEX IF NOT EXISTS idx_container_combined_search 
     ON container USING gin (to_tsvector('english', 

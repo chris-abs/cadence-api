@@ -55,7 +55,7 @@ func createProfileTable(db *sql.DB) error {
         id SERIAL PRIMARY KEY,
         family_id INTEGER REFERENCES family_account(id) ON DELETE CASCADE,
         name VARCHAR(100) NOT NULL,
-        role user_role NOT NULL,
+        role profile_role NOT NULL,
         pin VARCHAR(6),
         image_url TEXT,
         is_owner BOOLEAN NOT NULL DEFAULT false,

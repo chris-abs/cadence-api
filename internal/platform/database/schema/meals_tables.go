@@ -73,7 +73,7 @@ func createMealPlanTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_meal_plan_family ON meal_plan(family_id);
     CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
     CREATE INDEX IF NOT EXISTS idx_meal_plan_recipe ON meal_plan(recipe_id);
-    CREATE INDEX IF NOT EXISTS idx_meal_plan_assignee_user ON meal_plan_assignee(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_meal_plan_assignee_profile ON meal_plan_assignee(profile_id);
     `
     
     _, err := db.Exec(query)

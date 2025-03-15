@@ -26,7 +26,7 @@ func MigrateWorkspaceRelationships(tx *sql.Tx) error {
             name || ' ' || COALESCE(description, '')));`,
 
         // Create composite index for efficient container lookups within workspace
-        `CREATE INDEX IF NOT EXISTS idx_container_workspace_user 
+        `CREATE INDEX IF NOT EXISTS idx_container_workspace_profile 
          ON container(workspace_id, profile_id);`,
 
         // Create indexes for item lookups within container

@@ -7,7 +7,7 @@ import (
 
 func MigrateSoftDelete(tx *sql.Tx) error {
     tables := []string{
-        "users", "family", "family_membership", "workspace", 
+        "profiles", "family", "family_membership", "workspace", 
         "container", "item", "item_tag", "tag", "chore", "chore_instance",
     }
     

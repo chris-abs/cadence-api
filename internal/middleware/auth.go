@@ -19,7 +19,7 @@ type AuthMiddleware struct {
 	}
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		HasModulePermission(familyID int, profileRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	}
 }
 
@@ -31,7 +31,7 @@ func NewAuthMiddleware(
 	},
 	familyService interface {
 		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		HasModulePermission(familyID int, profileRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	},
 ) *AuthMiddleware {
 	return &AuthMiddleware{

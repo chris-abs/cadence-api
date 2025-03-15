@@ -19,7 +19,7 @@ func NewPostgresDB() (*PostgresDB, error) {
     password := os.Getenv("POSTGRES_PASSWORD")
     
     connStr := fmt.Sprintf(
-        "host=localhost user=postgres dbname=postgres password=%s sslmode=disable port=5432",
+        "host=localhost profile=postgres dbname=postgres password=%s sslmode=disable port=5432",
         password,
     )
     

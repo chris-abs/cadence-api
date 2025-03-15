@@ -101,7 +101,7 @@ func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) e
 	return nil
 }
 
-func (s *Service) HasModulePermission(familyID int, userRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
+func (s *Service) HasModulePermission(familyID int, profileRole models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
 	family, err := s.repo.GetByID(familyID)
 	if err != nil {
 		return false, fmt.Errorf("failed to get family: %v", err)
@@ -135,7 +135,7 @@ func (s *Service) HasModulePermission(familyID int, userRole models.ProfileRole,
 		return false, nil
 	}
 
-	rolePermissions, ok := modulePermissions[userRole]
+	rolePermissions, ok := modulePermissions[profileRole]
 	if !ok {
 		return false, nil
 	}
