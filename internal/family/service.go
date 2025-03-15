@@ -10,7 +10,7 @@ import (
 
 type Service struct {
 	repo *Repository
-	userService interface {
+	profileService interface {
 		GetUserByID(id int) (*models.Profile, error)
 	}
 	emailService *email.Service
@@ -18,7 +18,7 @@ type Service struct {
 
 func NewService(
 	repo *Repository,
-	userService interface {
+	profileService interface {
 		GetUserByID(id int) (*models.Profile, error)
 	},
 ) *Service {
@@ -29,7 +29,7 @@ func NewService(
 
 	return &Service{
 		repo: repo,
-		userService: userService,
+		profileService: profileService,
 		emailService: emailService,
 	}
 }

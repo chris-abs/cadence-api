@@ -60,7 +60,7 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 	choreRepo := chores.NewRepository(s.db.DB)  
 
-	userService := user.NewService(
+	profileService := user.NewService(
 		userRepo,
 		nil, 
 		s.config.JWTSecret,
@@ -70,11 +70,11 @@ func (s *Server) Run() {
 	
 	familyService := family.NewService(
 		familyRepo,
-		userService,
+		profileService,
 		membershipService,
 	)
 	
-	userService.SetMembershipService(membershipService)
+	profileService.SetMembershipService(membershipService)
 	
 	// Initialize other services
 	workspaceService := workspace.NewService(workspaceRepo)
@@ -94,7 +94,7 @@ func (s *Server) Run() {
 	)
 
 	// Initialise handlers
-	userHandler := user.NewHandler(userService, authMiddleware, membershipService)
+	userHandler := user.NewHandler(profileService, authMiddleware, membershipService)
 	familyHandler := family.NewHandler(
 		familyService,
 		authMiddleware,
