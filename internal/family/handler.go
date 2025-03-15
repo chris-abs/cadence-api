@@ -46,7 +46,7 @@ func (h *Handler) handleCreateFamily(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	family, err := h.service.CreateFamily(&req, profileCtx.profileId)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -90,7 +90,7 @@ func (h *Handler) handleGetModules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -113,7 +113,7 @@ func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -168,7 +168,7 @@ func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
 	}
 	req.ModuleID = moduleID
 
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can update modules")
 		return
@@ -198,7 +198,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -215,7 +215,7 @@ func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreFamily(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {

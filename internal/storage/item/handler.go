@@ -45,7 +45,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     items, err := h.service.GetItemsByFamilyID(*profileCtx.FamilyID)
     if err != nil {
@@ -56,7 +56,7 @@ func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     var req CreateItemRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -80,7 +80,7 @@ func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetItem(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     itemID, err := getIDFromRequest(r)
     if err != nil {
@@ -98,7 +98,7 @@ func (h *Handler) handleGetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
  
     itemID, err := getIDFromRequest(r)
     if err != nil {
@@ -176,7 +176,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     itemID, err := getIDFromRequest(r)
     if err != nil {
@@ -192,7 +192,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreItem(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     itemID, err := getIDFromRequest(r)
     if err != nil {

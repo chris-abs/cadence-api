@@ -33,7 +33,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaces, err := h.service.GetWorkspacesByFamilyID(*profileCtx.FamilyID, profileCtx.profileId)
     if err != nil {
@@ -44,7 +44,7 @@ func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     var req CreateWorkspaceRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -61,7 +61,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -79,7 +79,7 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -102,7 +102,7 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -119,7 +119,7 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {

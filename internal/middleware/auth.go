@@ -97,7 +97,7 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), "user", profileCtx)
+		ctx := context.WithValue(r.Context(), "profile", profileCtx)
 		next(w, r.WithContext(ctx))
 	}
 }
@@ -105,7 +105,7 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 func (m *AuthMiddleware) ModuleMiddleware(moduleID models.ModuleID, permission models.Permission) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return m.AuthHandler(func(w http.ResponseWriter, r *http.Request) {
-			profileCtx := r.Context().Value("user").(*models.ProfileContext)
+			profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
 			if profileCtx.FamilyID == nil || profileCtx.Role == nil {
 				http.Error(w, "Access denied: Not a family member", http.StatusForbidden)

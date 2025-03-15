@@ -52,7 +52,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
 	
@@ -88,7 +88,7 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	var req CreateChoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -106,7 +106,7 @@ func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -124,7 +124,7 @@ func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -148,7 +148,7 @@ func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -165,7 +165,7 @@ func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
-    profileCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -182,7 +182,7 @@ func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	dateStr := r.URL.Query().Get("date")
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
@@ -246,7 +246,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -264,7 +264,7 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -288,7 +288,7 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can verify chores")
@@ -310,7 +310,7 @@ func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can review chores")
@@ -339,7 +339,7 @@ func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	dateStr := r.URL.Query().Get("date")
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
@@ -371,7 +371,7 @@ func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	profileIdStr := r.URL.Query().Get("profileId")
 	startDateStr := r.URL.Query().Get("startDate")
@@ -415,7 +415,7 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGenerateChoreInstances(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can generate chore instances")
