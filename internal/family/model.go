@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
-	"github.com/chrisabs/cadence/internal/profile"
 )
 
 type FamilyAccount struct {
@@ -39,7 +38,7 @@ type LoginRequest struct {
 type FamilyAuthResponse struct {
 	Token    string        `json:"token"`
 	Family   FamilyAccount `json:"family"`
-	Profiles []profile.Profile `json:"profiles"`
+	Profiles []models.Profile `json:"profiles"`
 }
 
 type UpdateFamilyRequest struct {

@@ -14,8 +14,8 @@ type Service struct {
 	repo         *Repository
 	jwtSecret    string
 	profileService interface {
-		CreateProfile(familyID int, req *profile.CreateProfileRequest) (*profile.Profile, error)
-		GetProfilesByFamilyID(familyID int) ([]*profile.Profile, error)
+		CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
+		GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
 	}
 }
 
@@ -27,8 +27,8 @@ func NewService(repo *Repository, jwtSecret string) *Service {
 }
 
 func (s *Service) SetProfileService(profileService interface {
-	CreateProfile(familyID int, req *profile.CreateProfileRequest) (*profile.Profile, error)
-	GetProfilesByFamilyID(familyID int) ([]*profile.Profile, error)
+	CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
+	GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
 }) {
 	s.profileService = profileService
 }
@@ -82,7 +82,7 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
 		return nil, fmt.Errorf("failed to create family settings: %v", err)
 	}
 
-	var profiles []profile.Profile
+	var profiles []models.Profile
 	if s.profileService != nil {
 		ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
 			Name:  req.OwnerName,
@@ -118,7 +118,7 @@ func (s *Service) Login(req *LoginRequest) (*FamilyAuthResponse, error) {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	var profiles []profile.Profile
+	var profiles []models.Profile
 	if s.profileService != nil {
 		profilesPtr, err := s.profileService.GetProfilesByFamilyID(family.ID)
 		if err == nil {

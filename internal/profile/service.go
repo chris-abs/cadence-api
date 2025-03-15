@@ -34,7 +34,7 @@ func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.Profil
 	return token.SignedString([]byte(s.jwtSecret))
 }
 
-func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*Profile, error) {
+func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*models.Profile, error) {
 	if req.Role == models.RoleParent {
 		existingProfiles, err := s.repo.GetByFamilyID(familyID)
 		if err != nil {
@@ -48,7 +48,7 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*Profi
 		}
 	}
 
-	profile := &Profile{
+	profile := &models.Profile{
 		FamilyID:  familyID,
 		Name:      req.Name,
 		Role:      req.Role,
@@ -66,15 +66,15 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*Profi
 	return s.repo.GetByID(profile.ID)
 }
 
-func (s *Service) GetProfileByID(id int) (*Profile, error) {
+func (s *Service) GetProfileByID(id int) (*models.Profile, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *Service) GetProfilesByFamilyID(familyID int) ([]*Profile, error) {
+func (s *Service) GetProfilesByFamilyID(familyID int) ([]*models.Profile, error) {
 	return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest, imageFile *multipart.FileHeader) (*Profile, error) {
+func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest, imageFile *multipart.FileHeader) (*models.Profile, error) {
 	profile, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("profile not found: %v", err)
@@ -173,6 +173,6 @@ func (s *Service) SelectProfile(familyID int, req *SelectProfileRequest) (*Profi
 	return s.VerifyPin(familyID, req.ProfileID, req.Pin)
 }
 
-func (s *Service) GetOwnerProfile(familyID int) (*Profile, error) {
+func (s *Service) GetOwnerProfile(familyID int) (*models.Profile, error) {
 	return s.repo.GetOwnerProfile(familyID)
 }

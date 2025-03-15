@@ -1,22 +1,11 @@
 package models
 
-import "time"
-
 type FamilyStatus string
 
 const (
     FamilyStatusActive   FamilyStatus = "ACTIVE"
     FamilyStatusInactive FamilyStatus = "INACTIVE"
 )
-
-type Family struct {
-    ID        int          `json:"id"`
-    Name      string       `json:"name"`
-    Status    FamilyStatus `json:"status"`
-    CreatedAt time.Time    `json:"createdAt"`
-    UpdatedAt time.Time    `json:"updatedAt"`
-    Modules   []Module     `json:"modules"`
-}
 
 type ModuleID string
 
@@ -32,13 +21,3 @@ type Module struct {
     IsEnabled bool     `json:"isEnabled"`
 }
 
-type FamilyInvite struct {
-    ID        int       `json:"id"`
-    FamilyID  int       `json:"familyId"`
-    Email     string    `json:"email"`
-    Role      ProfileRole  `json:"role"`
-    Token     string    `json:"token"`
-    ExpiresAt time.Time `json:"expiresAt"`
-    CreatedAt time.Time `json:"createdAt"`
-    UpdatedAt time.Time `json:"updatedAt"`
-}

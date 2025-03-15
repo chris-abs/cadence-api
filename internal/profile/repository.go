@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Repository struct {
@@ -14,7 +16,7 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(profile *Profile) error {
+func (r *Repository) Create(profile *models.Profile) error {
 	query := `
 		INSERT INTO profile (
 			family_id, name, role, pin, image_url, is_owner, created_at, updated_at
@@ -40,13 +42,13 @@ func (r *Repository) Create(profile *Profile) error {
 	return nil
 }
 
-func (r *Repository) GetByID(id int) (*Profile, error) {
+func (r *Repository) GetByID(id int) (*models.Profile, error) {
 	query := `
 		SELECT id, family_id, name, role, pin, image_url, is_owner, created_at, updated_at
 		FROM profile
 		WHERE id = $1 AND is_deleted = false`
 
-	profile := new(Profile)
+	profile := new(models.Profile)
 	err := r.db.QueryRow(query, id).Scan(
 		&profile.ID,
 		&profile.FamilyID,
@@ -69,7 +71,7 @@ func (r *Repository) GetByID(id int) (*Profile, error) {
 	return profile, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*Profile, error) {
+func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
 	query := `
 		SELECT id, family_id, name, role, pin, image_url, is_owner, created_at, updated_at
 		FROM profile
@@ -82,9 +84,9 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*Profile, error) {
 	}
 	defer rows.Close()
 
-	var profiles []*Profile
+	var profiles []*models.Profile
 	for rows.Next() {
-		profile := new(Profile)
+		profile := new(models.Profile)
 		err := rows.Scan(
 			&profile.ID,
 			&profile.FamilyID,
@@ -105,7 +107,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*Profile, error) {
 	return profiles, nil
 }
 
-func (r *Repository) Update(profile *Profile) error {
+func (r *Repository) Update(profile *models.Profile) error {
 	query := `
 		UPDATE profile
 		SET name = $2, 
@@ -190,14 +192,14 @@ func (r *Repository) Restore(id int, familyID int) error {
 	return nil
 }
 
-func (r *Repository) GetOwnerProfile(familyID int) (*Profile, error) {
+func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
 	query := `
 		SELECT id, family_id, name, role, pin, image_url, is_owner, created_at, updated_at
 		FROM profile
 		WHERE family_id = $1 AND is_owner = true AND is_deleted = false
 		LIMIT 1`
 
-	profile := new(Profile)
+	profile := new(models.Profile)
 	err := r.db.QueryRow(query, familyID).Scan(
 		&profile.ID,
 		&profile.FamilyID,
