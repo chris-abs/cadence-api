@@ -29,10 +29,10 @@ type VerifyPinRequest struct {
 }
 
 type ProfileResponse struct {
-	Token   string  `json:"token"`
+	Token   string        `json:"token"`
 	Profile models.Profile `json:"profile"`
 }
 
 type ProfilesList struct {
-	Profiles []models.Profile `json:"profiles"`
+	Profiles []*models.Profile `json:"profiles"`
 }
