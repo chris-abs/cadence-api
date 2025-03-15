@@ -69,6 +69,9 @@ func (s *Server) Run() {
 		s.config.JWTSecret,
 	)
 	
+	// Set cross-service dependencies
+	familyService.SetProfileService(profileService)
+	
 	// Initialise auth middleware
 	authMiddleware := middleware.NewAuthMiddleware(
 		s.config.JWTSecret,
@@ -93,7 +96,7 @@ func (s *Server) Run() {
 	)
 	
 	profileHandler := profile.NewHandler(
-		profileService,
+		profileService, 
 		authMiddleware,
 	)
 	
