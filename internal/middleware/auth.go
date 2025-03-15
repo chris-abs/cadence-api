@@ -90,14 +90,14 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		userCtx, err := m.buildUserContext(int(profileId))
+		profileCtx, err := m.buildUserContext(int(profileId))
 		if err != nil {
-			userCtx = &models.ProfileContext{
+			profileCtx = &models.ProfileContext{
 				profileId: int(profileId),
 			}
 		}
 
-		ctx := context.WithValue(r.Context(), "user", userCtx)
+		ctx := context.WithValue(r.Context(), "user", profileCtx)
 		next(w, r.WithContext(ctx))
 	}
 }
@@ -105,14 +105,14 @@ func (m *AuthMiddleware) AuthHandler(next http.HandlerFunc) http.HandlerFunc {
 func (m *AuthMiddleware) ModuleMiddleware(moduleID models.ModuleID, permission models.Permission) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return m.AuthHandler(func(w http.ResponseWriter, r *http.Request) {
-			userCtx := r.Context().Value("user").(*models.ProfileContext)
+			profileCtx := r.Context().Value("user").(*models.ProfileContext)
 
-			if userCtx.FamilyID == nil || userCtx.Role == nil {
+			if profileCtx.FamilyID == nil || profileCtx.Role == nil {
 				http.Error(w, "Access denied: Not a family member", http.StatusForbidden)
 				return
 			}
 
-			hasPermission, err := m.familyService.HasModulePermission(*userCtx.FamilyID, *userCtx.Role, moduleID, permission)
+			hasPermission, err := m.familyService.HasModulePermission(*profileCtx.FamilyID, *profileCtx.Role, moduleID, permission)
 			if err != nil {
 				http.Error(w, "Error checking permissions", http.StatusInternalServerError)
 				return

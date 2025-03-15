@@ -26,14 +26,14 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("user").(*models.ProfileContext)
     
-    if userCtx.FamilyID == nil {
+    if profileCtx.FamilyID == nil {
         writeError(w, http.StatusBadRequest, "family ID is required")
         return
     }
 
-    response, err := h.service.GetRecentEntities(*userCtx.FamilyID)
+    response, err := h.service.GetRecentEntities(*profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

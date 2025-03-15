@@ -46,8 +46,8 @@ func (h *Handler) handleCreateFamily(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userCtx := r.Context().Value("user").(*models.ProfileContext)
-	family, err := h.service.CreateFamily(&req, userCtx.profileId)
+	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	family, err := h.service.CreateFamily(&req, profileCtx.profileId)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -90,7 +90,7 @@ func (h *Handler) handleGetModules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("user").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -98,7 +98,7 @@ func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    if userCtx.FamilyID == nil || *userCtx.FamilyID != id {
+    if profileCtx.FamilyID == nil || *profileCtx.FamilyID != id {
         writeError(w, http.StatusForbidden, "access denied")
         return
     }
@@ -113,7 +113,7 @@ func (h *Handler) handleGetFamilyMembers(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("user").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -121,12 +121,12 @@ func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if userCtx.FamilyID == nil || *userCtx.FamilyID != id {
+    if profileCtx.FamilyID == nil || *profileCtx.FamilyID != id {
         writeError(w, http.StatusForbidden, "access denied")
         return
     }
     
-    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+    if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
         writeError(w, http.StatusForbidden, "only parents can update family settings")
         return
     }
@@ -168,8 +168,8 @@ func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
 	}
 	req.ModuleID = moduleID
 
-	userCtx := r.Context().Value("user").(*models.ProfileContext)
-	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+	profileCtx := r.Context().Value("user").(*models.ProfileContext)
+	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
 		writeError(w, http.StatusForbidden, "only parents can update modules")
 		return
 	}
@@ -198,7 +198,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("user").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -206,7 +206,7 @@ func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := h.service.DeleteFamily(id, userCtx.profileId); err != nil {
+    if err := h.service.DeleteFamily(id, profileCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -215,7 +215,7 @@ func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreFamily(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.ProfileContext)
+    profileCtx := r.Context().Value("user").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -223,7 +223,7 @@ func (h *Handler) handleRestoreFamily(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
+    if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
         writeError(w, http.StatusForbidden, "only parents can restore families")
         return
     }
