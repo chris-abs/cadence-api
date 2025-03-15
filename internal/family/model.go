@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
+	"github.com/chrisabs/cadence/internal/profile"
 )
 
 type FamilyAccount struct {
@@ -16,18 +17,18 @@ type FamilyAccount struct {
 }
 
 type FamilySettings struct {
-	FamilyID  int              `json:"familyId"`
-	Modules   []models.Module  `json:"modules"`
+	FamilyID  int                 `json:"familyId"`
+	Modules   []models.Module     `json:"modules"`
 	Status    models.FamilyStatus `json:"status"`
-	CreatedAt time.Time        `json:"createdAt"`
-	UpdatedAt time.Time        `json:"updatedAt"`
+	CreatedAt time.Time           `json:"createdAt"`
+	UpdatedAt time.Time           `json:"updatedAt"`
 }
 
-type CreateFamilyRequest struct {
+type RegisterRequest struct {
 	Email      string `json:"email"`
 	Password   string `json:"password"`
 	FamilyName string `json:"familyName"`
-	OwnerName  string `json:"ownerName"` 
+	OwnerName  string `json:"ownerName"`
 }
 
 type LoginRequest struct {
@@ -35,9 +36,10 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-type AuthResponse struct {
+type FamilyAuthResponse struct {
 	Token    string        `json:"token"`
 	Family   FamilyAccount `json:"family"`
+	Profiles []profile.Profile `json:"profiles"`
 }
 
 type UpdateFamilyRequest struct {
