@@ -290,10 +290,10 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can verify chores")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can verify chores")
+        return
+    }
 	
 	var req VerifyDayRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -312,10 +312,10 @@ func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can review chores")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can review chores")
+        return
+    }
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -417,10 +417,10 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleGenerateChoreInstances(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if profileCtx.Role == nil || *profileCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can generate chore instances")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can generate chore instances")
+        return
+    }
 	
 	if err := h.service.GenerateDailyChoreInstances(profileCtx.FamilyID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
