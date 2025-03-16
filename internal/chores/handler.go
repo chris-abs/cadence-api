@@ -96,7 +96,7 @@ func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	chore, err := h.service.CreateChore(profileCtx.profileId, profileCtx.FamilyID, &req)
+	chore, err := h.service.CreateChore(profileCtx.ProfileId, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -156,7 +156,7 @@ func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := h.service.DeleteChore(id, profileCtx.FamilyID, profileCtx.profileId); err != nil {
+    if err := h.service.DeleteChore(id, profileCtx.FamilyID, profileCtx.ProfileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -278,7 +278,7 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 		return
 	}
 	
-	instance, err := h.service.CompleteChoreInstance(id, profileCtx.profileId, profileCtx.FamilyID, &req)
+	instance, err := h.service.CompleteChoreInstance(id, profileCtx.ProfileId, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -301,7 +301,7 @@ func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := h.service.VerifyDay(profileCtx.profileId, profileCtx.FamilyID, &req); err != nil {
+	if err := h.service.VerifyDay(profileCtx.ProfileId, profileCtx.FamilyID, &req); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -329,7 +329,7 @@ func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	instance, err := h.service.ReviewChore(id, profileCtx.profileId, profileCtx.FamilyID, &req)
+	instance, err := h.service.ReviewChore(id, profileCtx.ProfileId, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -402,7 +402,7 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		profileId = profileCtx.profileId
+		profileId = profileCtx.ProfileId
 	}
 	
 	stats, err := h.service.GetChoreStats(profileId, profileCtx.FamilyID, startDate, endDate)

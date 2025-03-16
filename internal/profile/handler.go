@@ -147,7 +147,7 @@ func (h *Handler) handleDeleteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := h.service.DeleteProfile(id, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
+	if err := h.service.DeleteProfile(id, profileCtx.FamilyID, profileCtx.ProfileId); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

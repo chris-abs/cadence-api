@@ -128,7 +128,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteTag(id, profileCtx.FamilyID, profileCtx.profileId); err != nil {
+    if err := h.service.DeleteTag(id, profileCtx.FamilyID, profileCtx.ProfileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
