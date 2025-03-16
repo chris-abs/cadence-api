@@ -46,7 +46,7 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.Search(query, *profileCtx.FamilyID)
+    results, err := h.service.Search(query, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -69,7 +69,7 @@ func (h *Handler) handleWorkspaceSearch(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    results, err := h.service.SearchWorkspaces(query, *profileCtx.FamilyID)
+    results, err := h.service.SearchWorkspaces(query, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -92,7 +92,7 @@ func (h *Handler) handleContainerSearch(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    results, err := h.service.SearchContainers(query, *profileCtx.FamilyID)
+    results, err := h.service.SearchContainers(query, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -115,7 +115,7 @@ func (h *Handler) handleItemSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.SearchItems(query, *profileCtx.FamilyID)
+    results, err := h.service.SearchItems(query, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -138,7 +138,7 @@ func (h *Handler) handleTagSearch(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    results, err := h.service.SearchTags(query, *profileCtx.FamilyID)
+    results, err := h.service.SearchTags(query, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -161,7 +161,7 @@ func (h *Handler) handleContainerQRSearch(w http.ResponseWriter, r *http.Request
         return
     }
 
-    container, err := h.service.FindContainerByQR(qrCode, *profileCtx.FamilyID)
+    container, err := h.service.FindContainerByQR(qrCode, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

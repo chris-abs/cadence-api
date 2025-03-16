@@ -39,7 +39,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-    containers, err := h.service.GetContainersByFamilyID(*profileCtx.FamilyID)
+    containers, err := h.service.GetContainersByFamilyID(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -56,7 +56,7 @@ func (h *Handler) handleCreateContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    container, err := h.service.CreateContainer(profileCtx.profileId, *profileCtx.FamilyID, &req)
+    container, err := h.service.CreateContainer(profileCtx.profileId, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -73,7 +73,7 @@ func (h *Handler) handleGetContainerByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    container, err := h.service.GetContainerByID(containerID, *profileCtx.FamilyID)
+    container, err := h.service.GetContainerByID(containerID, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -97,7 +97,7 @@ func (h *Handler) handleUpdateContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    container, err := h.service.UpdateContainer(containerID, *profileCtx.FamilyID, &req)
+    container, err := h.service.UpdateContainer(containerID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -115,7 +115,7 @@ func (h *Handler) handleGetContainerByQR(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    container, err := h.service.GetContainerByQR(qrCode, *profileCtx.FamilyID)
+    container, err := h.service.GetContainerByQR(qrCode, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -133,7 +133,7 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteContainer(containerID, *profileCtx.FamilyID, profileCtx.profileId); err != nil {
+    if err := h.service.DeleteContainer(containerID, profileCtx.FamilyID, profileCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -149,7 +149,7 @@ func (h *Handler) handleRestoreContainer(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    if err := h.service.RestoreContainer(containerID, *profileCtx.FamilyID); err != nil {
+    if err := h.service.RestoreContainer(containerID, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

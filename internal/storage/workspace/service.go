@@ -23,7 +23,7 @@ func (s *Service) CreateWorkspace(profileCtx *models.ProfileContext, req *Create
         Name:        req.Name,
         Description: req.Description,
         profileId:      profileCtx.profileId,
-        FamilyID:    *profileCtx.FamilyID,
+        FamilyID:    profileCtx.FamilyID,
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
         Containers:  make([]entities.Container, 0),
@@ -33,7 +33,7 @@ func (s *Service) CreateWorkspace(profileCtx *models.ProfileContext, req *Create
         return nil, fmt.Errorf("failed to create workspace: %v", err)
     }
 
-    return s.repo.GetByID(workspace.ID, *profileCtx.FamilyID)
+    return s.repo.GetByID(workspace.ID, profileCtx.FamilyID)
 }
 
 func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, error) {

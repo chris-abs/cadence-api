@@ -33,7 +33,7 @@ func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    response, err := h.service.GetRecentEntities(*profileCtx.FamilyID)
+    response, err := h.service.GetRecentEntities(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

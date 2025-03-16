@@ -47,7 +47,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    items, err := h.service.GetItemsByFamilyID(*profileCtx.FamilyID)
+    items, err := h.service.GetItemsByFamilyID(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -65,13 +65,13 @@ func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
     }
 
     if req.ContainerID != nil {
-        if _, err := h.containerService.GetContainerByID(*req.ContainerID, *profileCtx.FamilyID); err != nil {
+        if _, err := h.containerService.GetContainerByID(*req.ContainerID, profileCtx.FamilyID); err != nil {
             writeError(w, http.StatusNotFound, "container not found")
             return
         }
     }
 
-    item, err := h.service.CreateItem(*profileCtx.FamilyID, &req)
+    item, err := h.service.CreateItem(profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -88,7 +88,7 @@ func (h *Handler) handleGetItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    item, err := h.service.GetItemByID(itemID, *profileCtx.FamilyID)
+    item, err := h.service.GetItemByID(itemID, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -106,7 +106,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
         return
     }
  
-	if _, err := h.service.GetItemByID(itemID, *profileCtx.FamilyID); err != nil {
+	if _, err := h.service.GetItemByID(itemID, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
     }
@@ -144,7 +144,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
                     return
                 }
 
-                if err := h.service.AddItemImage(itemID, *profileCtx.FamilyID, url); err != nil {
+                if err := h.service.AddItemImage(itemID, profileCtx.FamilyID, url); err != nil {
                     writeError(w, http.StatusInternalServerError, err.Error())
                     return
                 }
@@ -159,14 +159,14 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
 
     if len(req.ImagesToDelete) > 0 {
         for _, url := range req.ImagesToDelete {
-            if err := h.service.DeleteItemImage(itemID, *profileCtx.FamilyID, url); err != nil {
+            if err := h.service.DeleteItemImage(itemID, profileCtx.FamilyID, url); err != nil {
                 writeError(w, http.StatusInternalServerError, err.Error())
                 return
             }
         }
     }
 
-    updatedItem, err := h.service.UpdateItem(itemID, *profileCtx.FamilyID, &req)
+    updatedItem, err := h.service.UpdateItem(itemID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -184,7 +184,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteItem(itemID, *profileCtx.FamilyID, profileCtx.profileId); err != nil {
+    if err := h.service.DeleteItem(itemID, profileCtx.FamilyID, profileCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -200,7 +200,7 @@ func (h *Handler) handleRestoreItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.RestoreItem(itemID, *profileCtx.FamilyID); err != nil {
+    if err := h.service.RestoreItem(itemID, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

@@ -37,7 +37,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-    tags, err := h.service.GetAllTags(*profileCtx.FamilyID)
+    tags, err := h.service.GetAllTags(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -54,7 +54,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.CreateTag(*profileCtx.FamilyID, &req)
+    tag, err := h.service.CreateTag(profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -71,7 +71,7 @@ func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.GetTagByID(id, *profileCtx.FamilyID)
+    tag, err := h.service.GetTagByID(id, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -94,7 +94,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.UpdateTag(id, *profileCtx.FamilyID, &req)
+    tag, err := h.service.UpdateTag(id, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -111,7 +111,7 @@ func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.AssignTagsToItems(*profileCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
+    if err := h.service.AssignTagsToItems(profileCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -128,7 +128,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteTag(id, *profileCtx.FamilyID, profileCtx.profileId); err != nil {
+    if err := h.service.DeleteTag(id, profileCtx.FamilyID, profileCtx.profileId); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -144,7 +144,7 @@ func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.RestoreTag(id, *profileCtx.FamilyID); err != nil {
+    if err := h.service.RestoreTag(id, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
