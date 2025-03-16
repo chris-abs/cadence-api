@@ -184,7 +184,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteItem(itemID, profileCtx.FamilyID, profileCtx.ProfileId); err != nil {
+    if err := h.service.DeleteItem(itemID, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

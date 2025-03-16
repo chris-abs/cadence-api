@@ -143,7 +143,7 @@ func (h *Handler) handleDeleteFamily(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := h.service.DeleteFamily(profileCtx.FamilyID, profileCtx.ProfileId); err != nil {
+	if err := h.service.DeleteFamily(profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
