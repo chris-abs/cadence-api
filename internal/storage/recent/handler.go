@@ -22,17 +22,12 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/recent", h.authMiddleware.AuthHandler(h.handleGetRecent)).Methods("GET")
+    router.HandleFunc("/recent", h.authMiddleware.ProfileAuthHandler(h.handleGetRecent)).Methods("GET")
 }
 
 func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    if profileCtx.FamilyID == nil {
-        writeError(w, http.StatusBadRequest, "family ID is required")
-        return
-    }
-
     response, err := h.service.GetRecentEntities(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
