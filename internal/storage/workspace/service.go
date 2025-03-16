@@ -22,7 +22,6 @@ func (s *Service) CreateWorkspace(profileCtx *models.ProfileContext, req *Create
         ID:          rand.Intn(10000),
         Name:        req.Name,
         Description: req.Description,
-        profileId:      profileCtx.ProfileID,
         FamilyID:    profileCtx.FamilyID,
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),

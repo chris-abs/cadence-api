@@ -23,13 +23,13 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/workspaces", h.authMiddleware.AuthHandler(h.handleGetWorkspaces)).Methods("GET")
-    router.HandleFunc("/workspaces", h.authMiddleware.AuthHandler(h.handleCreateWorkspace)).Methods("POST")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleGetWorkspaceByID)).Methods("GET")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleUpdateWorkspace)).Methods("PUT")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleDeleteWorkspace)).Methods("DELETE")
+    router.HandleFunc("/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleGetWorkspaces)).Methods("GET")
+    router.HandleFunc("/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleCreateWorkspace)).Methods("POST")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetWorkspaceByID)).Methods("GET")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateWorkspace)).Methods("PUT")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteWorkspace)).Methods("DELETE")
 
-    router.HandleFunc("/workspaces/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreWorkspace)).Methods("PUT")
+    router.HandleFunc("/workspaces/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreWorkspace)).Methods("PUT")
 }
 
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
