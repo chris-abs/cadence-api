@@ -71,8 +71,8 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
 	err := r.db.QueryRow(query, id, familyID).Scan(
 		&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
 		&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-		&creator.ID, &creator.Email, &creator.FirstName, &creator.LastName, &creator.ImageURL,
-		&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
+	    &creator.ID, &creator.Name, &creator.ImageURL,
+        &assignee.ID, &assignee.Name, &assignee.ImageURL,
 	)
 
 	if err == sql.ErrNoRows {
@@ -126,8 +126,8 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
 		err := rows.Scan(
 			&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
 			&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-			&creator.ID, &creator.Email, &creator.FirstName, &creator.LastName, &creator.ImageURL,
-			&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
+			&creator.ID, &creator.Name, &creator.ImageURL,
+			&assignee.ID, &assignee.Name, &assignee.ImageURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning chore: %v", err)
@@ -350,8 +350,8 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
 		&instance.ID, &instance.ChoreID, &instance.AssigneeID, &instance.FamilyID, &instance.DueDate,
 		&instance.Status, &completedAt, &verifiedBy, &instance.Notes,
 		&instance.CreatedAt, &instance.UpdatedAt,
-		&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
-		&verifier.ID, &verifier.Email, &verifier.FirstName, &verifier.LastName, &verifier.ImageURL,
+		&assignee.ID, &assignee.Name, &assignee.ImageURL,
+		&verifier.ID, &verifier.Name, &verifier.ImageURL,
 	)
 
 	if err == sql.ErrNoRows {
