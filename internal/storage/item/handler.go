@@ -34,14 +34,14 @@ func NewHandler(service *Service, containerService ContainerService, authMiddlew
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleGetItems)).Methods("GET")
-    router.HandleFunc("/items", h.authMiddleware.AuthHandler(h.handleCreateItem)).Methods("POST")
+    router.HandleFunc("/items", h.authMiddleware.ProfileAuthHandler(h.handleGetItems)).Methods("GET")
+    router.HandleFunc("/items", h.authMiddleware.ProfileAuthHandler(h.handleCreateItem)).Methods("POST")
 
-    router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleGetItem)).Methods("GET")
-    router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleUpdateItem)).Methods("PUT")
-    router.HandleFunc("/items/{id}", h.authMiddleware.AuthHandler(h.handleDeleteItem)).Methods("DELETE")
+    router.HandleFunc("/items/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetItem)).Methods("GET")
+    router.HandleFunc("/items/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateItem)).Methods("PUT")
+    router.HandleFunc("/items/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteItem)).Methods("DELETE")
 
-    router.HandleFunc("/items/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreItem)).Methods("PUT")
+    router.HandleFunc("/items/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreItem)).Methods("PUT")
 }
 
 func (h *Handler) handleGetItems(w http.ResponseWriter, r *http.Request) {
