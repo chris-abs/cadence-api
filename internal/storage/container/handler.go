@@ -24,16 +24,16 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/containers", h.authMiddleware.AuthHandler(h.handleGetContainers)).Methods("GET")
-    router.HandleFunc("/containers", h.authMiddleware.AuthHandler(h.handleCreateContainer)).Methods("POST")
+    router.HandleFunc("/containers", h.authMiddleware.ProfileAuthHandler(h.handleGetContainers)).Methods("GET")
+    router.HandleFunc("/containers", h.authMiddleware.ProfileAuthHandler(h.handleCreateContainer)).Methods("POST")
 
-    router.HandleFunc("/containers/{id}", h.authMiddleware.AuthHandler(h.handleGetContainerByID)).Methods("GET")
-    router.HandleFunc("/containers/{id}", h.authMiddleware.AuthHandler(h.handleDeleteContainer)).Methods("DELETE")
-    router.HandleFunc("/containers/{id}", h.authMiddleware.AuthHandler(h.handleUpdateContainer)).Methods("PUT")
+    router.HandleFunc("/containers/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetContainerByID)).Methods("GET")
+    router.HandleFunc("/containers/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteContainer)).Methods("DELETE")
+    router.HandleFunc("/containers/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateContainer)).Methods("PUT")
     
-    router.HandleFunc("/containers/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreContainer)).Methods("PUT")
+    router.HandleFunc("/containers/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreContainer)).Methods("PUT")
 
-    router.HandleFunc("/containers/qr/{qrcode}", h.authMiddleware.AuthHandler(h.handleGetContainerByQR)).Methods("GET")
+    router.HandleFunc("/containers/qr/{qrcode}", h.authMiddleware.ProfileAuthHandler(h.handleGetContainerByQR)).Methods("GET")
 }
 
 func (h *Handler) handleGetContainers(w http.ResponseWriter, r *http.Request) {
