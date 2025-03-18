@@ -17,10 +17,15 @@ type PostgresDB struct {
 
 func NewPostgresDB() (*PostgresDB, error) {
     password := os.Getenv("POSTGRES_PASSWORD")
+
+    username := os.Getenv("POSTGRES_USER")
+    if username == "" {
+        username = "postgres" 
+    }
     
     connStr := fmt.Sprintf(
-        "host=localhost profile=postgres dbname=postgres password=%s sslmode=disable port=5432",
-        password,
+        "host=localhost user=%s dbname=postgres password=%s sslmode=disable port=5432",
+        username, password,
     )
     
     db, err := sql.Open("postgres", connStr)

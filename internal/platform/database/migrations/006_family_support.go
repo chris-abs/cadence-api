@@ -32,12 +32,12 @@ func MigrateFamilySupport(tx *sql.Tx) error {
         // Add family-related columns to profiles
         `ALTER TABLE profiles 
          ADD COLUMN IF NOT EXISTS role profile_role NOT NULL DEFAULT 'PARENT',
-         ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES family(id) ON DELETE SET NULL;`,
+         ADD COLUMN IF NOT EXISTS family_id INTEGER REFERENCES family_account(id) ON DELETE SET NULL;`,
 
         // Create family_invite table
         `CREATE TABLE IF NOT EXISTS family_invite (
             id SERIAL PRIMARY KEY,
-            family_id INTEGER REFERENCES family(id) ON DELETE CASCADE,
+            family_id INTEGER REFERENCES family_account(id) ON DELETE CASCADE,
             email VARCHAR(255) NOT NULL,
             role profile_role NOT NULL,
             token VARCHAR(255) UNIQUE NOT NULL,

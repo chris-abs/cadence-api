@@ -22,13 +22,13 @@ func InitStorageSchema(db *sql.DB) error {
 }
 
 func createWorkspaceTable(db *sql.DB) error {
-	query := `
+    query := `
     CREATE TABLE IF NOT EXISTS workspace (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         description TEXT,
         profile_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -39,8 +39,8 @@ func createWorkspaceTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_workspace_name_fts 
     ON workspace USING gin (to_tsvector('english', name || ' ' || COALESCE(description, '')));
     `
-	_, err := db.Exec(query)
-	return err
+    _, err := db.Exec(query)
+    return err
 }
 
 func createContainerTable(db *sql.DB) error {
@@ -54,7 +54,7 @@ func createContainerTable(db *sql.DB) error {
         number INTEGER,         
         location VARCHAR(50),
         profile_id INTEGER REFERENCES profile(id) NOT NULL,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         workspace_id INTEGER REFERENCES workspace(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -80,7 +80,7 @@ func createItemTables(db *sql.DB) error {
         name VARCHAR(50),
         description TEXT NOT NULL DEFAULT '',
         colour TEXT,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
@@ -96,7 +96,7 @@ func createItemTables(db *sql.DB) error {
         description TEXT,
         quantity INTEGER,
         container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );

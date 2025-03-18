@@ -30,7 +30,7 @@ func createServiceTable(db *sql.DB) error {
         next_payment_date DATE,
         auto_renew BOOLEAN DEFAULT true,
         notification_days INTEGER DEFAULT 7,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );

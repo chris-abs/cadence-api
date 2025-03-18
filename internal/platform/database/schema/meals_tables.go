@@ -35,7 +35,7 @@ func createRecipeTable(db *sql.DB) error {
         serving_size INTEGER,
         image_url TEXT,
         creator_id INTEGER REFERENCES profile(id),
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         ingredients JSONB NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -54,7 +54,7 @@ func createMealPlanTable(db *sql.DB) error {
 	query := `
     CREATE TABLE IF NOT EXISTS meal_plan (
         id SERIAL PRIMARY KEY,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         date DATE NOT NULL,
         meal_type VARCHAR(50) NOT NULL,
         recipe_id INTEGER REFERENCES recipe(id),
@@ -84,7 +84,7 @@ func createShoppingListTable(db *sql.DB) error {
 	query := `
     CREATE TABLE IF NOT EXISTS shopping_list (
         id SERIAL PRIMARY KEY,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         name VARCHAR(255) NOT NULL,
         start_date DATE,
         end_date DATE,
