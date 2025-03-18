@@ -68,8 +68,11 @@ func (r *Repository) GetByID(id int) (*models.Profile, error) {
 		return nil, fmt.Errorf("error getting profile: %v", err)
 	}
 
+	profile.HasPin = profile.Pin != ""
+
 	return profile, nil
 }
+
 
 func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
 	query := `
@@ -101,6 +104,9 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error scanning profile: %v", err)
 		}
+		
+		profile.HasPin = profile.Pin != ""
+		
 		profiles = append(profiles, profile)
 	}
 
@@ -218,6 +224,8 @@ func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting owner profile: %v", err)
 	}
+
+	profile.HasPin = profile.Pin != ""
 
 	return profile, nil
 }
