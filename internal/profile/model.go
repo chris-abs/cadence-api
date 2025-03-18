@@ -5,17 +5,17 @@ import (
 )
 
 type CreateProfileRequest struct {
-	Name     string            `json:"name"`
+	Name     string             `json:"name"`
 	Role     models.ProfileRole `json:"role"`
-	Pin      string            `json:"pin,omitempty"`
-	ImageURL string            `json:"imageUrl,omitempty"`
+	Pin      string             `json:"pin,omitempty"`
+	ImageURL string             `json:"imageUrl,omitempty"`
 }
 
 type UpdateProfileRequest struct {
-	Name     string            `json:"name"`
+	Name     string             `json:"name"`
 	Role     models.ProfileRole `json:"role,omitempty"`
-	Pin      string            `json:"pin,omitempty"`
-	ImageURL string            `json:"imageUrl,omitempty"`
+	Pin      string             `json:"pin,omitempty"`
+	ImageURL string             `json:"imageUrl,omitempty"`
 }
 
 type SelectProfileRequest struct {
@@ -29,7 +29,7 @@ type VerifyPinRequest struct {
 }
 
 type ProfileResponse struct {
-	Token   string        `json:"token"`
+	Token   string         `json:"token"`
 	Profile models.Profile `json:"profile"`
 }
 
