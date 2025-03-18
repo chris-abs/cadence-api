@@ -154,7 +154,7 @@ func (s *Service) VerifyPin(familyID int, profileID int, pin string) (*ProfileRe
 		return nil, fmt.Errorf("profile does not belong to this family")
 	}
 
-	if profile.Pin != "" && (pin == "" || profile.Pin != pin) {
+	if profile.HasPin && (pin == "" || profile.Pin != pin) {
 		return nil, fmt.Errorf("invalid PIN")
 	}
 
