@@ -7,12 +7,14 @@ import (
 )
 
 type FamilyAccount struct {
-	ID        int       `json:"id"`
-	Email     string    `json:"email"`
-	Password  string    `json:"-"` 
-	FamilyName string   `json:"familyName"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+    ID          int                 `json:"id"`
+    Email       string              `json:"email"`
+    Password    string              `json:"-"` 
+    FamilyName  string              `json:"familyName"`
+    Modules     []models.Module     `json:"modules"`
+    Status      models.FamilyStatus `json:"status"`
+    CreatedAt   time.Time           `json:"createdAt"`
+    UpdatedAt   time.Time           `json:"updatedAt"`
 }
 
 type FamilySettings struct {

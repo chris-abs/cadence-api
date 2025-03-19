@@ -68,15 +68,15 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetFamily(w http.ResponseWriter, r *http.Request) {
-	familyCtx := r.Context().Value("family").(*models.FamilyContext)
-	
-	family, err := h.service.GetFamilyByID(familyCtx.FamilyID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusOK, family)
+    familyCtx := r.Context().Value("family").(*models.FamilyContext)
+    
+    family, err := h.service.GetFamilyByID(familyCtx.FamilyID)
+    if err != nil {
+        writeError(w, http.StatusNotFound, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, family)
 }
 
 func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {

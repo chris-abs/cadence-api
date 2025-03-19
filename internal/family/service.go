@@ -141,7 +141,20 @@ func (s *Service) Login(req *LoginRequest) (*FamilyAuthResponse, error) {
 }
 
 func (s *Service) GetFamilyByID(id int) (*FamilyAccount, error) {
-	return s.repo.GetByID(id)
+    family, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("family not found: %v", err)
+    }
+    
+    settings, err := s.repo.GetSettings(id)
+    if err != nil {
+        return nil, fmt.Errorf("family settings not found: %v", err)
+    }
+    
+    family.Modules = settings.Modules
+    family.Status = settings.Status
+    
+    return family, nil
 }
 
 func (s *Service) UpdateFamily(id int, req *UpdateFamilyRequest) (*FamilyAccount, error) {
