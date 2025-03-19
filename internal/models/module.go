@@ -14,17 +14,9 @@ type Module struct {
     IsEnabled bool     `json:"isEnabled"`
 }
 
-type ModuleAvailability string
-
-const (
-    ModuleAvailabilityPublic ModuleAvailability = "PUBLIC"
-    ModuleAvailabilityBeta   ModuleAvailability = "BETA"
-    ModuleAvailabilityHidden ModuleAvailability = "HIDDEN"
-)
-
 type ModuleDefinition struct {
-    ID           ModuleID          `json:"id"`
-    Name         string            `json:"name"`
-    Description  string            `json:"description"`
-    Availability ModuleAvailability `json:"availability"`
+    ID          ModuleID `json:"id"`
+    Name        string   `json:"name"`
+    Description string   `json:"description"`
+    IsAvailable bool     `json:"isAvailable"`
 }

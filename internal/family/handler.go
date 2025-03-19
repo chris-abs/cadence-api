@@ -29,8 +29,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/family", h.authMiddleware.FamilyAuthHandler(h.handleGetFamily)).Methods("GET")
 	router.HandleFunc("/family", h.authMiddleware.FamilyAuthHandler(h.handleUpdateFamily)).Methods("PUT")
 	
-	router.HandleFunc("/family/modules", h.authMiddleware.ProfileAuthHandler(h.handleGetModules)).Methods("GET")
 	router.HandleFunc("/family/modules/{moduleId}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateModule)).Methods("PUT")
+    router.HandleFunc("/family/available-modules", h.authMiddleware.FamilyAuthHandler(h.handleGetAvailableModules)).Methods("GET")
 	router.HandleFunc("/family/delete", h.authMiddleware.ProfileAuthHandler(h.handleDeleteFamily)).Methods("DELETE")
 	router.HandleFunc("/family/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreFamily)).Methods("PUT")
 }
@@ -97,28 +97,33 @@ func (h *Handler) handleUpdateFamily(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, family)
 }
 
-func (h *Handler) handleGetModules(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
-	
-	settings, err := h.service.GetFamilySettings(profileCtx.FamilyID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusOK, settings.Modules)
+func (h *Handler) handleGetAvailableModules(w http.ResponseWriter, r *http.Request) {
+    availableModules := GetAvailableModules()
+    writeJSON(w, http.StatusOK, availableModules)
 }
 
+
 func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
-	
-	if !profileCtx.IsOwner && profileCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can update modules")
-		return
-	}
-	
-	vars := mux.Vars(r)
-	moduleID := models.ModuleID(vars["moduleId"])
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+    
+    if !profileCtx.IsOwner && profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can update modules")
+        return
+    }
+    
+    vars := mux.Vars(r)
+    moduleID := models.ModuleID(vars["moduleId"])
+    
+    moduleDefinition, exists := SystemModules[moduleID]
+    if !exists {
+        writeError(w, http.StatusNotFound, "module not found")
+        return
+    }
+    
+    if !moduleDefinition.IsAvailable {
+        writeError(w, http.StatusForbidden, "module not available")
+        return
+    }
 	
 	var req UpdateModuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
