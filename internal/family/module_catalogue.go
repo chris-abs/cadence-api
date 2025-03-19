@@ -25,7 +25,7 @@ var SystemModules = map[models.ModuleID]models.ModuleDefinition{
         ID:          models.ModuleServices,
         Name:        "Services",
         Description: "Track subscriptions, bills, and recurring payments",
-        IsAvailable: false, 
+        IsAvailable: true, 
     },
 }
 
