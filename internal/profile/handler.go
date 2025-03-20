@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -196,21 +197,26 @@ func (h *Handler) handleSelectProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleVerifyPin(w http.ResponseWriter, r *http.Request) {
-	familyCtx := r.Context().Value("family").(*models.FamilyContext)
-	
-	var req VerifyPinRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	
-	profileResponse, err := h.service.VerifyPin(familyCtx.FamilyID, req.ProfileID, req.Pin)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusOK, profileResponse)
+    familyCtx := r.Context().Value("family").(*models.FamilyContext)
+    
+    var req VerifyPinRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+    
+    profileResponse, err := h.service.VerifyPin(familyCtx.FamilyID, req.ProfileID, req.Pin)
+    if err != nil {
+        if strings.Contains(err.Error(), "invalid PIN") {
+            writeError(w, http.StatusForbidden, "Invalid PIN")
+            return
+        }
+        
+        writeError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, profileResponse)
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
