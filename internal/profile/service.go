@@ -3,6 +3,7 @@ package profile
 import (
 	"fmt"
 	"mime/multipart"
+	"regexp"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/cloud"
@@ -95,8 +96,26 @@ func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest,
 		profile.Role = req.Role
 	}
 
-	if req.Pin != "" {
-		profile.Pin = req.Pin
+	if req.Pin != nil {
+		if profile.HasPin && profile.Pin != "" {
+			if req.CurrentPin == "" {
+				return nil, fmt.Errorf("current PIN required to change PIN")
+			}
+			if req.CurrentPin != profile.Pin {
+				return nil, fmt.Errorf("invalid current PIN")
+			}
+		}
+	
+		if *req.Pin == "" {
+			profile.Pin = ""
+			profile.HasPin = false
+		} else {
+			if len(*req.Pin) != 6 || !regexp.MustCompile(`^\d{6}$`).MatchString(*req.Pin) {
+				return nil, fmt.Errorf("PIN must be exactly 6 digits")
+			}
+			profile.Pin = *req.Pin
+			profile.HasPin = true
+		}
 	}
 
 	if imageFile != nil {

@@ -12,10 +12,12 @@ type CreateProfileRequest struct {
 }
 
 type UpdateProfileRequest struct {
-	Name     string             `json:"name"`
-	Role     models.ProfileRole `json:"role,omitempty"`
-	Pin      string             `json:"pin,omitempty"`
-	ImageURL string             `json:"imageUrl,omitempty"`
+    ID         int                `json:"id"`
+    Name       string             `json:"name,omitempty"`
+    Role       models.ProfileRole `json:"role,omitempty"`
+    Pin        *string            `json:"pin,omitempty"` 
+    CurrentPin string             `json:"currentPin,omitempty"`
+	ImageURL   string             `json:"imageUrl,omitempty"`
 }
 
 type SelectProfileRequest struct {
