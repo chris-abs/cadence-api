@@ -22,6 +22,7 @@ func (s *Service) CreateWorkspace(profileCtx *models.ProfileContext, req *Create
         ID:          rand.Intn(10000),
         Name:        req.Name,
         Description: req.Description,
+        ProfileID:   profileCtx.ProfileID,
         FamilyID:    profileCtx.FamilyID,
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
@@ -43,8 +44,8 @@ func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, e
     return workspace, nil
 }
 
-func (s *Service) GetWorkspacesByFamilyID(familyID int, profileId int) ([]*entities.Workspace, error) {
-    return s.repo.GetByFamilyID(familyID, profileId)
+func (s *Service) GetWorkspacesByFamilyID(familyID int, profileID int) ([]*entities.Workspace, error) {
+    return s.repo.GetByFamilyID(familyID, profileID)
 }
 
 func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequest) (*entities.Workspace, error) {

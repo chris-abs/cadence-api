@@ -27,6 +27,7 @@ func (r *Repository) Create(workspace *entities.Workspace) error {
         workspace.ID,
         workspace.Name,
         workspace.Description,
+        workspace.ProfileID,
         workspace.FamilyID,
         workspace.CreatedAt,
         workspace.UpdatedAt,
@@ -50,6 +51,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
         &workspace.ID,
         &workspace.Name,
         &workspace.Description,
+        &workspace.ProfileID,
         &workspace.FamilyID,
         &workspace.CreatedAt,
         &workspace.UpdatedAt,
@@ -67,7 +69,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
             id, name, description, qr_code, qr_code_image, number, location, 
             profile_id, family_id, workspace_id, created_at, updated_at
         FROM container
-        WHERE workspace_id = $1 AND family_id = $2
+        WHERE workspace_id = $1 AND family_id = $2 AND is_deleted = false
         ORDER BY created_at DESC`
 
     rows, err := r.db.Query(containersQuery, id, familyID)
@@ -88,6 +90,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
             &container.QRCodeImage,
             &container.Number,
             &container.Location,
+            &container.ProfileID, 
             &container.FamilyID,
             &workspaceID,
             &container.CreatedAt,
@@ -108,7 +111,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     return workspace, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Workspace, error) {
+func (r *Repository) GetByFamilyID(familyID int, profileID int) ([]*entities.Workspace, error) {
     query := `
         SELECT id, name, description, profile_id, family_id, created_at, updated_at 
         FROM workspace
@@ -128,6 +131,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Wor
             &workspace.ID,
             &workspace.Name,
             &workspace.Description,
+            &workspace.ProfileID,
             &workspace.FamilyID,
             &workspace.CreatedAt,
             &workspace.UpdatedAt,
@@ -141,7 +145,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Wor
                 id, name, description, qr_code, qr_code_image, number, location, 
                 profile_id, family_id, workspace_id, created_at, updated_at
             FROM container
-            WHERE workspace_id = $1 AND family_id = $2
+            WHERE workspace_id = $1 AND family_id = $2 AND is_deleted = false
             ORDER BY created_at DESC`
 
         containerRows, err := r.db.Query(containersQuery, workspace.ID, familyID)
@@ -163,6 +167,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileId int) ([]*entities.Wor
                     &container.QRCodeImage,
                     &container.Number,
                     &container.Location,
+                    &container.ProfileID,
                     &container.FamilyID,
                     &workspaceID,
                     &container.CreatedAt,
