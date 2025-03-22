@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/chrisabs/cadence/internal/cloud"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
@@ -49,21 +50,68 @@ func (h *Handler) handleGetProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
-	familyCtx := r.Context().Value("family").(*models.FamilyContext)
-	
-	var req CreateProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	
-	profile, err := h.service.CreateProfile(familyCtx.FamilyID, &req)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusCreated, profile)
+    familyCtx := r.Context().Value("family").(*models.FamilyContext)
+    
+    contentType := r.Header.Get("Content-Type")
+    if strings.HasPrefix(contentType, "multipart/form-data") {
+        if err := r.ParseMultipartForm(10 << 20); err != nil {
+            writeError(w, http.StatusBadRequest, "failed to parse multipart form")
+            return
+        }
+        
+        profileDataStr := r.FormValue("profileData")
+        if profileDataStr == "" {
+            writeError(w, http.StatusBadRequest, "missing profileData field")
+            return
+        }
+        
+        var req CreateProfileRequest
+        if err := json.Unmarshal([]byte(profileDataStr), &req); err != nil {
+            writeError(w, http.StatusBadRequest, "invalid profile data format")
+            return
+        }
+        
+        if file, header, err := r.FormFile("image"); err == nil {
+            defer file.Close()
+            
+            s3Handler, err := cloud.NewS3Handler()
+            if err != nil {
+                writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+                return
+            }
+            
+            imageURL, err := s3Handler.UploadFile(header, "profiles")
+            if err != nil {
+                writeError(w, http.StatusInternalServerError, "failed to upload image")
+                return
+            }
+            
+            req.ImageURL = imageURL
+        }
+        
+        profile, err := h.service.CreateProfile(familyCtx.FamilyID, &req)
+        if err != nil {
+            writeError(w, http.StatusInternalServerError, err.Error())
+            return
+        }
+        
+        writeJSON(w, http.StatusCreated, profile)
+        return
+    }
+    
+    var req CreateProfileRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+    
+    profile, err := h.service.CreateProfile(familyCtx.FamilyID, &req)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusCreated, profile)
 }
 
 func (h *Handler) handleGetProfile(w http.ResponseWriter, r *http.Request) {
