@@ -5,7 +5,7 @@ import "time"
 type Container struct {
     ID           int        `json:"id"`
     Name         string     `json:"name"`
-    Description string      `json:"description"`
+    Description  string     `json:"description"`
     QRCode       string     `json:"qrCode"`
     QRCodeImage  string     `json:"qrCodeImage"`
     Number       int        `json:"number"`

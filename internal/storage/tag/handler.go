@@ -54,7 +54,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.CreateTag(profileCtx.FamilyID, &req)
+    tag, err := h.service.CreateTag(profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -94,7 +94,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.UpdateTag(id, profileCtx.FamilyID, &req)
+    tag, err := h.service.UpdateTag(id, profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

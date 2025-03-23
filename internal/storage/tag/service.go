@@ -15,14 +15,16 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateTag(familyID int, req *CreateTagRequest) (*entities.Tag, error) {
+func (s *Service) CreateTag(familyID int, profileID int, req *CreateTagRequest) (*entities.Tag, error) {
     tag := &entities.Tag{
-        Name:      req.Name,
-        Colour:    req.Colour,
-        FamilyID:  familyID,
-        Items:     make([]entities.Item, 0),
-        CreatedAt: time.Now().UTC(),
-        UpdatedAt: time.Now().UTC(),
+        Name:        req.Name,
+        Description: req.Description,
+        Colour:      req.Colour,
+        ProfileID:   profileID,
+        FamilyID:    familyID,
+        Items:       make([]entities.Item, 0),
+        CreatedAt:   time.Now().UTC(),
+        UpdatedAt:   time.Now().UTC(),
     }
 
     if err := s.repo.Create(tag); err != nil {
@@ -40,14 +42,16 @@ func (s *Service) GetAllTags(familyID int) ([]*entities.Tag, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateTag(id int, familyID int, req *UpdateTagRequest) (*entities.Tag, error) {
+func (s *Service) UpdateTag(id int, familyID int, profileID int, req *UpdateTagRequest) (*entities.Tag, error) {
     tag, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("tag not found: %v", err)
     }
 
     tag.Name = req.Name
+    tag.Description = req.Description
     tag.Colour = req.Colour
+    tag.ProfileID = profileID 
     tag.UpdatedAt = time.Now().UTC()
 
     if err := s.repo.Update(tag); err != nil {
