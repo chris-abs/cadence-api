@@ -10,8 +10,8 @@ type Container struct {
     QRCodeImage  string     `json:"qrCodeImage"`
     Number       int        `json:"number"`
     Location     string     `json:"location"`
-    profileId       int        `json:"profileId"`
-    FamilyID    int        `json:"familyId"`
+    ProfileID    int        `json:"profileId"`
+    FamilyID     int        `json:"familyId"`
     WorkspaceID  *int       `json:"workspaceId,omitempty"`
     Workspace    *Workspace `json:"workspace,omitempty"`
     Items        []Item     `json:"items"`

@@ -33,6 +33,7 @@ func (s *Service) CreateContainer(profileId int, familyID int, req *CreateContai
         QRCodeImage: qrImage,
         Number:      rand.Intn(1000),
         Location:    req.Location,
+        ProfileID:   profileId,
         FamilyID:    familyID,        
         WorkspaceID: req.WorkspaceID,
         CreatedAt:   time.Now().UTC(),
