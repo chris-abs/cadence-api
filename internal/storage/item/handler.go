@@ -71,7 +71,7 @@ func (h *Handler) handleCreateItem(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    item, err := h.service.CreateItem(profileCtx.FamilyID, &req)
+    item, err := h.service.CreateItem(profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -166,7 +166,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    updatedItem, err := h.service.UpdateItem(itemID, profileCtx.FamilyID, &req)
+    updatedItem, err := h.service.UpdateItem(itemID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

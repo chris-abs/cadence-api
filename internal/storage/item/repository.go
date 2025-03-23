@@ -27,9 +27,9 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
     itemQuery := `
         INSERT INTO item (
             name, description, quantity, container_id, 
-            family_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, created_at, updated_at AND is_deleted = false`
+            profile_id, family_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, created_at, updated_at`
 
     err = tx.QueryRow(
         itemQuery,
@@ -37,6 +37,7 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         item.Description,
         item.Quantity,
         item.ContainerID,
+        item.ProfileID,
         item.FamilyID,
         time.Now().UTC(),
         time.Now().UTC(),
@@ -104,7 +105,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
-               i.container_id, i.family_id, i.created_at, i.updated_at,
+            i.profile_id, i.container_id, i.family_id, i.created_at, i.updated_at,
                COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
@@ -168,7 +169,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
 
     err := r.db.QueryRow(query, id, familyID).Scan(
         &item.ID, &item.Name, &item.Description,
-        &item.Quantity, &item.ContainerID, &item.FamilyID,
+        &item.Quantity, &item.ProfileID, &item.ContainerID, &item.FamilyID,
         &item.CreatedAt, &item.UpdatedAt,
         &imagesJSON, &containerJSON, &tagsJSON,
     )
@@ -213,7 +214,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
-               i.container_id, i.family_id, i.created_at, i.updated_at,
+            i.profile_id, i.container_id, i.family_id, i.created_at, i.updated_at,
                COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
@@ -286,7 +287,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
 
         err := rows.Scan(
             &item.ID, &item.Name, &item.Description,
-            &item.Quantity, &item.ContainerID, &item.FamilyID,
+            &item.Quantity, &item.ProfileID, &item.ContainerID, &item.FamilyID,
             &item.CreatedAt, &item.UpdatedAt,
             &imagesJSON, &containerJSON, &tagsJSON,
         )
@@ -321,22 +322,23 @@ func (r *Repository) Update(item *entities.Item) error {
     }
     defer tx.Rollback()
 
-    query := `
-     UPDATE item
+        query := `
+        UPDATE item
         SET name = $2, description = $3,
-        quantity = $4, container_id = $5, updated_at = $6
-     WHERE id = $1 AND family_id = $7 AND is_deleted = false`
+        quantity = $4, container_id = $5, profile_id = $6, updated_at = $7
+        WHERE id = $1 AND family_id = $8 AND is_deleted = false`
 
-    result, err := tx.Exec(
+        result, err := tx.Exec(
         query,
         item.ID,
         item.Name,
         item.Description,
         item.Quantity,
         item.ContainerID,
+        item.ProfileID,
         time.Now().UTC(),
         item.FamilyID,
-    )
+        )
     if err != nil {
         return fmt.Errorf("error updating item: %v", err)
     }
