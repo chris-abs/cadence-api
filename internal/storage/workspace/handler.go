@@ -52,7 +52,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    workspace, err := h.service.CreateWorkspace(profileCtx, &req)
+    workspace, err := h.service.CreateWorkspace(profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
