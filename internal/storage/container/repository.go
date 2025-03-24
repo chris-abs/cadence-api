@@ -27,7 +27,7 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
     containerQuery := `
         INSERT INTO container (
             id, name, description, qr_code, qr_code_image, number, 
-            location, user_id, family_id, workspace_id, created_at, updated_at
+            location, profile_id, family_id, workspace_id, created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id`
 
@@ -41,7 +41,7 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
         container.QRCodeImage,
         container.Number,
         container.Location,
-        container.UserID,
+        container.ProfileID, 
         container.FamilyID,
         container.WorkspaceID,
         container.CreatedAt,
@@ -85,8 +85,8 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
 func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) {
     containerQuery := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+            c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+            w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
@@ -97,7 +97,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
         ID          sql.NullInt64
         Name        sql.NullString
         Description sql.NullString
-        UserID      sql.NullInt64
+        profileId      sql.NullInt64
         FamilyID    sql.NullInt64
         CreatedAt   sql.NullTime
         UpdatedAt   sql.NullTime
@@ -106,10 +106,11 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
     err := r.db.QueryRow(containerQuery, id, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.ProfileID,
+        &container.FamilyID, &workspaceID, 
         &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
-        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+        &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -126,7 +127,6 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
-            UserID:      int(wsFields.UserID.Int64),
             FamilyID:    int(wsFields.FamilyID.Int64),
             CreatedAt:   wsFields.CreatedAt.Time,
             UpdatedAt:   wsFields.UpdatedAt.Time,
@@ -145,6 +145,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
@@ -209,8 +210,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Container, error) 
 func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) {
     query := `
         SELECT c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-               c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-               w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+            c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+            w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
         WHERE c.family_id = $1 AND c.is_deleted = false
@@ -230,7 +231,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
             ID          sql.NullInt64
             Name        sql.NullString
             Description sql.NullString
-            UserID      sql.NullInt64
+            profileId      sql.NullInt64
             FamilyID    sql.NullInt64
             CreatedAt   sql.NullTime
             UpdatedAt   sql.NullTime
@@ -239,10 +240,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
         err := rows.Scan(
             &container.ID, &container.Name, &container.Description, &container.QRCode,
             &container.QRCodeImage, &container.Number, &container.Location,
-            &container.UserID, &container.FamilyID, &workspaceID, 
+            &container.ProfileID, 
+            &container.FamilyID, &workspaceID, 
             &container.CreatedAt, &container.UpdatedAt,
             &wsFields.ID, &wsFields.Name, &wsFields.Description,
-            &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+            &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning container: %v", err)
@@ -255,7 +257,6 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
                 ID:          int(wsFields.ID.Int64),
                 Name:        wsFields.Name.String,
                 Description: wsFields.Description.String,
-                UserID:      int(wsFields.UserID.Int64),
                 FamilyID:    int(wsFields.FamilyID.Int64),
                 CreatedAt:   wsFields.CreatedAt.Time,
                 UpdatedAt:   wsFields.UpdatedAt.Time,
@@ -274,6 +275,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Container, error) 
                            ) ORDER BY display_order
                        ) as images
                 FROM item_image
+                WHERE is_deleted = false 
                 GROUP BY item_id
             )
             SELECT i.id, i.name, i.description, i.quantity, 
@@ -344,8 +346,8 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
     query := `
     SELECT 
         c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, 
-        c.location, c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-        w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+        c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+        w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
     FROM container c
     LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
     WHERE c.qr_code = $1 AND c.family_id = $2 AND c.is_deleted = false`
@@ -356,7 +358,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
         ID          sql.NullInt64
         Name        sql.NullString
         Description sql.NullString
-        UserID      sql.NullInt64
+        profileId      sql.NullInt64
         FamilyID    sql.NullInt64
         CreatedAt   sql.NullTime
         UpdatedAt   sql.NullTime
@@ -365,10 +367,11 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
     err := r.db.QueryRow(query, qrCode, familyID).Scan(
         &container.ID, &container.Name, &container.Description, &container.QRCode,
         &container.QRCodeImage, &container.Number, &container.Location,
-        &container.UserID, &container.FamilyID, &workspaceID, 
+        &container.ProfileID, 
+        &container.FamilyID, &workspaceID, 
         &container.CreatedAt, &container.UpdatedAt,
         &wsFields.ID, &wsFields.Name, &wsFields.Description,
-        &wsFields.UserID, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
+        &wsFields.profileId, &wsFields.FamilyID, &wsFields.CreatedAt, &wsFields.UpdatedAt,
     )
 
     if err == sql.ErrNoRows {
@@ -385,7 +388,6 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
             ID:          int(wsFields.ID.Int64),
             Name:        wsFields.Name.String,
             Description: wsFields.Description.String,
-            UserID:      int(wsFields.UserID.Int64),
             FamilyID:    int(wsFields.FamilyID.Int64),
             CreatedAt:   wsFields.CreatedAt.Time,
             UpdatedAt:   wsFields.UpdatedAt.Time,
@@ -404,6 +406,7 @@ func (r *Repository) GetByQR(qrCode string, familyID int) (*entities.Container, 
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 

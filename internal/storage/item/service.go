@@ -15,7 +15,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*entities.Item, error) {
+func (s *Service) CreateItem(familyID int, profileID int, req *CreateItemRequest) (*entities.Item, error) {
     if req.Name == "" {
         return nil, fmt.Errorf("item name is required")
     }
@@ -25,6 +25,7 @@ func (s *Service) CreateItem(familyID int, req *CreateItemRequest) (*entities.It
         Description: req.Description,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
+        ProfileID:   profileID,  
         FamilyID:    familyID,
         Images:      []entities.ItemImage{},
         Tags:        make([]entities.Tag, 0),
@@ -48,13 +49,14 @@ func (s *Service) GetItemsByFamilyID(familyID int) ([]*entities.Item, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateItem(id int, familyID int, req *UpdateItemRequest) (*entities.Item, error) {
+func (s *Service) UpdateItem(id int, familyID int, profileID int, req *UpdateItemRequest) (*entities.Item, error) {
     item := &entities.Item{
         ID:          id,
         Name:        req.Name,
         Description: req.Description,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
+        ProfileID:   profileID,  
         FamilyID:    familyID,
         UpdatedAt:   time.Now().UTC(),
     }

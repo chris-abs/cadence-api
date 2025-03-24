@@ -18,7 +18,7 @@ func InitServicesSchema(db *sql.DB) error {
 }
 
 func createServiceTable(db *sql.DB) error {
-	query := `
+    query := `
     CREATE TABLE IF NOT EXISTS service (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -30,14 +30,19 @@ func createServiceTable(db *sql.DB) error {
         next_payment_date DATE,
         auto_renew BOOLEAN DEFAULT true,
         notification_days INTEGER DEFAULT 7,
-        family_id INTEGER REFERENCES family(id) NOT NULL,
+        family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        is_deleted BOOLEAN NOT NULL DEFAULT false,
+        deleted_at TIMESTAMP WITH TIME ZONE,
+        deleted_by INTEGER REFERENCES profile(id)
     );
     
     CREATE INDEX IF NOT EXISTS idx_service_family ON service(family_id);
     CREATE INDEX IF NOT EXISTS idx_service_next_payment ON service(next_payment_date);
     CREATE INDEX IF NOT EXISTS idx_service_category ON service(category);
+    CREATE INDEX IF NOT EXISTS idx_service_is_deleted ON service(is_deleted);
+    CREATE INDEX IF NOT EXISTS idx_service_family_deleted ON service(family_id, is_deleted);
     `
     
     _, err := db.Exec(query)
@@ -45,7 +50,7 @@ func createServiceTable(db *sql.DB) error {
 }
 
 func createServicePaymentTable(db *sql.DB) error {
-	query := `
+    query := `
     CREATE TABLE IF NOT EXISTS service_payment (
         id SERIAL PRIMARY KEY,
         service_id INTEGER REFERENCES service(id) ON DELETE CASCADE,
@@ -54,12 +59,16 @@ func createServicePaymentTable(db *sql.DB) error {
         status VARCHAR(50) NOT NULL,
         notes TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        is_deleted BOOLEAN NOT NULL DEFAULT false,
+        deleted_at TIMESTAMP WITH TIME ZONE,
+        deleted_by INTEGER REFERENCES profile(id)
     );
     
     CREATE INDEX IF NOT EXISTS idx_service_payment_service ON service_payment(service_id);
     CREATE INDEX IF NOT EXISTS idx_service_payment_date ON service_payment(payment_date);
     CREATE INDEX IF NOT EXISTS idx_service_payment_status ON service_payment(status);
+    CREATE INDEX IF NOT EXISTS idx_service_payment_is_deleted ON service_payment(is_deleted);
     `
     
     _, err := db.Exec(query)

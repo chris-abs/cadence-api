@@ -59,20 +59,20 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
                creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
                assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
         FROM chore c
-        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
-        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        LEFT JOIN profiles creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN profiles assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
 	chore := &entities.Chore{}
-	creator := &models.User{}
-	assignee := &models.User{}
+	creator := &models.Profile{}
+	assignee := &models.Profile{}
 	var occurrenceDataJSON []byte
 
 	err := r.db.QueryRow(query, id, familyID).Scan(
 		&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
 		&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-		&creator.ID, &creator.Email, &creator.FirstName, &creator.LastName, &creator.ImageURL,
-		&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
+	    &creator.ID, &creator.Name, &creator.ImageURL,
+        &assignee.ID, &assignee.Name, &assignee.ImageURL,
 	)
 
 	if err == sql.ErrNoRows {
@@ -105,8 +105,8 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
                creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
                assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
         FROM chore c
-        LEFT JOIN users creator ON c.creator_id = creator.id AND creator.is_deleted = false
-        LEFT JOIN users assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
+        LEFT JOIN profiles creator ON c.creator_id = creator.id AND creator.is_deleted = false
+        LEFT JOIN profiles assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.family_id = $1 AND c.is_deleted = false
         ORDER BY c.created_at DESC`
 
@@ -119,15 +119,15 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
 	var chores []*entities.Chore
 	for rows.Next() {
 		chore := &entities.Chore{}
-		creator := &models.User{}
-		assignee := &models.User{}
+		creator := &models.Profile{}
+		assignee := &models.Profile{}
 		var occurrenceDataJSON []byte
 
 		err := rows.Scan(
 			&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
 			&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-			&creator.ID, &creator.Email, &creator.FirstName, &creator.LastName, &creator.ImageURL,
-			&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
+			&creator.ID, &creator.Name, &creator.ImageURL,
+			&assignee.ID, &assignee.Name, &assignee.ImageURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning chore: %v", err)
@@ -336,13 +336,13 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
                a.id, a.email, a.first_name, a.last_name, a.image_url,
                v.id, v.email, v.first_name, v.last_name, v.image_url
         FROM chore_instance ci
-        LEFT JOIN users a ON ci.assignee_id = a.id AND a.is_deleted = false
-        LEFT JOIN users v ON ci.verified_by = v.id AND v.is_deleted = false
+        LEFT JOIN profiles a ON ci.assignee_id = a.id AND a.is_deleted = false
+        LEFT JOIN profiles v ON ci.verified_by = v.id AND v.is_deleted = false
         WHERE ci.id = $1 AND ci.family_id = $2 AND ci.is_deleted = false`
 
 	instance := &entities.ChoreInstance{}
-	assignee := &models.User{}
-	verifier := &models.User{}
+	assignee := &models.Profile{}
+	verifier := &models.Profile{}
 	var verifiedBy sql.NullInt64
 	var completedAt sql.NullTime
 
@@ -350,8 +350,8 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
 		&instance.ID, &instance.ChoreID, &instance.AssigneeID, &instance.FamilyID, &instance.DueDate,
 		&instance.Status, &completedAt, &verifiedBy, &instance.Notes,
 		&instance.CreatedAt, &instance.UpdatedAt,
-		&assignee.ID, &assignee.Email, &assignee.FirstName, &assignee.LastName, &assignee.ImageURL,
-		&verifier.ID, &verifier.Email, &verifier.FirstName, &verifier.LastName, &verifier.ImageURL,
+		&assignee.ID, &assignee.Name, &assignee.ImageURL,
+		&verifier.ID, &verifier.Name, &verifier.ImageURL,
 	)
 
 	if err == sql.ErrNoRows {
@@ -657,7 +657,7 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
 	return nil
 }
 
-func (r *Repository) GetChoreStats(userID int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
+func (r *Repository) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
 	query := `
     SELECT 
         COUNT(*) as total_assigned,
@@ -676,7 +676,7 @@ func (r *Repository) GetChoreStats(userID int, familyID int, startDate, endDate 
 	var totalCompleted, totalVerified, totalMissed sql.NullInt64
 	var pointsEarned sql.NullInt64
 
-	err := r.db.QueryRow(query, userID, familyID, startDate, endDate).Scan(
+	err := r.db.QueryRow(query, profileId, familyID, startDate, endDate).Scan(
 		&stats.TotalAssigned,
 		&totalCompleted,
 		&totalVerified,

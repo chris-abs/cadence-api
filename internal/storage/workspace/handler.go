@@ -23,19 +23,19 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/workspaces", h.authMiddleware.AuthHandler(h.handleGetWorkspaces)).Methods("GET")
-    router.HandleFunc("/workspaces", h.authMiddleware.AuthHandler(h.handleCreateWorkspace)).Methods("POST")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleGetWorkspaceByID)).Methods("GET")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleUpdateWorkspace)).Methods("PUT")
-    router.HandleFunc("/workspaces/{id}", h.authMiddleware.AuthHandler(h.handleDeleteWorkspace)).Methods("DELETE")
+    router.HandleFunc("/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleGetWorkspaces)).Methods("GET")
+    router.HandleFunc("/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleCreateWorkspace)).Methods("POST")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetWorkspaceByID)).Methods("GET")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateWorkspace)).Methods("PUT")
+    router.HandleFunc("/workspaces/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteWorkspace)).Methods("DELETE")
 
-    router.HandleFunc("/workspaces/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreWorkspace)).Methods("PUT")
+    router.HandleFunc("/workspaces/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreWorkspace)).Methods("PUT")
 }
 
 func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    workspaces, err := h.service.GetWorkspacesByFamilyID(*userCtx.FamilyID, userCtx.UserID)
+    workspaces, err := h.service.GetWorkspacesByFamilyID(profileCtx.FamilyID, profileCtx.ProfileID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -44,7 +44,7 @@ func (h *Handler) handleGetWorkspaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     var req CreateWorkspaceRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -52,7 +52,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    workspace, err := h.service.CreateWorkspace(userCtx, &req)
+    workspace, err := h.service.CreateWorkspace(profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -61,7 +61,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -69,7 +69,7 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    workspace, err := h.service.GetWorkspaceByID(workspaceID, *userCtx.FamilyID)
+    workspace, err := h.service.GetWorkspaceByID(workspaceID, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -79,7 +79,7 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -93,7 +93,7 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    workspace, err := h.service.UpdateWorkspace(workspaceID, *userCtx.FamilyID, &req)
+    workspace, err := h.service.UpdateWorkspace(workspaceID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -102,7 +102,7 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -110,7 +110,7 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    if err := h.service.DeleteWorkspace(workspaceID, *userCtx.FamilyID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteWorkspace(workspaceID, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -119,7 +119,7 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     workspaceID, err := getIDFromRequest(r)
     if err != nil {
@@ -127,7 +127,7 @@ func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    if err := h.service.RestoreWorkspace(workspaceID, *userCtx.FamilyID); err != nil {
+    if err := h.service.RestoreWorkspace(workspaceID, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }

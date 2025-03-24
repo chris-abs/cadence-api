@@ -52,7 +52,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
 	
@@ -66,13 +66,13 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		
-		chores, err = h.service.GetChoresByAssigneeID(assigneeID, *userCtx.FamilyID)
+		chores, err = h.service.GetChoresByAssigneeID(assigneeID, profileCtx.FamilyID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	} else {
-		chores, err = h.service.GetChoresByFamilyID(*userCtx.FamilyID)
+		chores, err = h.service.GetChoresByFamilyID(profileCtx.FamilyID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -88,7 +88,7 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	var req CreateChoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -96,7 +96,7 @@ func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	chore, err := h.service.CreateChore(userCtx.UserID, *userCtx.FamilyID, &req)
+	chore, err := h.service.CreateChore(profileCtx.ProfileID, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -106,7 +106,7 @@ func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -114,7 +114,7 @@ func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	chore, err := h.service.GetChoreByID(id, *userCtx.FamilyID)
+	chore, err := h.service.GetChoreByID(id, profileCtx.FamilyID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -124,7 +124,7 @@ func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -138,7 +138,7 @@ func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	chore, err := h.service.UpdateChore(id, *userCtx.FamilyID, &req)
+	chore, err := h.service.UpdateChore(id, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -148,7 +148,7 @@ func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -156,7 +156,7 @@ func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := h.service.DeleteChore(id, *userCtx.FamilyID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteChore(id, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -165,7 +165,7 @@ func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -173,7 +173,7 @@ func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := h.service.RestoreChore(id, *userCtx.FamilyID); err != nil {
+    if err := h.service.RestoreChore(id, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -182,7 +182,7 @@ func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	dateStr := r.URL.Query().Get("date")
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
@@ -196,7 +196,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 			return
 		}
 		
-		instances, err := h.service.GetInstancesByDueDate(date, *userCtx.FamilyID)
+		instances, err := h.service.GetInstancesByDueDate(date, profileCtx.FamilyID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -225,7 +225,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 			return
 		}
 		
-		instances, err := h.service.GetInstancesByAssignee(assigneeID, *userCtx.FamilyID, startDate, endDate)
+		instances, err := h.service.GetInstancesByAssignee(assigneeID, profileCtx.FamilyID, startDate, endDate)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -236,7 +236,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 	}
 	
 	today := time.Now().UTC().Truncate(24 * time.Hour)
-	instances, err := h.service.GetInstancesByDueDate(today, *userCtx.FamilyID)
+	instances, err := h.service.GetInstancesByDueDate(today, profileCtx.FamilyID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -246,7 +246,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -254,7 +254,7 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	instance, err := h.service.GetInstanceByID(id, *userCtx.FamilyID)
+	instance, err := h.service.GetInstanceByID(id, profileCtx.FamilyID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -264,7 +264,7 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -278,7 +278,7 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 		return
 	}
 	
-	instance, err := h.service.CompleteChoreInstance(id, userCtx.UserID, *userCtx.FamilyID, &req)
+	instance, err := h.service.CompleteChoreInstance(id, profileCtx.ProfileID, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -288,12 +288,12 @@ func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Req
 }
 
 func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can verify chores")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can verify chores")
+        return
+    }
 	
 	var req VerifyDayRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -301,7 +301,7 @@ func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := h.service.VerifyDay(userCtx.UserID, *userCtx.FamilyID, &req); err != nil {
+	if err := h.service.VerifyDay(profileCtx.ProfileID, profileCtx.FamilyID, &req); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -310,12 +310,12 @@ func (h *Handler) handleVerifyDay(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can review chores")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can review chores")
+        return
+    }
 	
 	id, err := getIDFromRequest(r)
 	if err != nil {
@@ -329,7 +329,7 @@ func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	instance, err := h.service.ReviewChore(id, userCtx.UserID, *userCtx.FamilyID, &req)
+	instance, err := h.service.ReviewChore(id, profileCtx.ProfileID, profileCtx.FamilyID, &req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -339,7 +339,7 @@ func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
 	dateStr := r.URL.Query().Get("date")
 	assigneeIDStr := r.URL.Query().Get("assigneeId")
@@ -361,7 +361,7 @@ func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	verification, err := h.service.GetDailyVerification(date, assigneeID, *userCtx.FamilyID)
+	verification, err := h.service.GetDailyVerification(date, assigneeID, profileCtx.FamilyID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -371,9 +371,9 @@ func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	userIDStr := r.URL.Query().Get("userId")
+	profileIdStr := r.URL.Query().Get("profileId")
 	startDateStr := r.URL.Query().Get("startDate")
 	endDateStr := r.URL.Query().Get("endDate")
 	
@@ -394,18 +394,18 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var userID int
-	if userIDStr != "" {
-		userID, err = strconv.Atoi(userIDStr)
+	var profileId int
+	if profileIdStr != "" {
+		profileId, err = strconv.Atoi(profileIdStr)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid userId")
+			writeError(w, http.StatusBadRequest, "invalid profileId")
 			return
 		}
 	} else {
-		userID = userCtx.UserID
+		profileId = profileCtx.ProfileID
 	}
 	
-	stats, err := h.service.GetChoreStats(userID, *userCtx.FamilyID, startDate, endDate)
+	stats, err := h.service.GetChoreStats(profileId, profileCtx.FamilyID, startDate, endDate)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -415,14 +415,14 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGenerateChoreInstances(w http.ResponseWriter, r *http.Request) {
-	userCtx := r.Context().Value("user").(*models.UserContext)
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	if userCtx.Role == nil || *userCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can generate chore instances")
-		return
-	}
+	if profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "only parents can generate chore instances")
+        return
+    }
 	
-	if err := h.service.GenerateDailyChoreInstances(*userCtx.FamilyID); err != nil {
+	if err := h.service.GenerateDailyChoreInstances(profileCtx.FamilyID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

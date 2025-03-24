@@ -27,9 +27,9 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
     itemQuery := `
         INSERT INTO item (
             name, description, quantity, container_id, 
-            family_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, created_at, updated_at AND is_deleted = false`
+            profile_id, family_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, created_at, updated_at`
 
     err = tx.QueryRow(
         itemQuery,
@@ -37,6 +37,7 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         item.Description,
         item.Quantity,
         item.ContainerID,
+        item.ProfileID,
         item.FamilyID,
         time.Now().UTC(),
         time.Now().UTC(),
@@ -101,10 +102,11 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
-               i.container_id, i.family_id, i.created_at, i.updated_at,
+            i.profile_id, i.container_id, i.family_id, i.created_at, i.updated_at,
                COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
@@ -115,7 +117,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'userId', c.user_id,
+                        'profileId', c.profile_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -124,7 +126,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'userId', w.user_id,
+                                    'profileId', w.profile_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at
@@ -160,15 +162,15 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-                 w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at`
+                 c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at`
 
     item := new(entities.Item)
     var imagesJSON, containerJSON, tagsJSON []byte
 
     err := r.db.QueryRow(query, id, familyID).Scan(
         &item.ID, &item.Name, &item.Description,
-        &item.Quantity, &item.ContainerID, &item.FamilyID,
+        &item.Quantity, &item.ProfileID, &item.ContainerID, &item.FamilyID,
         &item.CreatedAt, &item.UpdatedAt,
         &imagesJSON, &containerJSON, &tagsJSON,
     )
@@ -210,10 +212,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
-               i.container_id, i.family_id, i.created_at, i.updated_at,
+            i.profile_id, i.container_id, i.family_id, i.created_at, i.updated_at,
                COALESCE(img.images, '[]'::jsonb) as images,
                COALESCE(
                     jsonb_build_object(
@@ -224,7 +227,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                         'qrCodeImage', c.qr_code_image,
                         'number', c.number,
                         'location', c.location,
-                        'userId', c.user_id,
+                        'profileId', c.profile_id,
                         'familyId', c.family_id,
                         'workspaceId', c.workspace_id,
                         'workspace', CASE 
@@ -233,7 +236,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                                     'id', w.id,
                                     'name', w.name,
                                     'description', w.description,
-                                    'userId', w.user_id,
+                                    'profileId', w.profile_id,
                                     'familyId', w.family_id,
                                     'createdAt', w.created_at,
                                     'updatedAt', w.updated_at
@@ -269,8 +272,8 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                  i.container_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
-                 c.user_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
-                 w.id, w.name, w.description, w.user_id, w.family_id, w.created_at, w.updated_at
+                 c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+                 w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         ORDER BY i.created_at DESC`
 
     rows, err := r.db.Query(query, familyID)
@@ -286,7 +289,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
 
         err := rows.Scan(
             &item.ID, &item.Name, &item.Description,
-            &item.Quantity, &item.ContainerID, &item.FamilyID,
+            &item.Quantity, &item.ProfileID, &item.ContainerID, &item.FamilyID,
             &item.CreatedAt, &item.UpdatedAt,
             &imagesJSON, &containerJSON, &tagsJSON,
         )
@@ -321,22 +324,23 @@ func (r *Repository) Update(item *entities.Item) error {
     }
     defer tx.Rollback()
 
-    query := `
-     UPDATE item
+        query := `
+        UPDATE item
         SET name = $2, description = $3,
-        quantity = $4, container_id = $5, updated_at = $6
-     WHERE id = $1 AND family_id = $7 AND is_deleted = false`
+        quantity = $4, container_id = $5, profile_id = $6, updated_at = $7
+        WHERE id = $1 AND family_id = $8 AND is_deleted = false`
 
-    result, err := tx.Exec(
+        result, err := tx.Exec(
         query,
         item.ID,
         item.Name,
         item.Description,
         item.Quantity,
         item.ContainerID,
+        item.ProfileID,
         time.Now().UTC(),
         item.FamilyID,
-    )
+        )
     if err != nil {
         return fmt.Errorf("error updating item: %v", err)
     }

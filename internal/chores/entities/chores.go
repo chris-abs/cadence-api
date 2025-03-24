@@ -47,8 +47,8 @@ type Chore struct {
 	CreatedAt      time.Time     `json:"createdAt"`
 	UpdatedAt      time.Time     `json:"updatedAt"`
 	
-	Assignee      *models.User    `json:"assignee,omitempty"`
-	Creator       *models.User    `json:"creator,omitempty"`
+	Assignee      *models.Profile    `json:"assignee,omitempty"`
+	Creator       *models.Profile    `json:"creator,omitempty"`
 	Instances     []ChoreInstance `json:"instances,omitempty"`
 }
 
@@ -66,8 +66,8 @@ type ChoreInstance struct {
 	UpdatedAt    time.Time   `json:"updatedAt"`
 	
 	Chore        *Chore       `json:"chore,omitempty"`
-	Assignee     *models.User `json:"assignee,omitempty"`
-	Verifier     *models.User `json:"verifier,omitempty"`
+	Assignee     *models.Profile `json:"assignee,omitempty"`
+	Verifier     *models.Profile `json:"verifier,omitempty"`
 }
 
 type DailyVerification struct {

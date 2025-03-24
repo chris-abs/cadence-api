@@ -137,7 +137,7 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
             w.name as workspace_name,
             NULL as colour
         FROM item i
-        INNER JOIN item_tag it ON i.id = it.item_id
+        INNER JOIN item_tag it ON i.id = it.item_id AND it.is_deleted = false
         INNER JOIN tag t ON it.tag_id = t.id AND t.is_deleted = false
         LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.is_deleted = false
@@ -623,7 +623,7 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
             COALESCE(ii.images, '[]'::jsonb) as images
         FROM ranked_items i
         LEFT JOIN container c ON i.container_id = c.id AND c.is_deleted = false
-        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN item_tag it ON i.id = it.item_id AND it.is_deleted = false
         LEFT JOIN tag t ON it.tag_id = t.id AND t.is_deleted = false
         LEFT JOIN item_images ii ON i.id = ii.item_id
         GROUP BY 
@@ -766,7 +766,7 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
                 '[]'::jsonb
             ) as items
         FROM ranked_tags rt
-        LEFT JOIN item_tag it ON rt.id = it.tag_id
+        LEFT JOIN item_tag it ON rt.id = it.tag_id AND it.is_deleted = false
         LEFT JOIN item i ON it.item_id = i.id AND i.is_deleted = false
         GROUP BY rt.id, rt.name, rt.colour, rt.description, rt.created_at, rt.updated_at, rt.rank
         ORDER BY rt.rank DESC
@@ -834,6 +834,7 @@ func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.C
        &container.QRCodeImage,
        &container.Number,
        &container.Location,
+       &container.ProfileID,
        &container.FamilyID,
        &container.WorkspaceID,
        &container.CreatedAt,

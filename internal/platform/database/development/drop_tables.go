@@ -49,7 +49,7 @@ func DropAllTables(db *sql.DB) error {
         DROP TABLE IF EXISTS family_invite CASCADE;
         DROP TABLE IF EXISTS family_membership CASCADE;
         DROP TABLE IF EXISTS family CASCADE;
-        DROP TABLE IF EXISTS users CASCADE;
+        DROP TABLE IF EXISTS profiles CASCADE;
     `
 
     fmt.Println("Dropping service module tables...")

@@ -1,202 +1,224 @@
 package family
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/cadence/internal/email"
 	"github.com/chrisabs/cadence/internal/models"
+	"github.com/chrisabs/cadence/internal/profile"
+	"github.com/golang-jwt/jwt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
-	repo *Repository
-	userService interface {
-		GetUserByID(id int) (*models.User, error)
+	repo         *Repository
+	jwtSecret    string
+	profileService interface {
+		CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
+		GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
 	}
-	membershipService interface {
-		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
-		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
-		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
-		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
-		IsUserFamilyOwner(userID, familyID int) (bool, error)
-	}
-	emailService *email.Service
 }
 
-func NewService(
-	repo *Repository,
-	userService interface {
-		GetUserByID(id int) (*models.User, error)
-	},
-	membershipService interface {
-		CreateMembership(userID, familyID int, role models.UserRole, isOwner bool) (*models.FamilyMembership, error)
-		GetMembershipsByFamilyID(familyID int) ([]*models.FamilyMembership, error)
-		GetFamilyOwner(familyID int) (*models.FamilyMembership, error)
-		HasUserRole(userID, familyID int, role models.UserRole) (bool, error)
-		IsUserFamilyOwner(userID, familyID int) (bool, error)
-	},
-) *Service {
-	emailService, err := email.NewService()
-	if err != nil {
-		fmt.Printf("Failed to initialize email service: %v\n", err)
-	}
-
+func NewService(repo *Repository, jwtSecret string) *Service {
 	return &Service{
-		repo: repo,
-		userService: userService,
-		membershipService: membershipService,
-		emailService: emailService,
+		repo:      repo,
+		jwtSecret: jwtSecret,
 	}
 }
 
-func (s *Service) CreateFamily(req *CreateFamilyRequest, ownerID int) (*models.Family, error) {
-    family := &models.Family{
-        Name:    req.Name,
-        Status:  models.FamilyStatusActive,
-    }
-
-    if err := s.repo.Create(family); err != nil {
-        return nil, fmt.Errorf("failed to create family: %v", err)
-    }
-
-    _, err := s.membershipService.CreateMembership(ownerID, family.ID, models.RoleParent, true)
-    if err != nil {
-        return family, fmt.Errorf("family created but failed to create membership: %v", err)
-    }
-
-    return family, nil
+func (s *Service) SetProfileService(profileService interface {
+	CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
+	GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
+}) {
+	s.profileService = profileService
 }
 
-func (s *Service) CreateInvite(req *CreateInviteRequest) (*models.FamilyInvite, error) {
-	tokenBytes := make([]byte, 32)
-	if _, err := rand.Read(tokenBytes); err != nil {
+func (s *Service) GenerateFamilyJWT(familyID int) (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["familyId"] = familyID
+	claims["exp"] = time.Now().Add(time.Hour * 24 * 7).Unix() // 7 days
+
+	return token.SignedString([]byte(s.jwtSecret))
+}
+
+func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
+	existingFamily, err := s.repo.GetByEmail(req.Email)
+	if err == nil && existingFamily != nil {
+		return nil, fmt.Errorf("email already in use")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("error hashing password: %v", err)
+	}
+
+	family := &FamilyAccount{
+		Email:      req.Email,
+		Password:   string(hashedPassword),
+		FamilyName: req.FamilyName,
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
+	}
+
+	if err := s.repo.Create(family); err != nil {
+		return nil, fmt.Errorf("failed to create family account: %v", err)
+	}
+
+	settings := &FamilySettings{
+		FamilyID: family.ID,
+		Modules: []models.Module{
+			{ID: models.ModuleStorage, IsEnabled: true},
+			{ID: models.ModuleChores, IsEnabled: false},
+			{ID: models.ModuleMeals, IsEnabled: false},
+			{ID: models.ModuleServices, IsEnabled: false},
+		},
+		Status:    models.FamilyStatusActive,
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+
+	if err := s.repo.CreateSettings(settings); err != nil {
+		return nil, fmt.Errorf("failed to create family settings: %v", err)
+	}
+
+	var profiles []models.Profile
+	if s.profileService != nil {
+		ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
+			Name:  req.OwnerName,
+			Role:  models.RoleParent,
+			Pin:   "",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create owner profile: %v", err)
+		}
+		
+		profiles = append(profiles, *ownerProfile)
+	}
+
+	token, err := s.GenerateFamilyJWT(family.ID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
-	token := base64.URLEncoding.EncodeToString(tokenBytes)
 
-	invite := &models.FamilyInvite{
-		FamilyID:  req.FamilyID,
-		Email:     req.Email,
-		Role:      req.Role,
-		Token:     token,
-		ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
-	}
+	return &FamilyAuthResponse{
+		Token:    token,
+		Family:   *family,
+		Profiles: profiles,
+	}, nil
+}
 
-	if err := s.repo.CreateInvite(invite); err != nil {
-		return nil, fmt.Errorf("failed to create invite: %v", err)
-	}
-
-	family, err := s.repo.GetByID(req.FamilyID)
+func (s *Service) Login(req *LoginRequest) (*FamilyAuthResponse, error) {
+	family, err := s.repo.GetByEmail(req.Email)
 	if err != nil {
-		fmt.Printf("Error getting family for invite email: %v\n", err)
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	familyName := "a family"
-	if family != nil {
-		familyName = family.Name
+	if err := bcrypt.CompareHashAndPassword([]byte(family.Password), []byte(req.Password)); err != nil {
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	if s.emailService != nil {
-		err := s.emailService.SendInviteEmail(req.Email, token, familyName)
-		if err != nil {
-			fmt.Printf("Failed to send invite email: %v\n", err)
+	var profiles []models.Profile
+	if s.profileService != nil {
+		profilesPtr, err := s.profileService.GetProfilesByFamilyID(family.ID)
+		if err == nil {
+			for _, p := range profilesPtr {
+				profiles = append(profiles, *p)
+			}
 		}
 	}
 
-	return invite, nil
-}
-
-func (s *Service) ValidateInvite(token string) (*models.FamilyInvite, error) {
-	invite, err := s.repo.GetInviteByToken(token)
+	token, err := s.GenerateFamilyJWT(family.ID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid or expired invite: %v", err)
+		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	return invite, nil
+	return &FamilyAuthResponse{
+		Token:    token,
+		Family:   *family,
+		Profiles: profiles,
+	}, nil
 }
 
-func (s *Service) GetFamily(id int) (*models.Family, error) {
-	return s.repo.GetByID(id)
-}
-
-func (s *Service) UpdateFamily(familyID int, req *UpdateFamilyRequest) (*models.Family, error) {
-    family, err := s.repo.GetByID(familyID)
+func (s *Service) GetFamilyByID(id int) (*FamilyAccount, error) {
+    family, err := s.repo.GetByID(id)
     if err != nil {
-        return nil, fmt.Errorf("failed to get family: %v", err)
+        return nil, fmt.Errorf("family not found: %v", err)
     }
     
-    family.Name = req.Name
-    family.Status = req.Status
-    family.UpdatedAt = time.Now().UTC()
-    
-    if err := s.repo.Update(family); err != nil {
-        return nil, fmt.Errorf("failed to update family: %v", err)
+    settings, err := s.repo.GetSettings(id)
+    if err != nil {
+        return nil, fmt.Errorf("family settings not found: %v", err)
     }
+    
+    family.Modules = settings.Modules
+    family.Status = settings.Status
     
     return family, nil
 }
 
-func (s *Service) UpdateModuleSettings(familyID int, req *UpdateModuleRequest) error {
-	family, err := s.repo.GetByID(familyID)
+func (s *Service) UpdateFamily(id int, req *UpdateFamilyRequest) (*FamilyAccount, error) {
+	family, err := s.repo.GetByID(id)
 	if err != nil {
-		return fmt.Errorf("failed to get family: %v", err)
+		return nil, fmt.Errorf("family not found: %v", err)
 	}
 
-	if family.Status != models.FamilyStatusActive {
-		return fmt.Errorf("family is not active")
-	}
-
-	moduleFound := false
-	for i, module := range family.Modules {
-		if module.ID == req.ModuleID {
-			family.Modules[i].IsEnabled = req.IsEnabled
-			moduleFound = true
-			break
-		}
-	}
-
-	if !moduleFound {
-		family.Modules = append(family.Modules, models.Module{
-			ID:        req.ModuleID,
-			IsEnabled: req.IsEnabled,
-		})
-	}
+	family.FamilyName = req.FamilyName
+	family.UpdatedAt = time.Now().UTC()
 
 	if err := s.repo.Update(family); err != nil {
-		return fmt.Errorf("failed to update family modules: %v", err)
+		return nil, fmt.Errorf("failed to update family: %v", err)
 	}
 
-	return nil
+	return family, nil
 }
 
-func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
-	family, err := s.repo.GetByID(familyID)
+func (s *Service) GetFamilySettings(familyID int) (*FamilySettings, error) {
+	return s.repo.GetSettings(familyID)
+}
+
+func (s *Service) UpdateModule(familyID int, req *UpdateModuleRequest) error {
+	return s.repo.UpdateModule(familyID, req.ModuleID, req.IsEnabled)
+}
+
+func (s *Service) DeleteFamily(id int, deletedBy int) error {
+	return s.repo.Delete(id, deletedBy)
+}
+
+func (s *Service) RestoreFamily(id int) error {
+	return s.repo.Restore(id)
+}
+
+func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
+	return s.repo.IsModuleEnabled(familyID, moduleID)
+}
+
+func (s *Service) HasModulePermission(familyID int, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
+	isEnabled, err := s.IsModuleEnabled(familyID, moduleID)
 	if err != nil {
-		return false, fmt.Errorf("failed to get family: %v", err)
+		return false, err
 	}
 
-	if family.Status != models.FamilyStatusActive {
+	if !isEnabled {
 		return false, nil
 	}
 
-	permissions := map[models.ModuleID]map[models.UserRole][]models.Permission{
-		"storage": {
-			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-			"CHILD":  {models.PermissionRead},
+	permissions := map[models.ModuleID]map[models.ProfileRole][]models.Permission{
+		models.ModuleStorage: {
+			models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			models.RoleChild:  {models.PermissionRead},
 		},
-		"chores": {
-			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-			"CHILD":  {models.PermissionRead, models.PermissionWrite},
+		models.ModuleChores: {
+			models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			models.RoleChild:  {models.PermissionRead, models.PermissionWrite},
 		},
-		"meals": {
-			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-			"CHILD":  {models.PermissionRead},
+		models.ModuleMeals: {
+			models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			models.RoleChild:  {models.PermissionRead},
 		},
-		"services": {
-			"PARENT": {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
-			"CHILD":  {models.PermissionRead},
+		models.ModuleServices: {
+			models.RoleParent: {models.PermissionRead, models.PermissionWrite, models.PermissionManage},
+			models.RoleChild:  {models.PermissionRead},
 		},
 	}
 
@@ -205,17 +227,8 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 		return false, nil
 	}
 
-	rolePermissions, ok := modulePermissions[userRole]
+	rolePermissions, ok := modulePermissions[role]
 	if !ok {
-		return false, nil
-	}
-
-	isEnabled, err := s.IsModuleEnabled(familyID, moduleID)
-	if err != nil {
-		return false, err
-	}
-
-	if !isEnabled {
 		return false, nil
 	}
 
@@ -226,120 +239,4 @@ func (s *Service) HasModulePermission(familyID int, userRole models.UserRole, mo
 	}
 
 	return false, nil
-}
-
-func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
-	family, err := s.repo.GetByID(familyID)
-	if err != nil {
-		return false, fmt.Errorf("failed to get family: %v", err)
-	}
-
-	if family.Status != models.FamilyStatusActive {
-		return false, nil
-	}
-
-	for _, module := range family.Modules {
-		if module.ID == moduleID {
-			return module.IsEnabled, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (s *Service) GetFamilyModules(familyID int) ([]models.Module, error) {
-	family, err := s.repo.GetByID(familyID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get family: %v", err)
-	}
-
-	return family.Modules, nil
-}
-
-func (s *Service) DeleteInvite(id int) error {
-	return s.repo.DeleteInvite(id)
-}
-
-func (s *Service) DeactivateFamily(familyID int) error {
-	family, err := s.repo.GetByID(familyID)
-	if err != nil {
-		return fmt.Errorf("failed to get family: %v", err)
-	}
-
-	family.Status = models.FamilyStatusInactive
-	if err := s.repo.Update(family); err != nil {
-		return fmt.Errorf("failed to update family status: %v", err)
-	}
-
-	return nil
-}
-
-func (s *Service) JoinFamily(userID int, req *JoinFamilyRequest) (*models.User, error) {
-    invite, err := s.ValidateInvite(req.Token)
-    if err != nil {
-        return nil, fmt.Errorf("invalid invite: %v", err)
-    }
-
-    user, err := s.userService.GetUserByID(userID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get user: %v", err)
-    }
-
-    if user.Email != invite.Email {
-        return nil, fmt.Errorf("this invitation was sent to %s, but you're logged in as %s", 
-            invite.Email, user.Email)
-    }
-
-	_, err = s.membershipService.CreateMembership(userID, invite.FamilyID, invite.Role, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create membership: %v", err)
-	}
-
-	if err := s.DeleteInvite(invite.ID); err != nil {
-		fmt.Printf("failed to delete used invite: %v\n", err) 
-	}
-
-	return user, nil
-}
-
-
-func (s *Service) GetFamilyMembers(familyID int) ([]FamilyMemberResponse, error) {
-    memberships, err := s.membershipService.GetMembershipsByFamilyID(familyID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get family memberships: %v", err)
-    }
-    
-    var members []FamilyMemberResponse
-    
-    for _, membership := range memberships {
-        user, err := s.userService.GetUserByID(membership.UserID)
-        if err != nil {
-            fmt.Printf("Error fetching user %d: %v\n", membership.UserID, err)
-            continue
-        }
-        
-        member := FamilyMemberResponse{
-            User: *user,
-            Role: membership.Role,
-        }
-        
-        members = append(members, member)
-    }
-    
-    return members, nil
-}
-
-
-func (s *Service) DeleteFamily(id int, deletedBy int) error {
-    if err := s.repo.Delete(id, deletedBy); err != nil {
-        return fmt.Errorf("failed to delete family: %v", err)
-    }
-    return nil
-}
-
-func (s *Service) RestoreFamily(id int) error {
-    if err := s.repo.RestoreFamily(id); err != nil {
-        return fmt.Errorf("failed to restore family: %v", err)
-    }
-    return nil
 }

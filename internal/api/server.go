@@ -7,16 +7,15 @@ import (
 	"github.com/chrisabs/cadence/internal/chores"
 	"github.com/chrisabs/cadence/internal/config"
 	"github.com/chrisabs/cadence/internal/family"
-	"github.com/chrisabs/cadence/internal/membership"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/platform/database"
+	"github.com/chrisabs/cadence/internal/profile"
 	"github.com/chrisabs/cadence/internal/storage/container"
 	"github.com/chrisabs/cadence/internal/storage/item"
 	"github.com/chrisabs/cadence/internal/storage/recent"
 	"github.com/chrisabs/cadence/internal/storage/search"
 	"github.com/chrisabs/cadence/internal/storage/tag"
 	"github.com/chrisabs/cadence/internal/storage/workspace"
-	"github.com/chrisabs/cadence/internal/user"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 )
@@ -49,9 +48,8 @@ func (s *Server) Run() {
 	})
 
 	// Initialise repositories
-	userRepo := user.NewRepository(s.db.DB)
 	familyRepo := family.NewRepository(s.db.DB)
-	membershipRepo := membership.NewRepository(s.db.DB)
+	profileRepo := profile.NewRepository(s.db.DB)
 	containerRepo := container.NewRepository(s.db.DB)
 	workspaceRepo := workspace.NewRepository(s.db.DB)
 	itemRepo := item.NewRepository(s.db.DB)
@@ -60,23 +58,29 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 	choreRepo := chores.NewRepository(s.db.DB)  
 
-	userService := user.NewService(
-		userRepo,
-		nil, 
+	// Initialise core services
+	familyService := family.NewService(
+		familyRepo,
 		s.config.JWTSecret,
 	)
 	
-	membershipService := membership.NewService(membershipRepo)
-	
-	familyService := family.NewService(
-		familyRepo,
-		userService,
-		membershipService,
+	profileService := profile.NewService(
+		profileRepo,
+		s.config.JWTSecret,
 	)
 	
-	userService.SetMembershipService(membershipService)
+	// Set cross-service dependencies
+	familyService.SetProfileService(profileService)
 	
-	// Initialize other services
+	// Initialise auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(
+		s.config.JWTSecret,
+		s.db.DB,
+		familyService,
+		profileService,
+	)
+	
+	// Initialise module services
 	workspaceService := workspace.NewService(workspaceRepo)
 	containerService := container.NewService(containerRepo)
 	itemService := item.NewService(itemRepo)
@@ -85,21 +89,17 @@ func (s *Server) Run() {
 	recentService := recent.NewService(recentRepo)
 	choreService := chores.NewService(choreRepo) 
 
-	// Initialise auth middleware with user validation
-	authMiddleware := middleware.NewAuthMiddleware(
-		s.config.JWTSecret,
-		s.db.DB,
-		membershipService,
-		familyService, 
-	)
-
 	// Initialise handlers
-	userHandler := user.NewHandler(userService, authMiddleware, membershipService)
 	familyHandler := family.NewHandler(
 		familyService,
 		authMiddleware,
 	)
-	membershipHandler := membership.NewHandler(membershipService, authMiddleware)
+	
+	profileHandler := profile.NewHandler(
+		profileService, 
+		authMiddleware,
+	)
+	
 	workspaceHandler := workspace.NewHandler(workspaceService, authMiddleware)
 	containerHandler := container.NewHandler(containerService, authMiddleware)
 	itemHandler := item.NewHandler(itemService, containerService, authMiddleware)
@@ -109,9 +109,8 @@ func (s *Server) Run() {
 	choreHandler := chores.NewHandler(choreService, authMiddleware)  
 
 	// Register routes
-	userHandler.RegisterRoutes(router)
 	familyHandler.RegisterRoutes(router)
-	membershipHandler.RegisterRoutes(router)
+	profileHandler.RegisterRoutes(router)
 	workspaceHandler.RegisterRoutes(router)
 	containerHandler.RegisterRoutes(router)
 	itemHandler.RegisterRoutes(router)

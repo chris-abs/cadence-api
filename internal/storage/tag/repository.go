@@ -20,14 +20,16 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(tag *entities.Tag) error {
     query := `
-        INSERT INTO tag (name, colour, family_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO tag (name, description, colour, profile_id, family_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id`
 
     err := r.db.QueryRow(
         query,
         tag.Name,
+        tag.Description,
         tag.Colour,
+        tag.ProfileID,
         tag.FamilyID,
         tag.CreatedAt,
         tag.UpdatedAt,
@@ -54,9 +56,10 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                        ) ORDER BY display_order
                    ) FILTER (WHERE id IS NOT NULL) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
-        SELECT t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at,
+        SELECT t.id, t.name, t.colour, t.description, t.profile_id, t.family_id, t.created_at, t.updated_at,
                COALESCE(
                    jsonb_agg(
                        DISTINCT jsonb_build_object(
@@ -114,7 +117,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
     var itemsJSON []byte
 
     err := r.db.QueryRow(query, id, familyID).Scan(
-        &tag.ID, &tag.Name, &tag.Colour, &tag.FamilyID,
+        &tag.ID, &tag.Name, &tag.Colour, &tag.Description, 
+        &tag.ProfileID, &tag.FamilyID,
         &tag.CreatedAt, &tag.UpdatedAt,
         &itemsJSON,
     )
@@ -147,10 +151,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT t.id, t.name, COALESCE(t.colour, '') as colour, 
-               t.family_id, t.created_at, t.updated_at,
+            t.description, t.profile_id, t.family_id, t.created_at, t.updated_at,
                COALESCE(
                    jsonb_agg(
                        DISTINCT jsonb_build_object(
@@ -217,7 +222,8 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
         var itemsJSON []byte
 
         err := rows.Scan(
-            &tag.ID, &tag.Name, &tag.Colour, &tag.FamilyID,
+            &tag.ID, &tag.Name, &tag.Colour, &tag.Description,
+            &tag.ProfileID, &tag.FamilyID,
             &tag.CreatedAt, &tag.UpdatedAt,
             &itemsJSON,
         )
@@ -239,16 +245,20 @@ func (r *Repository) Update(tag *entities.Tag) error {
     query := `
         UPDATE tag
         SET name = $2, 
-            colour = $3, 
+            description = $3,
+            colour = $4, 
+            profile_id = $5,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND family_id = $4 AND is_deleted = false
+        WHERE id = $1 AND family_id = $6 AND is_deleted = false
         RETURNING updated_at`
-        
+            
     err := r.db.QueryRow(
         query,
         tag.ID,
         tag.Name,
+        tag.Description,
         tag.Colour,
+        tag.ProfileID,
         tag.FamilyID,
     ).Scan(&tag.UpdatedAt)
 
@@ -296,7 +306,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
 
     itemTagQuery := `
         DELETE FROM item_tag
-        WHERE tag_id = $1
+        WHERE tag_id = $1 AND is_deleted = false
         AND EXISTS (
             SELECT 1 FROM tag
             WHERE id = $1 AND family_id = $2 AND is_deleted = false

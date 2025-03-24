@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -17,13 +16,13 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
+func (s *Service) CreateWorkspace(familyID int, profileID int, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
     workspace := &entities.Workspace{
         ID:          rand.Intn(10000),
         Name:        req.Name,
         Description: req.Description,
-        UserID:      userCtx.UserID,
-        FamilyID:    *userCtx.FamilyID,
+        ProfileID:   profileID,
+        FamilyID:    familyID,
         CreatedAt:   time.Now().UTC(),
         UpdatedAt:   time.Now().UTC(),
         Containers:  make([]entities.Container, 0),
@@ -33,7 +32,7 @@ func (s *Service) CreateWorkspace(userCtx *models.UserContext, req *CreateWorksp
         return nil, fmt.Errorf("failed to create workspace: %v", err)
     }
 
-    return s.repo.GetByID(workspace.ID, *userCtx.FamilyID)
+    return s.repo.GetByID(workspace.ID, familyID)
 }
 
 func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, error) {
@@ -44,8 +43,8 @@ func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, e
     return workspace, nil
 }
 
-func (s *Service) GetWorkspacesByFamilyID(familyID int, userID int) ([]*entities.Workspace, error) {
-    return s.repo.GetByFamilyID(familyID, userID)
+func (s *Service) GetWorkspacesByFamilyID(familyID int, profileID int) ([]*entities.Workspace, error) {
+    return s.repo.GetByFamilyID(familyID, profileID)
 }
 
 func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequest) (*entities.Workspace, error) {

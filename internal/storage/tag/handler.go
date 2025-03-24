@@ -23,21 +23,21 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleGetTags)).Methods("GET")
-    router.HandleFunc("/tags", h.authMiddleware.AuthHandler(h.handleCreateTag)).Methods("POST")
+    router.HandleFunc("/tags", h.authMiddleware.ProfileAuthHandler(h.handleGetTags)).Methods("GET")
+    router.HandleFunc("/tags", h.authMiddleware.ProfileAuthHandler(h.handleCreateTag)).Methods("POST")
     
-    router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleGetTag)).Methods("GET")
-    router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleUpdateTag)).Methods("PUT")
-    router.HandleFunc("/tags/{id}", h.authMiddleware.AuthHandler(h.handleDeleteTag)).Methods("DELETE")
+    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetTag)).Methods("GET")
+    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateTag)).Methods("PUT")
+    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteTag)).Methods("DELETE")
 
-    router.HandleFunc("/tags/{id}/restore", h.authMiddleware.AuthHandler(h.handleRestoreTag)).Methods("PUT")
-    router.HandleFunc("/tags/assign", h.authMiddleware.AuthHandler(h.handleAssignTags)).Methods("POST")
+    router.HandleFunc("/tags/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreTag)).Methods("PUT")
+    router.HandleFunc("/tags/assign", h.authMiddleware.ProfileAuthHandler(h.handleAssignTags)).Methods("POST")
 }
 
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-    tags, err := h.service.GetAllTags(*userCtx.FamilyID)
+    tags, err := h.service.GetAllTags(profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -46,7 +46,7 @@ func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     var req CreateTagRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -54,7 +54,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.CreateTag(*userCtx.FamilyID, &req)
+    tag, err := h.service.CreateTag(profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -63,7 +63,7 @@ func (h *Handler) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -71,7 +71,7 @@ func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.GetTagByID(id, *userCtx.FamilyID)
+    tag, err := h.service.GetTagByID(id, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -80,7 +80,7 @@ func (h *Handler) handleGetTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -94,7 +94,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    tag, err := h.service.UpdateTag(id, *userCtx.FamilyID, &req)
+    tag, err := h.service.UpdateTag(id, profileCtx.FamilyID, profileCtx.ProfileID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -103,7 +103,7 @@ func (h *Handler) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     var req AssignTagsRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -111,7 +111,7 @@ func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.AssignTagsToItems(*userCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
+    if err := h.service.AssignTagsToItems(profileCtx.FamilyID, req.TagIDs, req.ItemIDs); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -120,7 +120,7 @@ func (h *Handler) handleAssignTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -128,7 +128,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteTag(id, *userCtx.FamilyID, userCtx.UserID); err != nil {
+    if err := h.service.DeleteTag(id, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -136,7 +136,7 @@ func (h *Handler) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
-    userCtx := r.Context().Value("user").(*models.UserContext)
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     id, err := getIDFromRequest(r)
     if err != nil {
@@ -144,7 +144,7 @@ func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.RestoreTag(id, *userCtx.FamilyID); err != nil {
+    if err := h.service.RestoreTag(id, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
