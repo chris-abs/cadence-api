@@ -102,6 +102,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 
@@ -211,6 +212,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT i.id, i.name, i.description, i.quantity, 

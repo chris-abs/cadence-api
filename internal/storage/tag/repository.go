@@ -56,6 +56,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                        ) ORDER BY display_order
                    ) FILTER (WHERE id IS NOT NULL) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT t.id, t.name, t.colour, t.description, t.profile_id, t.family_id, t.created_at, t.updated_at,
@@ -106,7 +107,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
-        LEFT JOIN item_images img ON i.id = img.item_id AND img.is_deleted = false
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
         WHERE t.id = $1 AND t.family_id = $2 AND t.is_deleted = false
@@ -150,6 +151,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                        ) ORDER BY display_order
                    ) as images
             FROM item_image
+            WHERE is_deleted = false 
             GROUP BY item_id
         )
         SELECT t.id, t.name, COALESCE(t.colour, '') as colour, 
@@ -201,7 +203,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
         FROM tag t
         LEFT JOIN item_tag it ON t.id = it.tag_id
         LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
-        LEFT JOIN item_images img ON i.id = img.item_id AND img.is_deleted = false
+        LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
         WHERE t.family_id = $1 AND t.is_deleted = false
