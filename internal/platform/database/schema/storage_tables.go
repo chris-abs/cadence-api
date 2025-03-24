@@ -91,6 +91,7 @@ func createItemTables(db *sql.DB) error {
         description TEXT NOT NULL DEFAULT '',
         colour TEXT,
         family_id INTEGER REFERENCES family_account(id) NOT NULL,
+        profile_id INTEGER REFERENCES profile(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -99,6 +100,7 @@ func createItemTables(db *sql.DB) error {
     );
 
     CREATE INDEX IF NOT EXISTS idx_tag_family ON tag(family_id);
+    CREATE INDEX IF NOT EXISTS idx_tag_profile ON tag(profile_id);
     CREATE INDEX IF NOT EXISTS idx_tag_name_pattern ON tag USING gin (name gin_trgm_ops);
     CREATE INDEX IF NOT EXISTS idx_tag_name_fts 
     ON tag USING gin (to_tsvector('english', name || ' ' || COALESCE(description, '')));
@@ -112,6 +114,7 @@ func createItemTables(db *sql.DB) error {
         quantity INTEGER,
         container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
         family_id INTEGER REFERENCES family_account(id) NOT NULL,
+        profile_id INTEGER REFERENCES profile(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
