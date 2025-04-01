@@ -7,31 +7,31 @@ import (
 )
 
 type CreateChoreRequest struct {
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	AssigneeID     int                    `json:"assigneeId"`
-	Points         int                    `json:"points"`
+	Name           string                  `json:"name"`
+	Description    string                  `json:"description"`
+	AssigneeID     int                     `json:"assigneeId"`
+	Points         int                     `json:"points"`
 	OccurrenceType entities.OccurrenceType `json:"occurrenceType"`
 	OccurrenceData entities.OccurrenceData `json:"occurrenceData"`
 }
 
 type UpdateChoreRequest struct {
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	AssigneeID     int                    `json:"assigneeId"`
-	Points         int                    `json:"points"`
+	Name           string                  `json:"name"`
+	Description    string                  `json:"description"`
+	AssigneeID     int                     `json:"assigneeId"`
+	Points         int                     `json:"points"`
 	OccurrenceType entities.OccurrenceType `json:"occurrenceType"`
 	OccurrenceData entities.OccurrenceData `json:"occurrenceData"`
 }
 
 type UpdateChoreInstanceRequest struct {
 	Status      entities.ChoreStatus `json:"status"`
-	Notes       string              `json:"notes"`
+	Notes       string               `json:"notes"`
 }
 
 type ReviewChoreRequest struct {
 	Status      entities.ChoreStatus `json:"status"`
-	Notes       string              `json:"notes"`
+	Notes       string               `json:"notes"`
 }
 
 type VerifyDayRequest struct {
@@ -51,6 +51,6 @@ type ChoreStats struct {
 
 type ChoreStatsRequest struct {
 	profileId    int        `json:"profileId"`
-	StartDate time.Time  `json:"startDate"`
-	EndDate   time.Time  `json:"endDate"`
+	StartDate    time.Time  `json:"startDate"`
+	EndDate      time.Time  `json:"endDate"`
 }
