@@ -35,36 +35,35 @@ func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.Profil
 	return token.SignedString([]byte(s.jwtSecret))
 }
 
+
 func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*models.Profile, error) {
-	if req.Role == models.RoleParent {
-		existingProfiles, err := s.repo.GetByFamilyID(familyID)
-		if err != nil {
-			return nil, fmt.Errorf("error checking existing profiles: %v", err)
-		}
+    existingProfiles, err := s.repo.GetByFamilyID(familyID)
+    if err != nil {
+        return nil, fmt.Errorf("error checking existing profiles: %v", err)
+    }
 
-		for _, p := range existingProfiles {
-			if p.Role == models.RoleParent && p.IsOwner && req.Role == models.RoleParent {
-				req.Role = models.RoleParent
-			}
-		}
-	}
+    isOwner := len(existingProfiles) == 0
 
-	profile := &models.Profile{
-		FamilyID:  familyID,
-		Name:      req.Name,
-		Role:      req.Role,
-		Pin:       req.Pin,
-		ImageURL:  req.ImageURL,
-		IsOwner:   len(req.Role) > 0 && req.Role == models.RoleParent, 
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
+    if isOwner && req.Role != models.RoleParent {
+        return nil, fmt.Errorf("owner profile must be a parent")
+    }
 
-	if err := s.repo.Create(profile); err != nil {
-		return nil, fmt.Errorf("failed to create profile: %v", err)
-	}
+    profile := &models.Profile{
+        FamilyID:  familyID,
+        Name:      req.Name,
+        Role:      req.Role,
+        Pin:       req.Pin,
+        ImageURL:  req.ImageURL,
+        IsOwner:   isOwner, 
+        CreatedAt: time.Now().UTC(),
+        UpdatedAt: time.Now().UTC(),
+    }
 
-	return s.repo.GetByID(profile.ID)
+    if err := s.repo.Create(profile); err != nil {
+        return nil, fmt.Errorf("failed to create profile: %v", err)
+    }
+
+    return s.repo.GetByID(profile.ID)
 }
 
 func (s *Service) GetProfileByID(id int) (*models.Profile, error) {

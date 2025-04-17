@@ -43,69 +43,69 @@ func (s *Service) GenerateFamilyJWT(familyID int) (string, error) {
 }
 
 func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
-	existingFamily, err := s.repo.GetByEmail(req.Email)
-	if err == nil && existingFamily != nil {
-		return nil, fmt.Errorf("email already in use")
-	}
+    existingFamily, err := s.repo.GetByEmail(req.Email)
+    if err == nil && existingFamily != nil {
+        return nil, fmt.Errorf("email already in use")
+    }
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("error hashing password: %v", err)
-	}
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+    if err != nil {
+        return nil, fmt.Errorf("error hashing password: %v", err)
+    }
 
-	family := &FamilyAccount{
-		Email:      req.Email,
-		Password:   string(hashedPassword),
-		FamilyName: req.FamilyName,
-		CreatedAt:  time.Now().UTC(),
-		UpdatedAt:  time.Now().UTC(),
-	}
+    family := &FamilyAccount{
+        Email:      req.Email,
+        Password:   string(hashedPassword),
+        FamilyName: req.FamilyName,
+        CreatedAt:  time.Now().UTC(),
+        UpdatedAt:  time.Now().UTC(),
+    }
 
-	if err := s.repo.Create(family); err != nil {
-		return nil, fmt.Errorf("failed to create family account: %v", err)
-	}
+    if err := s.repo.Create(family); err != nil {
+        return nil, fmt.Errorf("failed to create family account: %v", err)
+    }
 
-	settings := &FamilySettings{
-		FamilyID: family.ID,
-		Modules: []models.Module{
-			{ID: models.ModuleStorage, IsEnabled: true},
-			{ID: models.ModuleChores, IsEnabled: false},
-			{ID: models.ModuleMeals, IsEnabled: false},
-			{ID: models.ModuleServices, IsEnabled: false},
-		},
-		Status:    models.FamilyStatusActive,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
-	}
+    settings := &FamilySettings{
+        FamilyID: family.ID,
+        Modules: []models.Module{
+            {ID: models.ModuleStorage, IsEnabled: true},
+            {ID: models.ModuleChores, IsEnabled: false},
+            {ID: models.ModuleMeals, IsEnabled: false},
+            {ID: models.ModuleServices, IsEnabled: false},
+        },
+        Status:    models.FamilyStatusActive,
+        CreatedAt: time.Now().UTC(),
+        UpdatedAt: time.Now().UTC(),
+    }
 
-	if err := s.repo.CreateSettings(settings); err != nil {
-		return nil, fmt.Errorf("failed to create family settings: %v", err)
-	}
+    if err := s.repo.CreateSettings(settings); err != nil {
+        return nil, fmt.Errorf("failed to create family settings: %v", err)
+    }
 
-	var profiles []models.Profile
-	if s.profileService != nil {
-		ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
-			Name:  req.OwnerName,
-			Role:  models.RoleParent,
-			Pin:   "",
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create owner profile: %v", err)
-		}
-		
-		profiles = append(profiles, *ownerProfile)
-	}
+    var profiles []models.Profile
+    if s.profileService != nil {
+        ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
+            Name:  req.OwnerName,
+            Role:  models.RoleParent, 
+            Pin:   "",
+        })
+        if err != nil {
+            return nil, fmt.Errorf("failed to create owner profile: %v", err)
+        }
+        
+        profiles = append(profiles, *ownerProfile)
+    }
 
-	token, err := s.GenerateFamilyJWT(family.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
-	}
+    token, err := s.GenerateFamilyJWT(family.ID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate token: %v", err)
+    }
 
-	return &FamilyAuthResponse{
-		Token:    token,
-		Family:   *family,
-		Profiles: profiles,
-	}, nil
+    return &FamilyAuthResponse{
+        Token:    token,
+        Family:   *family,
+        Profiles: profiles,
+    }, nil
 }
 
 func (s *Service) Login(req *LoginRequest) (*FamilyAuthResponse, error) {
