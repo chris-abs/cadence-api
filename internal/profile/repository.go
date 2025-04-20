@@ -79,7 +79,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
 		SELECT id, family_id, name, role, pin, image_url, is_owner, created_at, updated_at
 		FROM profile
 		WHERE family_id = $1 AND is_deleted = false
-		ORDER BY created_at DESC`
+		ORDER BY 
+			is_owner DESC,                
+			role = 'PARENT' DESC,         
+			name ASC                      
+	`
 
 	rows, err := r.db.Query(query, familyID)
 	if err != nil {
