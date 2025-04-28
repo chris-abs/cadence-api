@@ -56,93 +56,93 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
     query := `
         SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
                c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
-               creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
-               assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
+               creator.id, creator.name, creator.role, creator.image_url,
+               assignee.id, assignee.name, assignee.role, assignee.image_url
         FROM chore c
         LEFT JOIN profile creator ON c.creator_id = creator.id AND creator.is_deleted = false
         LEFT JOIN profile assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.id = $1 AND c.family_id = $2 AND c.is_deleted = false`
 
-	chore := &entities.Chore{}
-	creator := &models.Profile{}
-	assignee := &models.Profile{}
-	var occurrenceDataJSON []byte
+    chore := &entities.Chore{}
+    creator := &models.Profile{}
+    assignee := &models.Profile{}
+    var occurrenceDataJSON []byte
 
-	err := r.db.QueryRow(query, id, familyID).Scan(
-		&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
-		&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-	    &creator.ID, &creator.Name, &creator.ImageURL,
-        &assignee.ID, &assignee.Name, &assignee.ImageURL,
-	)
+    err := r.db.QueryRow(query, id, familyID).Scan(
+        &chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
+        &chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
+        &creator.ID, &creator.Name, &creator.Role, &creator.ImageURL,
+        &assignee.ID, &assignee.Name, &assignee.Role, &assignee.ImageURL,
+    )
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("chore not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error getting chore: %v", err)
-	}
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("chore not found")
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error getting chore: %v", err)
+    }
 
-	if err := json.Unmarshal(occurrenceDataJSON, &chore.OccurrenceData); err != nil {
-		return nil, fmt.Errorf("error unmarshaling occurrence data: %v", err)
-	}
+    if err := json.Unmarshal(occurrenceDataJSON, &chore.OccurrenceData); err != nil {
+        return nil, fmt.Errorf("error unmarshaling occurrence data: %v", err)
+    }
 
-	chore.Creator = creator
-	chore.Assignee = assignee
+    chore.Creator = creator
+    chore.Assignee = assignee
 
-	instances, err := r.GetInstancesByChoreID(chore.ID, familyID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting chore instances: %v", err)
-	}
-	chore.Instances = instances
+    instances, err := r.GetInstancesByChoreID(chore.ID, familyID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting chore instances: %v", err)
+    }
+    chore.Instances = instances
 
-	return chore, nil
+    return chore, nil
 }
 
 func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error) {
     query := `
         SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
                c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
-               creator.id, creator.email, creator.first_name, creator.last_name, creator.image_url,
-               assignee.id, assignee.email, assignee.first_name, assignee.last_name, assignee.image_url
+               creator.id, creator.name, creator.role, creator.image_url,
+               assignee.id, assignee.name, assignee.role, assignee.image_url
         FROM chore c
         LEFT JOIN profile creator ON c.creator_id = creator.id AND creator.is_deleted = false
         LEFT JOIN profile assignee ON c.assignee_id = assignee.id AND assignee.is_deleted = false
         WHERE c.family_id = $1 AND c.is_deleted = false
         ORDER BY c.created_at DESC`
 
-	rows, err := r.db.Query(query, familyID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting chores: %v", err)
-	}
-	defer rows.Close()
+    rows, err := r.db.Query(query, familyID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting chores: %v", err)
+    }
+    defer rows.Close()
 
-	var chores []*entities.Chore
-	for rows.Next() {
-		chore := &entities.Chore{}
-		creator := &models.Profile{}
-		assignee := &models.Profile{}
-		var occurrenceDataJSON []byte
+    var chores []*entities.Chore
+    for rows.Next() {
+        chore := &entities.Chore{}
+        creator := &models.Profile{}
+        assignee := &models.Profile{}
+        var occurrenceDataJSON []byte
 
-		err := rows.Scan(
-			&chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
-			&chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
-			&creator.ID, &creator.Name, &creator.ImageURL,
-			&assignee.ID, &assignee.Name, &assignee.ImageURL,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning chore: %v", err)
-		}
+        err := rows.Scan(
+            &chore.ID, &chore.Name, &chore.Description, &chore.CreatorID, &chore.AssigneeID, &chore.FamilyID,
+            &chore.Points, &chore.OccurrenceType, &occurrenceDataJSON, &chore.CreatedAt, &chore.UpdatedAt,
+            &creator.ID, &creator.Name, &creator.Role, &creator.ImageURL,
+            &assignee.ID, &assignee.Name, &assignee.Role, &assignee.ImageURL,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning chore: %v", err)
+        }
 
-		if err := json.Unmarshal(occurrenceDataJSON, &chore.OccurrenceData); err != nil {
-			return nil, fmt.Errorf("error unmarshaling occurrence data: %v", err)
-		}
+        if err := json.Unmarshal(occurrenceDataJSON, &chore.OccurrenceData); err != nil {
+            return nil, fmt.Errorf("error unmarshaling occurrence data: %v", err)
+        }
 
-		chore.Creator = creator
-		chore.Assignee = assignee
-		chores = append(chores, chore)
-	}
+        chore.Creator = creator
+        chore.Assignee = assignee
+        chores = append(chores, chore)
+    }
 
-	return chores, nil
+    return chores, nil
 }
 
 func (r *Repository) GetChoresByAssigneeID(assigneeID int, familyID int) ([]*entities.Chore, error) {
