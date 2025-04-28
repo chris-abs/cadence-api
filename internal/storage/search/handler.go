@@ -22,14 +22,14 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/search", h.authMiddleware.ProfileAuthHandler(h.handleSearch)).Methods("GET")
+    router.HandleFunc("/storage/search", h.authMiddleware.ProfileAuthHandler(h.handleSearch)).Methods("GET")
 
-    router.HandleFunc("/search/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleWorkspaceSearch)).Methods("GET")
-    router.HandleFunc("/search/containers", h.authMiddleware.ProfileAuthHandler(h.handleContainerSearch)).Methods("GET")
-    router.HandleFunc("/search/items", h.authMiddleware.ProfileAuthHandler(h.handleItemSearch)).Methods("GET")
-    router.HandleFunc("/search/tags", h.authMiddleware.ProfileAuthHandler(h.handleTagSearch)).Methods("GET")
+    router.HandleFunc("/storage/search/workspaces", h.authMiddleware.ProfileAuthHandler(h.handleWorkspaceSearch)).Methods("GET")
+    router.HandleFunc("/storage/search/containers", h.authMiddleware.ProfileAuthHandler(h.handleContainerSearch)).Methods("GET")
+    router.HandleFunc("/storage/search/items", h.authMiddleware.ProfileAuthHandler(h.handleItemSearch)).Methods("GET")
+    router.HandleFunc("/storage/search/tags", h.authMiddleware.ProfileAuthHandler(h.handleTagSearch)).Methods("GET")
     
-    router.HandleFunc("/search/containers/qr/{code}", h.authMiddleware.ProfileAuthHandler(h.handleContainerQRSearch)).Methods("GET")
+    router.HandleFunc("/storage/search/containers/qr/{code}", h.authMiddleware.ProfileAuthHandler(h.handleContainerQRSearch)).Methods("GET")
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {

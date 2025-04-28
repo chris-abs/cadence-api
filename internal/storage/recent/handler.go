@@ -22,7 +22,7 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/recent", h.authMiddleware.ProfileAuthHandler(h.handleGetRecent)).Methods("GET")
+    router.HandleFunc("/storage/recent", h.authMiddleware.ProfileAuthHandler(h.handleGetRecent)).Methods("GET")
 }
 
 func (h *Handler) handleGetRecent(w http.ResponseWriter, r *http.Request) {

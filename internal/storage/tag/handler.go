@@ -23,15 +23,15 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-    router.HandleFunc("/tags", h.authMiddleware.ProfileAuthHandler(h.handleGetTags)).Methods("GET")
-    router.HandleFunc("/tags", h.authMiddleware.ProfileAuthHandler(h.handleCreateTag)).Methods("POST")
+    router.HandleFunc("/storage/tags", h.authMiddleware.ProfileAuthHandler(h.handleGetTags)).Methods("GET")
+    router.HandleFunc("/storage/tags", h.authMiddleware.ProfileAuthHandler(h.handleCreateTag)).Methods("POST")
     
-    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetTag)).Methods("GET")
-    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateTag)).Methods("PUT")
-    router.HandleFunc("/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteTag)).Methods("DELETE")
+    router.HandleFunc("/storage/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetTag)).Methods("GET")
+    router.HandleFunc("/storage/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateTag)).Methods("PUT")
+    router.HandleFunc("/storage/tags/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteTag)).Methods("DELETE")
 
-    router.HandleFunc("/tags/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreTag)).Methods("PUT")
-    router.HandleFunc("/tags/assign", h.authMiddleware.ProfileAuthHandler(h.handleAssignTags)).Methods("POST")
+    router.HandleFunc("/storage/tags/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreTag)).Methods("PUT")
+    router.HandleFunc("/storage/tags/assign", h.authMiddleware.ProfileAuthHandler(h.handleAssignTags)).Methods("POST")
 }
 
 func (h *Handler) handleGetTags(w http.ResponseWriter, r *http.Request) {
