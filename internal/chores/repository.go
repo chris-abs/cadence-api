@@ -331,55 +331,56 @@ func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error
 func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
     query := `
         SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
-               ci.status, ci.completed_at, ci.verified_by, ci.notes, 
-               ci.created_at, ci.updated_at,
-               a.id, a.email, a.first_name, a.last_name, a.image_url,
-               v.id, v.email, v.first_name, v.last_name, v.image_url
+               ci.status, ci.completed_at, ci.verified_by, ci.verified_at,
+               ci.rejection_reason, ci.notes, ci.created_at, ci.updated_at,
+               p.id, p.name, p.role,
+               v.id, v.name, v.role
         FROM chore_instance ci
-        LEFT JOIN profile a ON ci.assignee_id = a.id AND a.is_deleted = false
-        LEFT JOIN profile v ON ci.verified_by = v.id AND v.is_deleted = false
+        LEFT JOIN profile p ON ci.assignee_id = p.id
+        LEFT JOIN profile v ON ci.verified_by = v.id
         WHERE ci.id = $1 AND ci.family_id = $2 AND ci.is_deleted = false`
 
-	instance := &entities.ChoreInstance{}
-	assignee := &models.Profile{}
-	verifier := &models.Profile{}
-	var verifiedBy sql.NullInt64
-	var completedAt sql.NullTime
+    instance := &entities.ChoreInstance{}
+    assignee := &models.Profile{}
+    verifier := &models.Profile{}
+    
+    var completedAt, verifiedAt sql.NullTime
+    var verifiedBy sql.NullInt64
+    var rejectionReason sql.NullString
 
-	err := r.db.QueryRow(query, id, familyID).Scan(
-		&instance.ID, &instance.ChoreID, &instance.AssigneeID, &instance.FamilyID, &instance.DueDate,
-		&instance.Status, &completedAt, &verifiedBy, &instance.Notes,
-		&instance.CreatedAt, &instance.UpdatedAt,
-		&assignee.ID, &assignee.Name, &assignee.ImageURL,
-		&verifier.ID, &verifier.Name, &verifier.ImageURL,
-	)
+    err := r.db.QueryRow(query, id, familyID).Scan(
+        &instance.ID, &instance.ChoreID, &instance.AssigneeID, &instance.FamilyID,
+        &instance.DueDate, &instance.Status, &completedAt, &verifiedBy, &verifiedAt,
+        &rejectionReason, &instance.Notes, &instance.CreatedAt, &instance.UpdatedAt,
+        &assignee.ID, &assignee.Name, &assignee.Role,
+        &verifier.ID, &verifier.Name, &verifier.Role,
+    )
 
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("chore instance not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error getting chore instance: %v", err)
-	}
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("chore instance not found")
+    }
+    if err != nil {
+        return nil, fmt.Errorf("error getting chore instance: %v", err)
+    }
 
-	instance.Assignee = assignee
+    if completedAt.Valid {
+        instance.CompletedAt = &completedAt.Time
+    }
+    if verifiedAt.Valid {
+        instance.VerifiedAt = &verifiedAt.Time
+    }
+    if verifiedBy.Valid {
+        vID := int(verifiedBy.Int64)
+        instance.VerifiedBy = &vID
+        instance.Verifier = verifier
+    }
+    if rejectionReason.Valid {
+        instance.RejectionReason = rejectionReason.String
+    }
 
-	if completedAt.Valid {
-		instance.CompletedAt = &completedAt.Time
-	}
+    instance.Assignee = assignee
 
-	if verifiedBy.Valid {
-		vID := int(verifiedBy.Int64)
-		instance.VerifiedBy = &vID
-		instance.Verifier = verifier
-	}
-
-	chore, err := r.GetChoreByID(instance.ChoreID, familyID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting chore: %v", err)
-	}
-	instance.Chore = chore
-
-	return instance, nil
+    return instance, nil
 }
 
 func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entities.ChoreInstance, error) {
@@ -611,50 +612,58 @@ func (r *Repository) CheckInstanceExists(choreID int, dueDate time.Time) (bool, 
 func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error {
     query := `
         UPDATE chore_instance
-        SET status = $2, completed_at = $3, verified_by = $4, notes = $5, updated_at = $6
-        WHERE id = $1 AND family_id = $7 AND is_deleted = false`
+        SET status = $2, 
+            completed_at = $3,
+            verified_by = $4,
+            verified_at = $5,
+            rejection_reason = $6,
+            notes = $7,
+            updated_at = $8
+        WHERE id = $1 AND family_id = $9 AND is_deleted = false`
 
-	var completedAt *time.Time
-	var verifiedBy *int
+    var completedAt, verifiedAt *time.Time
+    
+    if instance.Status == entities.StatusCompleted {
+        if instance.CompletedAt == nil {
+            now := time.Now().UTC()
+            completedAt = &now
+        } else {
+            completedAt = instance.CompletedAt
+        }
+    }
+    
+    if instance.Status == entities.StatusVerified {
+        now := time.Now().UTC()
+        verifiedAt = &now
+    }
 
-	if instance.Status == entities.StatusCompleted || instance.Status == entities.StatusVerified {
-		if instance.CompletedAt == nil {
-			now := time.Now().UTC()
-			completedAt = &now
-		} else {
-			completedAt = instance.CompletedAt
-		}
-	}
+    result, err := r.db.Exec(
+        query,
+        instance.ID,
+        instance.Status,
+        completedAt,
+        instance.VerifiedBy,
+        verifiedAt,
+        instance.RejectionReason,
+        instance.Notes,
+        time.Now().UTC(),
+        instance.FamilyID,
+    )
 
-	if instance.Status == entities.StatusVerified {
-		verifiedBy = instance.VerifiedBy
-	}
+    if err != nil {
+        return fmt.Errorf("error updating chore instance: %v", err)
+    }
 
-	result, err := r.db.Exec(
-		query,
-		instance.ID,
-		instance.Status,
-		completedAt,
-		verifiedBy,
-		instance.Notes,
-		time.Now().UTC(),
-		instance.FamilyID,
-	)
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("error checking update result: %v", err)
+    }
 
-	if err != nil {
-		return fmt.Errorf("error updating chore instance: %v", err)
-	}
+    if rowsAffected == 0 {
+        return fmt.Errorf("chore instance not found")
+    }
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error checking update result: %v", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("chore instance not found")
-	}
-
-	return nil
+    return nil
 }
 
 func (r *Repository) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {

@@ -112,21 +112,26 @@ type Chore struct {
 }
 
 type ChoreInstance struct {
-    ID           int         `json:"id"`
-    ChoreID      int         `json:"choreId"`
-    AssigneeID   int         `json:"assigneeId"`
-    FamilyID     int         `json:"familyId"`
-    DueDate      time.Time   `json:"dueDate"`
-    Status       ChoreStatus `json:"status"`
-    CompletedAt  *time.Time  `json:"completedAt,omitempty"`
-    VerifiedBy   *int        `json:"verifiedBy,omitempty"`
-    Notes        string      `json:"notes"`
-    CreatedAt    time.Time   `json:"createdAt"`
-    UpdatedAt    time.Time   `json:"updatedAt"`
+    ID              int         `json:"id"`
+    ChoreID         int         `json:"choreId"`
+    AssigneeID      int         `json:"assigneeId"`
+    FamilyID        int         `json:"familyId"`
+    DueDate         time.Time   `json:"dueDate"`
+    Status          ChoreStatus `json:"status"`
+    CompletedAt     *time.Time  `json:"completedAt,omitempty"`
+    VerifiedBy      *int        `json:"verifiedBy,omitempty"`
+    VerifiedAt      *time.Time  `json:"verifiedAt,omitempty"`
+    RejectionReason string      `json:"rejectionReason,omitempty"`
+    Notes           string      `json:"notes"`
+    CreatedAt       time.Time   `json:"createdAt"`
+    UpdatedAt       time.Time   `json:"updatedAt"`
+    IsDeleted       bool        `json:"isDeleted"`
+    DeletedAt       *time.Time  `json:"deletedAt,omitempty"`
+    DeletedBy       *int        `json:"deletedBy,omitempty"`
     
-    Chore        *Chore          `json:"chore,omitempty"`
-    Assignee     *models.Profile `json:"assignee,omitempty"`
-    Verifier     *models.Profile `json:"verifier,omitempty"`
+    Chore          *Chore          `json:"chore,omitempty"`
+    Assignee       *models.Profile `json:"assignee,omitempty"`
+    Verifier       *models.Profile `json:"verifier,omitempty"`
 }
 
 type DailyVerification struct {

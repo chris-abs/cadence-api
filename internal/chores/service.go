@@ -174,34 +174,89 @@ func (s *Service) CompleteChoreInstance(id int, profileId int, familyID int, req
 	return s.repo.GetInstanceByID(id, familyID)
 }
 
-func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewChoreRequest) (*entities.ChoreInstance, error) {
-	instance, err := s.repo.GetInstanceByID(id, familyID)
-	if err != nil {
-		return nil, err
-	}
-	
-	if !(instance.Status == entities.StatusCompleted && (req.Status == entities.StatusVerified || req.Status == entities.StatusRejected)) {
-		return nil, fmt.Errorf("invalid status transition: can only review completed chores")
-	}
-	
-	instance.Status = req.Status
-	instance.Notes = req.Notes
-	
-	if req.Status == entities.StatusVerified {
-		instance.VerifiedBy = &parentID
-		now := time.Now().UTC()
-		instance.CompletedAt = &now
-	}
-	
-	if err := s.repo.UpdateChoreInstance(instance); err != nil {
-		return nil, err
-	}
-	
-	if s.calendarService != nil {
-		// Todo: update when we have calendar structure - this should be used to update the calendar event status
-	}
-	
-	return s.repo.GetInstanceByID(id, familyID)
+func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewChoreRequest) (*ChoreVerificationResponse, error) {
+    instance, err := s.repo.GetInstanceByID(id, familyID)
+    if err != nil {
+        return nil, err
+    }
+    
+    if instance.Status != entities.StatusCompleted {
+        return nil, fmt.Errorf("only completed chores can be reviewed")
+    }
+    
+    instance.Status = req.Status
+    instance.Notes = req.Notes
+    
+    if req.Status == entities.StatusVerified {
+        instance.VerifiedBy = &parentID
+        now := time.Now().UTC()
+        instance.VerifiedAt = &now
+    } else if req.Status == entities.StatusRejected {
+        instance.RejectionReason = req.RejectionReason
+        instance.VerifiedBy = nil
+        instance.VerifiedAt = nil
+    }
+    
+    if err := s.repo.UpdateChoreInstance(instance); err != nil {
+        return nil, err
+    }
+    
+    updatedInstance, err := s.repo.GetInstanceByID(id, familyID)
+    if err != nil {
+        return nil, err
+    }
+    
+    return &ChoreVerificationResponse{
+        Success:  true,
+        Message:  fmt.Sprintf("Chore %s successfully", req.Status),
+        Instance: updatedInstance,
+    }, nil
+}
+
+func (s *Service) ReviewDailyChores(parentID int, familyID int, req *VerifyDayRequest) (*ChoreVerificationResponse, error) {
+    date, err := time.Parse("2006-01-02", req.Date)
+    if err != nil {
+        return nil, fmt.Errorf("invalid date format: %v", err)
+    }
+
+    instances, err := s.repo.GetInstancesByAssigneeAndDate(req.AssigneeID, familyID, date)
+    if err != nil {
+        return nil, err
+    }
+
+    response := &ChoreVerificationResponse{
+        Success: true,
+        Message: "Daily chores reviewed",
+    }
+
+    for _, instance := range instances {
+        if instance.Status == entities.StatusCompleted {
+            reviewReq := &ReviewChoreRequest{
+                Status: req.Status,
+                Notes: req.Notes,
+                RejectionReason: req.RejectionReason,
+            }
+            
+            result, err := s.ReviewChore(instance.ID, parentID, familyID, reviewReq)
+            if err != nil {
+                return nil, fmt.Errorf("failed to review chore %d: %v", instance.ID, err)
+            }
+            
+            if result.Instance.Status == entities.StatusVerified {
+                response.VerifiedCount++
+            } else if result.Instance.Status == entities.StatusRejected {
+                response.RejectedCount++
+            }
+        }
+    }
+    
+    response.Message = fmt.Sprintf("Reviewed %d chores: %d verified, %d rejected", 
+        response.VerifiedCount + response.RejectedCount,
+        response.VerifiedCount,
+        response.RejectedCount,
+    )
+    
+    return response, nil
 }
 
 func (s *Service) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
