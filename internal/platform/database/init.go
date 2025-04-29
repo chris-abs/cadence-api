@@ -12,12 +12,16 @@ import (
 func (db *PostgresDB) Init() error {
 	fmt.Println("Starting database initialization...")
 
-	db.migrationsManager = migrations.NewManager(db.DB)
-	db.migrationsManager.EnableMigration("008_chore_verification")
-
-	fmt.Println("Running soft delete migration...")
-	if err := db.migrationsManager.Run(); err != nil {
-   		 return fmt.Errorf("migrations failed: %v", err)
+	if os.Getenv("RUN_MIGRATION") == "true" {
+		db.migrationsManager = migrations.NewManager(db.DB)
+		db.migrationsManager.EnableMigration("008_chore_verification")
+		
+		fmt.Println("|| ******************* ||")
+		fmt.Println("Running data migration...")
+		fmt.Println("|| ******************* ||")
+		if err := db.migrationsManager.Run(); err != nil {
+			return fmt.Errorf("migrations failed: %v", err)
+		}
 	}
 
 	if os.Getenv("DROP_TABLES") == "true" {

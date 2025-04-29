@@ -20,41 +20,41 @@ func NewManager(db *sql.DB) *Manager {
     return &Manager{
         db: db,
         migrations: []Migration{
-            {
-                ID:      "001_item_images",
-                Enabled: false,
-                Run:     MigrateItemImages,
-            },
-            {
-                ID:      "002_search_indexes",
-                Enabled: true,
-                Run:     MigrateSearchIndexes,
-            },
-            {
-                ID:      "003_workspace_relationships",
-                Enabled: false,
-                Run:     MigrateWorkspaceRelationships,
-            },
-            {
-                ID:      "004_container_description",
-                Enabled: true,  
-                Run:     MigrateContainerDescription,
-            },
-            {
-                ID:      "005_tag_description",
-                Enabled: true,
-                Run:     MigrateTagDescription,
-            },
-            {
-                ID:      "006_family_support",
-                Enabled: true,
-                Run:     MigrateFamilySupport,
-            },
-            {
-                ID:      "007_soft_delete",
-                Enabled: true,
-                Run:     MigrateSoftDelete,
-            },
+            // {
+            //     ID:      "001_item_images",
+            //     Enabled: false,
+            //     Run:     MigrateItemImages,
+            // },
+            // {
+            //     ID:      "002_search_indexes",
+            //     Enabled: true,
+            //     Run:     MigrateSearchIndexes,
+            // },
+            // {
+            //     ID:      "003_workspace_relationships",
+            //     Enabled: false,
+            //     Run:     MigrateWorkspaceRelationships,
+            // },
+            // {
+            //     ID:      "004_container_description",
+            //     Enabled: true,  
+            //     Run:     MigrateContainerDescription,
+            // },
+            // {
+            //     ID:      "005_tag_description",
+            //     Enabled: true,
+            //     Run:     MigrateTagDescription,
+            // },
+            // {
+            //     ID:      "006_family_support",
+            //     Enabled: true,
+            //     Run:     MigrateFamilySupport,
+            // },
+            // {
+            //     ID:      "007_soft_delete",
+            //     Enabled: true,
+            //     Run:     MigrateSoftDelete,
+            // },
             {
                 ID:      "008_chore_verification",
                 Enabled: true,
