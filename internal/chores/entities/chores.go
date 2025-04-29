@@ -30,29 +30,10 @@ const (
 type OccurrenceData struct {
     DaysOfWeek   []time.Weekday `json:"daysOfWeek,omitempty"`
     DaysOfMonth  []int          `json:"daysOfMonth,omitempty"`
-    StartDate    time.Time      `json:"startDate"`      
-    EndDate      *time.Time     `json:"endDate,omitempty"` 
+    StartDate    time.Time      `json:"startDate"`
+    EndDate      *time.Time     `json:"endDate,omitempty"`
     Interval     int            `json:"interval,omitempty"`
     IntervalUnit string         `json:"intervalUnit,omitempty"`
-}
-
-func (od *OccurrenceData) MarshalJSON() ([]byte, error) {
-    type Alias OccurrenceData
-    return json.Marshal(&struct {
-        StartDate string  `json:"startDate"`
-        EndDate   *string `json:"endDate,omitempty"`
-        *Alias
-    }{
-        StartDate: od.StartDate.Format("2006-01-02"),
-        EndDate: func() *string {
-            if od.EndDate != nil {
-                s := od.EndDate.Format("2006-01-02")
-                return &s
-            }
-            return nil
-        }(),
-        Alias: (*Alias)(od),
-    })
 }
 
 func (od *OccurrenceData) UnmarshalJSON(data []byte) error {
@@ -64,26 +45,52 @@ func (od *OccurrenceData) UnmarshalJSON(data []byte) error {
     }{
         Alias: (*Alias)(od),
     }
-
+    
     if err := json.Unmarshal(data, &aux); err != nil {
         return err
     }
-
-    startDate, err := time.Parse("2006-01-02", aux.StartDate)
+    
+    startDate, err := time.Parse(time.RFC3339, aux.StartDate)
     if err != nil {
-        return fmt.Errorf("invalid startDate format: %v", err)
-    }
-    od.StartDate = startDate
-
-    if aux.EndDate != nil {
-        endDate, err := time.Parse("2006-01-02", *aux.EndDate)
+        startDate, err = time.Parse("2006-01-02", aux.StartDate)
         if err != nil {
-            return fmt.Errorf("invalid endDate format: %v", err)
+            return fmt.Errorf("invalid startDate format: %v", err)
         }
-        od.EndDate = &endDate
     }
-
+    od.StartDate = startDate.UTC()
+    
+    if aux.EndDate != nil {
+        endDate, err := time.Parse(time.RFC3339, *aux.EndDate)
+        if err != nil {
+            endDate, err = time.Parse("2006-01-02", *aux.EndDate)
+            if err != nil {
+                return fmt.Errorf("invalid endDate format: %v", err)
+            }
+        }
+        endDateUTC := endDate.UTC()
+        od.EndDate = &endDateUTC
+    }
+    
     return nil
+}
+
+func (od *OccurrenceData) MarshalJSON() ([]byte, error) {
+    type Alias OccurrenceData
+    return json.Marshal(&struct {
+        StartDate string  `json:"startDate"`
+        EndDate   *string `json:"endDate,omitempty"`
+        *Alias
+    }{
+        StartDate: od.StartDate.Format(time.RFC3339), 
+        EndDate: func() *string {
+            if od.EndDate != nil {
+                s := od.EndDate.Format(time.RFC3339)
+                return &s
+            }
+            return nil
+        }(),
+        Alias: (*Alias)(od),
+    })
 }
 
 type Chore struct {
