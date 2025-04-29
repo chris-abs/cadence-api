@@ -5,19 +5,20 @@ import (
 	"os"
 
 	"github.com/chrisabs/cadence/internal/platform/database/development"
+	"github.com/chrisabs/cadence/internal/platform/database/migrations"
 	"github.com/chrisabs/cadence/internal/platform/database/schema"
 )
 
 func (db *PostgresDB) Init() error {
 	fmt.Println("Starting database initialization...")
 
-	// db.migrationsManager = migrations.NewManager(db.DB)
-	// db.migrationsManager.EnableMigration("007_soft_delete")
+	db.migrationsManager = migrations.NewManager(db.DB)
+	db.migrationsManager.EnableMigration("008_chore_verification")
 
-	// fmt.Println("Running soft delete migration...")
-	// if err := db.migrationsManager.Run(); err != nil {
-   	// 	 return fmt.Errorf("migrations failed: %v", err)
-	// }
+	fmt.Println("Running soft delete migration...")
+	if err := db.migrationsManager.Run(); err != nil {
+   		 return fmt.Errorf("migrations failed: %v", err)
+	}
 
 	if os.Getenv("DROP_TABLES") == "true" {
 		fmt.Println("DROP_TABLES environment variable is set to true. Dropping all tables...")
