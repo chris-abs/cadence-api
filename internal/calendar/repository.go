@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
-	datetime "github.com/chrisabs/cadence/internal/types"
 	"github.com/lib/pq"
 )
 
@@ -35,7 +34,7 @@ func (r *Repository) Create(event *entities.Event) error {
         query,
         event.Title,
         event.Description,
-        event.Start,       
+        event.Start,
         event.End,
         event.AllDay,
         event.CreatedBy,
@@ -76,8 +75,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         &event.ID,
         &event.Title,
         &event.Description,
-        &event.Start.Time,
-        &event.End.Time,
+        &event.Start,
+        &event.End,
         &event.AllDay,
         &event.CreatedBy,
         pq.Array(&event.AssigneeIDs),
@@ -86,8 +85,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         &event.ModuleID,
         &event.EntityID,
         &event.FamilyID,
-        &event.CreatedAt.Time,
-        &event.UpdatedAt.Time,
+        &event.CreatedAt,
+        &event.UpdatedAt,
         &event.IsDeleted,
         &deletedAt,
         &event.DeletedBy,
@@ -101,10 +100,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     }
 
     if deletedAt.Valid {
-        event.DeletedAt = &datetime.NullableDateTime{
-            Time:  deletedAt.Time,
-            Valid: true,
-        }
+        event.DeletedAt = &deletedAt.Time
     }
 
     return event, nil
@@ -131,8 +127,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     rows, err := r.db.Query(
         query,
         familyID,
-        params.Start.Time,
-        params.End.Time,
+        params.Start,
+        params.End,
         pq.Array(params.AssigneeIDs),
         pq.Array(params.Types),
         pq.Array(params.ModuleIDs),
@@ -151,8 +147,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &event.ID,
             &event.Title,
             &event.Description,
-            &event.Start.Time,
-            &event.End.Time,
+            &event.Start,
+            &event.End,
             &event.AllDay,
             &event.CreatedBy,
             pq.Array(&event.AssigneeIDs),
@@ -161,8 +157,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &event.ModuleID,
             &event.EntityID,
             &event.FamilyID,
-            &event.CreatedAt.Time,
-            &event.UpdatedAt.Time,
+            &event.CreatedAt,
+            &event.UpdatedAt,
             &event.IsDeleted,
             &deletedAt,
             &event.DeletedBy,
@@ -172,10 +168,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         }
 
         if deletedAt.Valid {
-            event.DeletedAt = &datetime.NullableDateTime{
-                Time:  deletedAt.Time,
-                Valid: true,
-            }
+            event.DeletedAt = &deletedAt.Time
         }
 
         events = append(events, event)
