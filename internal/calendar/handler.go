@@ -36,7 +36,6 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-    // Parse query parameters for date range
     var params GetEventsParams
     if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request parameters")
