@@ -1,0 +1,103 @@
+package calendar
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/chrisabs/cadence/internal/calendar/entities"
+	"github.com/lib/pq"
+)
+
+type Repository struct {
+    db *sql.DB
+}
+
+func NewRepository(db *sql.DB) *Repository {
+    return &Repository{db: db}
+}
+
+func (r *Repository) Create(event *entities.Event) error {
+    query := `
+        INSERT INTO event (
+            title, description, start, end, all_day,
+            created_by, assignee_ids, color,
+            type, module_id, entity_id,
+            family_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING id, created_at, updated_at`
+
+    err := r.db.QueryRow(
+        query,
+        event.Title,
+        event.Description,
+        event.Start,
+        event.End,
+        event.AllDay,
+        event.CreatedBy,
+        pq.Array(event.AssigneeIDs),
+        event.Color,
+        event.Type,
+        event.ModuleID,
+        event.EntityID,
+        event.FamilyID,
+        time.Now().UTC(),
+        time.Now().UTC(),
+    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
+
+    if err != nil {
+        return fmt.Errorf("error creating event: %v", err)
+    }
+
+    return nil
+}
+
+func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+    query := `
+        SELECT 
+            id, title, description, start, end, all_day,
+            created_by, assignee_ids, color,
+            type, module_id, entity_id,
+            family_id, created_at, updated_at
+        FROM event
+        WHERE family_id = $1 
+        AND start >= $2 
+        AND end <= $3
+        AND is_deleted = false
+        AND ($4::int[] IS NULL OR assignee_ids && $4)
+        AND ($5::text[] IS NULL OR type = ANY($5))
+        AND ($6::text[] IS NULL OR module_id = ANY($6))
+        ORDER BY start ASC`
+
+    rows, err := r.db.Query(
+        query,
+        familyID,
+        params.Start,
+        params.End,
+        pq.Array(params.AssigneeIDs),
+        pq.Array(params.Types),
+        pq.Array(params.ModuleIDs),
+    )
+    if err != nil {
+        return nil, fmt.Errorf("error querying events: %v", err)
+    }
+    defer rows.Close()
+
+    var events []*entities.Event
+    for rows.Next() {
+        event := new(entities.Event)
+        err := rows.Scan(
+            &event.ID, &event.Title, &event.Description,
+            &event.Start, &event.End, &event.AllDay,
+            &event.CreatedBy, pq.Array(&event.AssigneeIDs), &event.Color,
+            &event.Type, &event.ModuleID, &event.EntityID,
+            &event.FamilyID, &event.CreatedAt, &event.UpdatedAt,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning event: %v", err)
+        }
+        events = append(events, event)
+    }
+
+    return events, nil
+}
