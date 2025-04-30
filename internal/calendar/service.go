@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
+	datetime "github.com/chrisabs/cadence/internal/types"
 )
 
 type Service struct {
@@ -20,10 +21,12 @@ func (s *Service) CreateEvent(familyID int, profileID int, req *CreateEventReque
         return nil, fmt.Errorf("event title is required")
     }
 
-    if req.Start.After(req.End) {
+    if req.Start.Time.After(req.End.Time) {
         return nil, fmt.Errorf("event start time must be before end time")
     }
 
+    now := datetime.DateTime{Time: time.Now().UTC()}
+    
     event := &entities.Event{
         Title:       req.Title,
         Description: req.Description,
@@ -33,10 +36,10 @@ func (s *Service) CreateEvent(familyID int, profileID int, req *CreateEventReque
         CreatedBy:  profileID,
         AssigneeIDs: req.AssigneeIDs,
         Color:      req.Color,
-        Type:       "GENERAL",
+        Type:       "GENERAL", 
         FamilyID:   familyID,
-        CreatedAt:  time.Now().UTC(),
-        UpdatedAt:  time.Now().UTC(),
+        CreatedAt:  now,
+        UpdatedAt:  now,
     }
 
     if err := s.repo.Create(event); err != nil {
@@ -51,11 +54,14 @@ func (s *Service) GetEventByID(id int, familyID int) (*entities.Event, error) {
 }
 
 func (s *Service) GetEvents(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+    if params.Start.Time.After(params.End.Time) {
+        return nil, fmt.Errorf("start date must be before end date")
+    }
+
     return s.repo.GetByDateRange(familyID, params)
 }
 
 func (s *Service) UpdateEvent(id int, familyID int, profileID int, req *UpdateEventRequest) (*entities.Event, error) {
-    // First check if event exists and user has access
     existing, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, err
@@ -65,7 +71,7 @@ func (s *Service) UpdateEvent(id int, familyID int, profileID int, req *UpdateEv
         return nil, fmt.Errorf("cannot update non-general events directly")
     }
 
-    if req.Start.After(req.End) {
+    if req.Start.Time.After(req.End.Time) {
         return nil, fmt.Errorf("event start time must be before end time")
     }
 
@@ -79,7 +85,7 @@ func (s *Service) UpdateEvent(id int, familyID int, profileID int, req *UpdateEv
         AssigneeIDs: req.AssigneeIDs,
         Color:       req.Color,
         FamilyID:    familyID,
-        UpdatedAt:   time.Now().UTC(),
+        UpdatedAt:   datetime.DateTime{Time: time.Now().UTC()},
     }
 
     if err := s.repo.Update(event); err != nil {

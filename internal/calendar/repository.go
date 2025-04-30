@@ -29,14 +29,14 @@ func (r *Repository) Create(event *entities.Event) error {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false)
         RETURNING id, created_at, updated_at`
 
-    now := datetime.DateTime{Time: time.Now().UTC()}
+    now := time.Now().UTC()
     
     err := r.db.QueryRow(
         query,
         event.Title,
         event.Description,
-        event.Start.Time,      
-        event.End.Time,
+        event.Start,       
+        event.End,
         event.AllDay,
         event.CreatedBy,
         pq.Array(event.AssigneeIDs),
@@ -45,9 +45,9 @@ func (r *Repository) Create(event *entities.Event) error {
         event.ModuleID,
         event.EntityID,
         event.FamilyID,
-        now.Time,
-        now.Time,
-    ).Scan(&event.ID, &event.CreatedAt.Time, &event.UpdatedAt.Time)
+        now,
+        now,
+    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
 
     if err != nil {
         return fmt.Errorf("error creating event: %v", err)

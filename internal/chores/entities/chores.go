@@ -36,7 +36,7 @@ type OccurrenceData struct {
     IntervalUnit string         `json:"intervalUnit,omitempty"`
 }
 
-// TODO: change this to use the types/datetime.go method so it's more standardised across platform.
+// TODO: change this shouldn't be needed? need to revisit.
 func (od *OccurrenceData) UnmarshalJSON(data []byte) error {
     type Alias OccurrenceData
     aux := &struct {
