@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
+	datetime "github.com/chrisabs/cadence/internal/types"
 	"github.com/lib/pq"
 )
 
@@ -28,12 +29,14 @@ func (r *Repository) Create(event *entities.Event) error {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false)
         RETURNING id, created_at, updated_at`
 
+    now := datetime.DateTime{Time: time.Now().UTC()}
+    
     err := r.db.QueryRow(
         query,
         event.Title,
         event.Description,
-        event.Start,
-        event.End,
+        event.Start.Time,      
+        event.End.Time,
         event.AllDay,
         event.CreatedBy,
         pq.Array(event.AssigneeIDs),
@@ -42,9 +45,9 @@ func (r *Repository) Create(event *entities.Event) error {
         event.ModuleID,
         event.EntityID,
         event.FamilyID,
-        time.Now().UTC(),
-        time.Now().UTC(),
-    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
+        now.Time,
+        now.Time,
+    ).Scan(&event.ID, &event.CreatedAt.Time, &event.UpdatedAt.Time)
 
     if err != nil {
         return fmt.Errorf("error creating event: %v", err)
@@ -59,19 +62,35 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
             id, title, description, start, end, all_day,
             created_by, assignee_ids, color,
             type, module_id, entity_id,
-            family_id, created_at, updated_at
+            family_id, created_at, updated_at,
+            is_deleted, deleted_at, deleted_by
         FROM event
         WHERE id = $1 
         AND family_id = $2 
         AND is_deleted = false`
 
     event := new(entities.Event)
+    var deletedAt sql.NullTime
+
     err := r.db.QueryRow(query, id, familyID).Scan(
-        &event.ID, &event.Title, &event.Description,
-        &event.Start, &event.End, &event.AllDay,
-        &event.CreatedBy, pq.Array(&event.AssigneeIDs), &event.Color,
-        &event.Type, &event.ModuleID, &event.EntityID,
-        &event.FamilyID, &event.CreatedAt, &event.UpdatedAt,
+        &event.ID,
+        &event.Title,
+        &event.Description,
+        &event.Start.Time,
+        &event.End.Time,
+        &event.AllDay,
+        &event.CreatedBy,
+        pq.Array(&event.AssigneeIDs),
+        &event.Color,
+        &event.Type,
+        &event.ModuleID,
+        &event.EntityID,
+        &event.FamilyID,
+        &event.CreatedAt.Time,
+        &event.UpdatedAt.Time,
+        &event.IsDeleted,
+        &deletedAt,
+        &event.DeletedBy,
     )
 
     if err == sql.ErrNoRows {
@@ -79,6 +98,13 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     }
     if err != nil {
         return nil, fmt.Errorf("error getting event: %v", err)
+    }
+
+    if deletedAt.Valid {
+        event.DeletedAt = &datetime.NullableDateTime{
+            Time:  deletedAt.Time,
+            Valid: true,
+        }
     }
 
     return event, nil
@@ -90,7 +116,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             id, title, description, start, end, all_day,
             created_by, assignee_ids, color,
             type, module_id, entity_id,
-            family_id, created_at, updated_at
+            family_id, created_at, updated_at,
+            is_deleted, deleted_at, deleted_by
         FROM event
         WHERE family_id = $1 
         AND start >= $2 
@@ -104,8 +131,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     rows, err := r.db.Query(
         query,
         familyID,
-        params.Start,
-        params.End,
+        params.Start.Time,
+        params.End.Time,
         pq.Array(params.AssigneeIDs),
         pq.Array(params.Types),
         pq.Array(params.ModuleIDs),
@@ -118,16 +145,39 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     var events []*entities.Event
     for rows.Next() {
         event := new(entities.Event)
+        var deletedAt sql.NullTime
+
         err := rows.Scan(
-            &event.ID, &event.Title, &event.Description,
-            &event.Start, &event.End, &event.AllDay,
-            &event.CreatedBy, pq.Array(&event.AssigneeIDs), &event.Color,
-            &event.Type, &event.ModuleID, &event.EntityID,
-            &event.FamilyID, &event.CreatedAt, &event.UpdatedAt,
+            &event.ID,
+            &event.Title,
+            &event.Description,
+            &event.Start.Time,
+            &event.End.Time,
+            &event.AllDay,
+            &event.CreatedBy,
+            pq.Array(&event.AssigneeIDs),
+            &event.Color,
+            &event.Type,
+            &event.ModuleID,
+            &event.EntityID,
+            &event.FamilyID,
+            &event.CreatedAt.Time,
+            &event.UpdatedAt.Time,
+            &event.IsDeleted,
+            &deletedAt,
+            &event.DeletedBy,
         )
         if err != nil {
             return nil, fmt.Errorf("error scanning event: %v", err)
         }
+
+        if deletedAt.Valid {
+            event.DeletedAt = &datetime.NullableDateTime{
+                Time:  deletedAt.Time,
+                Valid: true,
+            }
+        }
+
         events = append(events, event)
     }
 
