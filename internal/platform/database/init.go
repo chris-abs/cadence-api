@@ -14,7 +14,7 @@ func (db *PostgresDB) Init() error {
 
 	if os.Getenv("RUN_MIGRATION") == "true" {
 		db.migrationsManager = migrations.NewManager(db.DB)
-		db.migrationsManager.EnableMigration("008_chore_verification")
+		db.migrationsManager.EnableMigration("009_calendar_support")
 		
 		fmt.Println("|| ******************* ||")
 		fmt.Println("Running data migration...")

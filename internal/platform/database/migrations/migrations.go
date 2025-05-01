@@ -55,8 +55,13 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateSoftDelete,
             // },
+            // {
+            //     ID:      "008_chore_verification",
+            //     Enabled: true,
+            //     Run:     MigrateChoreVerification,
+            // },
             {
-                ID:      "008_chore_verification",
+                ID:      "009_calendar_support",
                 Enabled: true,
                 Run:     MigrateChoreVerification,
             },
