@@ -60,10 +60,15 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateChoreVerification,
             // },
+            // {
+            //     ID:      "009_calendar_support",
+            //     Enabled: true,
+            //     Run:     MigrateCalendarSupport,
+            // },
             {
-                ID:      "009_calendar_support",
+                ID:      "010_profile_colour",
                 Enabled: true,
-                Run:     MigrateChoreVerification,
+                Run:     MigrateProfileColour,
             },
         },
     }

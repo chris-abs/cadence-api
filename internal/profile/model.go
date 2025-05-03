@@ -9,6 +9,7 @@ type CreateProfileRequest struct {
 	Role     models.ProfileRole `json:"role"`
 	Pin      string             `json:"pin,omitempty"`
 	ImageURL string             `json:"imageUrl,omitempty"`
+	Colour   string             `json:"colour"`
 }
 
 type UpdateProfileRequest struct {
@@ -18,6 +19,7 @@ type UpdateProfileRequest struct {
     Pin        *string            `json:"pin,omitempty"` 
     CurrentPin string             `json:"currentPin,omitempty"`
 	ImageURL   string             `json:"imageUrl,omitempty"`
+	Colour     string             `json:"colour,omitempty"`
 }
 
 type SelectProfileRequest struct {

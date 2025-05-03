@@ -17,6 +17,7 @@ type Profile struct {
 	Pin       string             `json:"-"` 
 	HasPin    bool               `json:"hasPin"`
 	ImageURL  string             `json:"imageUrl"`
+	Colour    string             `json:"colour"`
 	IsOwner   bool               `json:"isOwner"`
 	CreatedAt time.Time          `json:"createdAt"`
 	UpdatedAt time.Time          `json:"updatedAt"`
