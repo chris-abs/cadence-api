@@ -7,93 +7,37 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/cloud"
+	"github.com/chrisabs/cadence/internal/config/theme"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 
 type Service struct {
-	repo      *Repository
-	jwtSecret string
+    repo      *Repository
+    jwtSecret string
 }
 
 func NewService(repo *Repository, jwtSecret string) *Service {
-	return &Service{
-		repo:      repo,
-		jwtSecret: jwtSecret,
-	}
-}
-
-type TailwindColour string
-
-const (
-    ColourSlate  TailwindColour = "slate"
-    ColourGray   TailwindColour = "gray"
-    ColourZinc   TailwindColour = "zinc"
-    ColourNeutral TailwindColour = "neutral"
-    ColourStone  TailwindColour = "stone"
-    ColourRed    TailwindColour = "red"
-    ColourOrange TailwindColour = "orange"
-    ColourAmber  TailwindColour = "amber"
-    ColourYellow TailwindColour = "yellow"
-    ColourLime   TailwindColour = "lime"
-    ColourGreen  TailwindColour = "green"
-    ColourEmerald TailwindColour = "emerald"
-    ColourTeal   TailwindColour = "teal"
-    ColourCyan   TailwindColour = "cyan"
-    ColourSky    TailwindColour = "sky"
-    ColourBlue   TailwindColour = "blue"
-    ColourIndigo TailwindColour = "indigo"
-    ColourViolet TailwindColour = "violet"
-    ColourPurple TailwindColour = "purple"
-    ColourFuchsia TailwindColour = "fuchsia"
-    ColourPink   TailwindColour = "pink"
-    ColourRose   TailwindColour = "rose"
-)
-
-var validColours = map[TailwindColour]bool{
-    ColourSlate:   true,
-    ColourGray:    true,
-    ColourZinc:    true,
-    ColourNeutral: true,
-    ColourStone:   true,
-    ColourRed:     true,
-    ColourOrange:  true,
-    ColourAmber:   true,
-    ColourYellow:  true,
-    ColourLime:    true,
-    ColourGreen:   true,
-    ColourEmerald: true,
-    ColourTeal:    true,
-    ColourCyan:    true,
-    ColourSky:     true,
-    ColourBlue:    true,
-    ColourIndigo:  true,
-    ColourViolet:  true,
-    ColourPurple:  true,
-    ColourFuchsia: true,
-    ColourPink:    true,
-    ColourRose:    true,
-}
-
-func isValidTailwindColour(colour string) bool {
-    _, valid := validColours[TailwindColour(colour)]
-    return valid
+    return &Service{
+        repo:      repo,
+        jwtSecret: jwtSecret,
+    }
 }
 
 func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.ProfileRole, isOwner bool) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["familyId"] = familyID
-	claims["profileId"] = profileID
-	claims["role"] = string(role)
-	claims["isOwner"] = isOwner
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+    token := jwt.New(jwt.SigningMethodHS256)
+    claims := token.Claims.(jwt.MapClaims)
+    claims["familyId"] = familyID
+    claims["profileId"] = profileID
+    claims["role"] = string(role)
+    claims["isOwner"] = isOwner
+    claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	return token.SignedString([]byte(s.jwtSecret))
+    return token.SignedString([]byte(s.jwtSecret))
 }
 
 func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*models.Profile, error) {
-    if !isValidTailwindColour(req.Colour) {
+    if !theme.IsValid(req.Colour) {
         return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
     }
 
@@ -128,11 +72,11 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
 }
 
 func (s *Service) GetProfileByID(id int) (*models.Profile, error) {
-	return s.repo.GetByID(id)
+    return s.repo.GetByID(id)
 }
 
 func (s *Service) GetProfilesByFamilyID(familyID int) ([]*models.Profile, error) {
-	return s.repo.GetByFamilyID(familyID)
+    return s.repo.GetByFamilyID(familyID)
 }
 
 func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest, imageFile *multipart.FileHeader) (*models.Profile, error) {
@@ -157,7 +101,7 @@ func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest,
     }
 
     if req.Colour != "" {
-        if !isValidTailwindColour(req.Colour) {
+        if !theme.IsValid(req.Colour) {
             return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
         }
         profile.Colour = req.Colour
@@ -210,55 +154,55 @@ func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest,
 }
 
 func (s *Service) DeleteProfile(id int, familyID int, deletedBy int) error {
-	profile, err := s.repo.GetByID(id)
-	if err != nil {
-		return fmt.Errorf("profile not found: %v", err)
-	}
+    profile, err := s.repo.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("profile not found: %v", err)
+    }
 
-	if profile.FamilyID != familyID {
-		return fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return fmt.Errorf("profile does not belong to this family")
+    }
 
-	if profile.IsOwner {
-		return fmt.Errorf("cannot delete the owner profile")
-	}
+    if profile.IsOwner {
+        return fmt.Errorf("cannot delete the owner profile")
+    }
 
-	return s.repo.Delete(id, familyID, deletedBy)
+    return s.repo.Delete(id, familyID, deletedBy)
 }
 
 func (s *Service) RestoreProfile(id int, familyID int) error {
-	return s.repo.Restore(id, familyID)
+    return s.repo.Restore(id, familyID)
 }
 
 func (s *Service) VerifyPin(familyID int, profileID int, pin string) (*ProfileResponse, error) {
-	profile, err := s.repo.GetByID(profileID)
-	if err != nil {
-		return nil, fmt.Errorf("profile not found")
-	}
+    profile, err := s.repo.GetByID(profileID)
+    if err != nil {
+        return nil, fmt.Errorf("profile not found")
+    }
 
-	if profile.FamilyID != familyID {
-		return nil, fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return nil, fmt.Errorf("profile does not belong to this family")
+    }
 
-	if profile.HasPin && (pin == "" || profile.Pin != pin) {
-		return nil, fmt.Errorf("invalid PIN")
-	}
+    if profile.HasPin && (pin == "" || profile.Pin != pin) {
+        return nil, fmt.Errorf("invalid PIN")
+    }
 
-	token, err := s.GenerateProfileJWT(familyID, profileID, profile.Role, profile.IsOwner)
-	if err != nil {
-		return nil, fmt.Errorf("error generating token")
-	}
+    token, err := s.GenerateProfileJWT(familyID, profileID, profile.Role, profile.IsOwner)
+    if err != nil {
+        return nil, fmt.Errorf("error generating token")
+    }
 
-	return &ProfileResponse{
-		Token:   token,
-		Profile: *profile,
-	}, nil
+    return &ProfileResponse{
+        Token:   token,
+        Profile: *profile,
+    }, nil
 }
 
 func (s *Service) SelectProfile(familyID int, req *SelectProfileRequest) (*ProfileResponse, error) {
-	return s.VerifyPin(familyID, req.ProfileID, req.Pin)
+    return s.VerifyPin(familyID, req.ProfileID, req.Pin)
 }
 
 func (s *Service) GetOwnerProfile(familyID int) (*models.Profile, error) {
-	return s.repo.GetOwnerProfile(familyID)
+    return s.repo.GetOwnerProfile(familyID)
 }
