@@ -23,6 +23,63 @@ func NewService(repo *Repository, jwtSecret string) *Service {
 	}
 }
 
+type TailwindColour string
+
+const (
+    ColourSlate  TailwindColour = "slate"
+    ColourGray   TailwindColour = "gray"
+    ColourZinc   TailwindColour = "zinc"
+    ColourNeutral TailwindColour = "neutral"
+    ColourStone  TailwindColour = "stone"
+    ColourRed    TailwindColour = "red"
+    ColourOrange TailwindColour = "orange"
+    ColourAmber  TailwindColour = "amber"
+    ColourYellow TailwindColour = "yellow"
+    ColourLime   TailwindColour = "lime"
+    ColourGreen  TailwindColour = "green"
+    ColourEmerald TailwindColour = "emerald"
+    ColourTeal   TailwindColour = "teal"
+    ColourCyan   TailwindColour = "cyan"
+    ColourSky    TailwindColour = "sky"
+    ColourBlue   TailwindColour = "blue"
+    ColourIndigo TailwindColour = "indigo"
+    ColourViolet TailwindColour = "violet"
+    ColourPurple TailwindColour = "purple"
+    ColourFuchsia TailwindColour = "fuchsia"
+    ColourPink   TailwindColour = "pink"
+    ColourRose   TailwindColour = "rose"
+)
+
+var validColours = map[TailwindColour]bool{
+    ColourSlate:   true,
+    ColourGray:    true,
+    ColourZinc:    true,
+    ColourNeutral: true,
+    ColourStone:   true,
+    ColourRed:     true,
+    ColourOrange:  true,
+    ColourAmber:   true,
+    ColourYellow:  true,
+    ColourLime:    true,
+    ColourGreen:   true,
+    ColourEmerald: true,
+    ColourTeal:    true,
+    ColourCyan:    true,
+    ColourSky:     true,
+    ColourBlue:    true,
+    ColourIndigo:  true,
+    ColourViolet:  true,
+    ColourPurple:  true,
+    ColourFuchsia: true,
+    ColourPink:    true,
+    ColourRose:    true,
+}
+
+func isValidTailwindColour(colour string) bool {
+    _, valid := validColours[TailwindColour(colour)]
+    return valid
+}
+
 func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.ProfileRole, isOwner bool) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
@@ -35,8 +92,11 @@ func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.Profil
 	return token.SignedString([]byte(s.jwtSecret))
 }
 
-
 func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*models.Profile, error) {
+    if !isValidTailwindColour(req.Colour) {
+        return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
+    }
+
     existingProfiles, err := s.repo.GetByFamilyID(familyID)
     if err != nil {
         return nil, fmt.Errorf("error checking existing profiles: %v", err)
@@ -97,6 +157,9 @@ func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest,
     }
 
     if req.Colour != "" {
+        if !isValidTailwindColour(req.Colour) {
+            return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
+        }
         profile.Colour = req.Colour
     }
 
