@@ -54,7 +54,8 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
         Role:      req.Role,
         Pin:       req.Pin,
         ImageURL:  req.ImageURL,
-        IsOwner:   isOwner, 
+        Colour:    req.Colour,
+        IsOwner:   isOwner,
         CreatedAt: time.Now().UTC(),
         UpdatedAt: time.Now().UTC(),
     }
@@ -75,70 +76,74 @@ func (s *Service) GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
 }
 
 func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest, imageFile *multipart.FileHeader) (*models.Profile, error) {
-	profile, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("profile not found: %v", err)
-	}
+    profile, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("profile not found: %v", err)
+    }
 
-	if profile.FamilyID != familyID {
-		return nil, fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return nil, fmt.Errorf("profile does not belong to this family")
+    }
 
-	if req.Name != "" {
-		profile.Name = req.Name
-	}
+    if req.Name != "" {
+        profile.Name = req.Name
+    }
 
-	if req.Role != "" {
-		if profile.IsOwner && req.Role != models.RoleParent {
-			return nil, fmt.Errorf("cannot change role of owner profile")
-		}
-		profile.Role = req.Role
-	}
+    if req.Role != "" {
+        if profile.IsOwner && req.Role != models.RoleParent {
+            return nil, fmt.Errorf("cannot change role of owner profile")
+        }
+        profile.Role = req.Role
+    }
 
-	if req.Pin != nil {
-		if profile.HasPin && profile.Pin != "" {
-			if req.CurrentPin == "" {
-				return nil, fmt.Errorf("current PIN required to change PIN")
-			}
-			if req.CurrentPin != profile.Pin {
-				return nil, fmt.Errorf("invalid current PIN")
-			}
-		}
-	
-		if *req.Pin == "" {
-			profile.Pin = ""
-			profile.HasPin = false
-		} else {
-			if len(*req.Pin) != 6 || !regexp.MustCompile(`^\d{6}$`).MatchString(*req.Pin) {
-				return nil, fmt.Errorf("PIN must be exactly 6 digits")
-			}
-			profile.Pin = *req.Pin
-			profile.HasPin = true
-		}
-	}
+    if req.Colour != "" {
+        profile.Colour = req.Colour
+    }
 
-	if imageFile != nil {
-		s3Handler, err := cloud.NewS3Handler()
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize storage: %v", err)
-		}
+    if req.Pin != nil {
+        if profile.HasPin && profile.Pin != "" {
+            if req.CurrentPin == "" {
+                return nil, fmt.Errorf("current PIN required to change PIN")
+            }
+            if req.CurrentPin != profile.Pin {
+                return nil, fmt.Errorf("invalid current PIN")
+            }
+        }
+    
+        if *req.Pin == "" {
+            profile.Pin = ""
+            profile.HasPin = false
+        } else {
+            if len(*req.Pin) != 6 || !regexp.MustCompile(`^\d{6}$`).MatchString(*req.Pin) {
+                return nil, fmt.Errorf("PIN must be exactly 6 digits")
+            }
+            profile.Pin = *req.Pin
+            profile.HasPin = true
+        }
+    }
 
-		imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("profiles/%d", id))
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload image: %v", err)
-		}
-		profile.ImageURL = imageURL
-	} else if req.ImageURL != "" {
-		profile.ImageURL = req.ImageURL
-	}
+    if imageFile != nil {
+        s3Handler, err := cloud.NewS3Handler()
+        if err != nil {
+            return nil, fmt.Errorf("failed to initialize storage: %v", err)
+        }
 
-	profile.UpdatedAt = time.Now().UTC()
+        imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("profiles/%d", id))
+        if err != nil {
+            return nil, fmt.Errorf("failed to upload image: %v", err)
+        }
+        profile.ImageURL = imageURL
+    } else if req.ImageURL != "" {
+        profile.ImageURL = req.ImageURL
+    }
 
-	if err := s.repo.Update(profile); err != nil {
-		return nil, fmt.Errorf("failed to update profile: %v", err)
-	}
+    profile.UpdatedAt = time.Now().UTC()
 
-	return s.repo.GetByID(profile.ID)
+    if err := s.repo.Update(profile); err != nil {
+        return nil, fmt.Errorf("failed to update profile: %v", err)
+    }
+
+    return s.repo.GetByID(profile.ID)
 }
 
 func (s *Service) DeleteProfile(id int, familyID int, deletedBy int) error {
