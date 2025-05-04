@@ -15,77 +15,54 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateEvent(familyID int, profileID int, req *CreateEventRequest) (*entities.Event, error) {
-    if req.Title == "" {
-        return nil, fmt.Errorf("event title is required")
+func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (*entities.Event, error) {
+    if err := s.validateEventTimes(&req.StartTime, &req.EndTime, req.AllDay); err != nil {
+        return nil, err
     }
 
-    if req.Start.After(req.End) {
-        return nil, fmt.Errorf("event start time must be before end time")
-    }
-
-    now := time.Now().UTC()
-    
     event := &entities.Event{
-        Title:       req.Title,
-        Description: req.Description,
-        Start:      req.Start,
-        End:        req.End,
-        AllDay:     req.AllDay,
-        CreatedBy:  profileID,
-        AssigneeIDs: req.AssigneeIDs,
-        Color:      req.Color,
-        Type:       "GENERAL",
-        FamilyID:   familyID,
-        CreatedAt:  now,
-        UpdatedAt:  now,
+        Title:        req.Title,
+        Description:  req.Description,
+        Location:     req.Location,
+        StartTime:    req.StartTime,
+        EndTime:      req.EndTime,
+        AllDay:       req.AllDay,
+        CreatedBy:    createdBy,
+        AssigneeID:   req.AssigneeID,
+        FamilyID:     familyID,
+        Type:         string(entities.EventTypeGeneral),
+        SourceModule: string(entities.EventTypeGeneral),
     }
 
     if err := s.repo.Create(event); err != nil {
         return nil, fmt.Errorf("failed to create event: %v", err)
     }
 
-    return s.GetEventByID(event.ID, familyID)
+    return s.repo.GetByID(event.ID, familyID)
 }
 
-func (s *Service) GetEventByID(id int, familyID int) (*entities.Event, error) {
-    return s.repo.GetByID(id, familyID)
-}
-
-func (s *Service) GetEvents(familyID int, params GetEventsParams) ([]*entities.Event, error) {
-    if params.Start.After(params.End) {
-        return nil, fmt.Errorf("start date must be before end date")
-    }
-
-    return s.repo.GetByDateRange(familyID, params)
-}
-
-func (s *Service) UpdateEvent(id int, familyID int, profileID int, req *UpdateEventRequest) (*entities.Event, error) {
-    existing, err := s.repo.GetByID(id, familyID)
-    if err != nil {
+func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
+    if err := s.validateEventTimes(&req.StartTime, &req.EndTime, req.AllDay); err != nil {
         return nil, err
     }
 
-    if existing.Type != "GENERAL" {
-        return nil, fmt.Errorf("cannot update non-general events directly")
+    event, err := s.repo.GetByID(id, familyID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get event: %v", err)
     }
 
-    if req.Start.After(req.End) {
-        return nil, fmt.Errorf("event start time must be before end time")
+    
+    if event.SourceModule != string(entities.EventTypeGeneral) {
+        return nil, fmt.Errorf("cannot update events from %s module directly", event.SourceModule)
     }
 
-    event := &entities.Event{
-        ID:          id,
-        Title:       req.Title,
-        Description: req.Description,
-        Start:       req.Start,
-        End:         req.End,
-        AllDay:      req.AllDay,
-        AssigneeIDs: req.AssigneeIDs,
-        Color:       req.Color,
-        FamilyID:    familyID,
-        UpdatedAt:   time.Now().UTC(),
-    }
+    event.Title = req.Title
+    event.Description = req.Description
+    event.Location = req.Location
+    event.StartTime = req.StartTime
+    event.EndTime = req.EndTime
+    event.AllDay = req.AllDay
+    event.AssigneeID = req.AssigneeID
 
     if err := s.repo.Update(event); err != nil {
         return nil, fmt.Errorf("failed to update event: %v", err)
@@ -94,22 +71,47 @@ func (s *Service) UpdateEvent(id int, familyID int, profileID int, req *UpdateEv
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) DeleteEvent(id int, familyID int, deletedBy int) error {
-    existing, err := s.repo.GetByID(id, familyID)
-    if err != nil {
-        return err
+func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
+    return s.repo.GetByID(id, familyID)
+}
+
+func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+    if err := s.validateEventTimes(&params.StartTime, &params.EndTime, false); err != nil {
+        return nil, err
     }
 
-    if existing.Type != "GENERAL" {
-        return fmt.Errorf("cannot delete non-general events directly")
+    return s.repo.GetByDateRange(familyID, params)
+}
+
+func (s *Service) Delete(id int, familyID int, deletedBy int) error {
+    event, err := s.repo.GetByID(id, familyID)
+    if err != nil {
+        return fmt.Errorf("failed to get event: %v", err)
+    }
+
+    
+    if event.SourceModule != string(entities.EventTypeGeneral) {
+        return fmt.Errorf("cannot delete events from %s module directly", event.SourceModule)
     }
 
     return s.repo.Delete(id, familyID, deletedBy)
 }
 
-func (s *Service) RestoreEvent(id int, familyID int) error {
-    if err := s.repo.RestoreDeleted(id, familyID); err != nil {
-        return fmt.Errorf("failed to restore event: %v", err)
+func (s *Service) RestoreDeleted(id int, familyID int) error {
+    return s.repo.RestoreDeleted(id, familyID)
+}
+
+func (s *Service) validateEventTimes(start, end *time.Time, allDay bool) error {
+    if start.After(*end) {
+        return fmt.Errorf("end time must be after start time")
     }
+
+    if allDay {
+        
+        *start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+        
+        *end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 999999999, time.UTC)
+    }
+
     return nil
 }

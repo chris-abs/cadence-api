@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
-	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -19,13 +18,11 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(event *entities.Event) error {
     query := `
-        INSERT INTO event (
-            title, description, start, end, all_day,
-            created_by, assignee_ids, color,
-            type, module_id, entity_id,
-            family_id, created_at, updated_at,
-            is_deleted
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, false)
+        INSERT INTO calendar_event (
+            title, description, location, start_time, end_time, all_day,
+            created_by, assignee_id, type, source_module, source_id,
+            family_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
         RETURNING id, created_at, updated_at`
 
     now := time.Now().UTC()
@@ -34,17 +31,16 @@ func (r *Repository) Create(event *entities.Event) error {
         query,
         event.Title,
         event.Description,
-        event.Start,
-        event.End,
+        event.Location,
+        event.StartTime,
+        event.EndTime,
         event.AllDay,
         event.CreatedBy,
-        pq.Array(event.AssigneeIDs),
-        event.Color,
+        event.AssigneeID,
         event.Type,
-        event.ModuleID,
-        event.EntityID,
+        event.SourceModule,
+        event.SourceID,
         event.FamilyID,
-        now,
         now,
     ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
 
@@ -58,32 +54,33 @@ func (r *Repository) Create(event *entities.Event) error {
 func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     query := `
         SELECT 
-            id, title, description, start, end, all_day,
-            created_by, assignee_ids, color,
-            type, module_id, entity_id,
+            id, title, description, location, start_time, end_time, all_day,
+            created_by, assignee_id, type, source_module, source_id,
             family_id, created_at, updated_at,
             is_deleted, deleted_at, deleted_by
-        FROM event
+        FROM calendar_event
         WHERE id = $1 
         AND family_id = $2 
         AND is_deleted = false`
 
     event := new(entities.Event)
+    var description, location sql.NullString
+    var sourceID sql.NullInt64
     var deletedAt sql.NullTime
 
     err := r.db.QueryRow(query, id, familyID).Scan(
         &event.ID,
         &event.Title,
-        &event.Description,
-        &event.Start,
-        &event.End,
+        &description,
+        &location,
+        &event.StartTime,
+        &event.EndTime,
         &event.AllDay,
         &event.CreatedBy,
-        pq.Array(&event.AssigneeIDs),
-        &event.Color,
+        &event.AssigneeID,
         &event.Type,
-        &event.ModuleID,
-        &event.EntityID,
+        &event.SourceModule,
+        &sourceID,
         &event.FamilyID,
         &event.CreatedAt,
         &event.UpdatedAt,
@@ -99,6 +96,16 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         return nil, fmt.Errorf("error getting event: %v", err)
     }
 
+    if description.Valid {
+        event.Description = &description.String
+    }
+    if location.Valid {
+        event.Location = &location.String
+    }
+    if sourceID.Valid {
+        id := int(sourceID.Int64)
+        event.SourceID = &id
+    }
     if deletedAt.Valid {
         event.DeletedAt = &deletedAt.Time
     }
@@ -109,30 +116,28 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
 func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
     query := `
         SELECT 
-            id, title, description, start, end, all_day,
-            created_by, assignee_ids, color,
-            type, module_id, entity_id,
+            id, title, description, location, start_time, end_time, all_day,
+            created_by, assignee_id, type, source_module, source_id,
             family_id, created_at, updated_at,
             is_deleted, deleted_at, deleted_by
-        FROM event
+        FROM calendar_event
         WHERE family_id = $1 
-        AND start >= $2 
-        AND end <= $3
-        AND is_deleted = false
-        AND ($4::int[] IS NULL OR assignee_ids && $4)
-        AND ($5::text[] IS NULL OR type = ANY($5))
-        AND ($6::text[] IS NULL OR module_id = ANY($6))
-        ORDER BY start ASC`
+        AND start_time >= $2 
+        AND end_time <= $3
+        AND is_deleted = false`
 
-    rows, err := r.db.Query(
-        query,
-        familyID,
-        params.Start,
-        params.End,
-        pq.Array(params.AssigneeIDs),
-        pq.Array(params.Types),
-        pq.Array(params.ModuleIDs),
-    )
+    args := []interface{}{familyID, params.StartTime, params.EndTime}
+    argCount := 3
+
+    if params.AssigneeID != nil {
+        argCount++
+        query += fmt.Sprintf(" AND assignee_id = $%d", argCount)
+        args = append(args, *params.AssigneeID)
+    }
+
+    query += " ORDER BY start_time ASC"
+
+    rows, err := r.db.Query(query, args...)
     if err != nil {
         return nil, fmt.Errorf("error querying events: %v", err)
     }
@@ -141,21 +146,23 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     var events []*entities.Event
     for rows.Next() {
         event := new(entities.Event)
+        var description, location sql.NullString
+        var sourceID sql.NullInt64
         var deletedAt sql.NullTime
 
         err := rows.Scan(
             &event.ID,
             &event.Title,
-            &event.Description,
-            &event.Start,
-            &event.End,
+            &description,
+            &location,
+            &event.StartTime,
+            &event.EndTime,
             &event.AllDay,
             &event.CreatedBy,
-            pq.Array(&event.AssigneeIDs),
-            &event.Color,
+            &event.AssigneeID,
             &event.Type,
-            &event.ModuleID,
-            &event.EntityID,
+            &event.SourceModule,
+            &sourceID,
             &event.FamilyID,
             &event.CreatedAt,
             &event.UpdatedAt,
@@ -167,6 +174,16 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             return nil, fmt.Errorf("error scanning event: %v", err)
         }
 
+        if description.Valid {
+            event.Description = &description.String
+        }
+        if location.Valid {
+            event.Location = &location.String
+        }
+        if sourceID.Valid {
+            id := int(sourceID.Int64)
+            event.SourceID = &id
+        }
         if deletedAt.Valid {
             event.DeletedAt = &deletedAt.Time
         }
@@ -179,11 +196,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
 
 func (r *Repository) Update(event *entities.Event) error {
     query := `
-        UPDATE event
-        SET title = $2, description = $3,
-            start = $4, end = $5, all_day = $6,
-            assignee_ids = $7, color = $8,
-            updated_at = $9
+        UPDATE calendar_event
+        SET title = $2, description = $3, location = $4,
+            start_time = $5, end_time = $6, all_day = $7,
+            assignee_id = $8, updated_at = $9
         WHERE id = $1 
         AND family_id = $10 
         AND is_deleted = false`
@@ -193,11 +209,11 @@ func (r *Repository) Update(event *entities.Event) error {
         event.ID,
         event.Title,
         event.Description,
-        event.Start,
-        event.End,
+        event.Location,
+        event.StartTime,
+        event.EndTime,
         event.AllDay,
-        pq.Array(event.AssigneeIDs),
-        event.Color,
+        event.AssigneeID,
         time.Now().UTC(),
         event.FamilyID,
     )
@@ -219,7 +235,7 @@ func (r *Repository) Update(event *entities.Event) error {
 
 func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     query := `
-        UPDATE event
+        UPDATE calendar_event
         SET is_deleted = true, 
             deleted_at = $3, 
             deleted_by = $4, 
@@ -247,7 +263,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
 
 func (r *Repository) RestoreDeleted(id int, familyID int) error {
     query := `
-        UPDATE event
+        UPDATE calendar_event
         SET is_deleted = false, 
             deleted_at = NULL, 
             deleted_by = NULL, 

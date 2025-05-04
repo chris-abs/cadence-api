@@ -19,9 +19,11 @@ type Event struct {
     StartTime    time.Time `json:"startTime"`
     EndTime      time.Time `json:"endTime"`
     AllDay       bool      `json:"allDay"`
+    CreatedBy    int       `json:"createdBy"`
+    AssigneeID   int       `json:"assigneeId"`
+    Type         string    `json:"type"`
     SourceModule string    `json:"sourceModule"`
     SourceID     *int      `json:"sourceId,omitempty"`
-    AssigneeID   int       `json:"assigneeId"`
     FamilyID     int       `json:"familyId"`
     CreatedAt    time.Time `json:"createdAt"`
     UpdatedAt    time.Time `json:"updatedAt"`
