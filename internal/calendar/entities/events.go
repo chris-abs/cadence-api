@@ -5,7 +5,8 @@ import "time"
 type Event struct { 
     ID          int        `json:"id"`
     Title       string     `json:"title"`
-    Description string     `json:"description"`
+    Description string     `json:"description,omitempty"`
+    Location    string     `json:"location,omitempty"`
     Start       time.Time  `json:"start"`
     End         time.Time  `json:"end"`
     AllDay      bool       `json:"allDay"`
