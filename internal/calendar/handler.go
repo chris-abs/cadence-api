@@ -42,7 +42,7 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    events, err := h.service.GetEvents(profileCtx.FamilyID, params)
+    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -60,7 +60,7 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.CreateEvent(profileCtx.FamilyID, profileCtx.ProfileID, &req)
+    event, err := h.service.Create(profileCtx.ProfileID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -78,7 +78,7 @@ func (h *Handler) handleGetEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.GetEventByID(eventID, profileCtx.FamilyID)
+    event, err := h.service.GetByID(eventID, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -102,7 +102,7 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.UpdateEvent(eventID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
+    event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -120,7 +120,7 @@ func (h *Handler) handleDeleteEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.DeleteEvent(eventID, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
+    if err := h.service.Delete(eventID, profileCtx.FamilyID, profileCtx.ProfileID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
@@ -137,7 +137,7 @@ func (h *Handler) handleRestoreEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if err := h.service.RestoreEvent(eventID, profileCtx.FamilyID); err != nil {
+    if err := h.service.RestoreDeleted(eventID, profileCtx.FamilyID); err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
