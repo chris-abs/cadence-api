@@ -18,7 +18,7 @@ func InitCoreSchema(db *sql.DB) error {
         return fmt.Errorf("failed to create family settings table: %v", err)
     }
 
-    if err := createCalendarTable(db); err != nil {
+    if err := createCalendarEventTable(db); err != nil {
         return fmt.Errorf("failed to create calendar table: %v", err)
     }
 
@@ -103,18 +103,20 @@ func createFamilySettingsTable(db *sql.DB) error {
     return err
 }
 
-func createCalendarTable(db *sql.DB) error {
+func createCalendarEventTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS calendar_event (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
+        location TEXT,
         start_time TIMESTAMP WITH TIME ZONE NOT NULL,
         end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-        all_day BOOLEAN DEFAULT FALSE,
-        source_module VARCHAR(50) NOT NULL,
-        source_id INTEGER NOT NULL,
-        profile_id INTEGER REFERENCES profile(id),
+        all_day BOOLEAN NOT NULL DEFAULT false,
+        source_module VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+        source_id INTEGER,
+        created_by INTEGER REFERENCES profile(id) NOT NULL,
+        assignee_id INTEGER REFERENCES profile(id) NOT NULL,
         family_id INTEGER REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -124,10 +126,13 @@ func createCalendarTable(db *sql.DB) error {
     );
     
     CREATE INDEX IF NOT EXISTS idx_calendar_event_family ON calendar_event(family_id);
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_profile ON calendar_event(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_assignee ON calendar_event(assignee_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_event_source ON calendar_event(source_module, source_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_event_date ON calendar_event(start_time, end_time);
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_active_date ON calendar_event(start_time, end_time) 
+        WHERE is_deleted = false;
     `
+    
     _, err := db.Exec(query)
     return err
 }
