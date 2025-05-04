@@ -3,31 +3,27 @@ package calendar
 import "time"
 
 type CreateEventRequest struct {
-    Title       string    `json:"title"`
-    Description string    `json:"description,omitempty"`
-    Location    string    `json:"location,omitempty"`
-    Start       time.Time `json:"start"`
-    End         time.Time `json:"end"`
-    AllDay      bool      `json:"allDay"`
-    AssigneeIDs []int     `json:"assigneeIds"`
-    Color       *string   `json:"color,omitempty"`
+    Title        string    `json:"title" validate:"required"`
+    Description  *string   `json:"description"`
+    Location     *string   `json:"location"`
+    StartTime    time.Time `json:"startTime" validate:"required"`
+    EndTime      time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay       bool      `json:"allDay"`
+    AssigneeID   int       `json:"assigneeId" validate:"required"`
 }
 
 type UpdateEventRequest struct {
-    Title       string    `json:"title"`
-    Description string    `json:"description,omitempty"`
-    Location    string     `json:"location,omitempty"`
-    Start       time.Time `json:"start"`
-    End         time.Time `json:"end"`
-    AllDay      bool      `json:"allDay"`
-    AssigneeIDs []int     `json:"assigneeIds"`
-    Color       *string   `json:"color,omitempty"`
+    Title        string    `json:"title" validate:"required"`
+    Description  *string   `json:"description"`
+    Location     *string   `json:"location"`
+    StartTime    time.Time `json:"startTime" validate:"required"`
+    EndTime      time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay       bool      `json:"allDay"`
+    AssigneeID   int       `json:"assigneeId" validate:"required"`
 }
 
 type GetEventsParams struct {
-    Start       time.Time `json:"start"`
-    End         time.Time `json:"end"`
-    AssigneeIDs []int     `json:"assigneeIds,omitempty"`
-    Types       []string  `json:"types,omitempty"`
-    ModuleIDs   []string  `json:"moduleIds,omitempty"`
+    StartTime    time.Time `schema:"startTime" validate:"required"`
+    EndTime      time.Time `schema:"endTime" validate:"required,gtfield=StartTime"`
+    AssigneeID   *int     `schema:"assigneeId"`
 }
