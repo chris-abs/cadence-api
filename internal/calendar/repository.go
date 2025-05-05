@@ -20,9 +20,9 @@ func (r *Repository) Create(event *entities.Event) error {
     query := `
         INSERT INTO calendar_event (
             title, description, location, start_time, end_time, all_day,
-            created_by, assignee_id, type, source_module, source_id,
-            family_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+            source_module, source_id, created_by, assignee_id, family_id,
+            created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
         RETURNING id, created_at, updated_at`
 
     now := time.Now().UTC()
@@ -35,11 +35,10 @@ func (r *Repository) Create(event *entities.Event) error {
         event.StartTime,
         event.EndTime,
         event.AllDay,
-        event.CreatedBy,
-        event.AssigneeID,
-        event.Type,
         event.SourceModule,
         event.SourceID,
+        event.CreatedBy,
+        event.AssigneeID,
         event.FamilyID,
         now,
     ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
@@ -55,9 +54,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     query := `
         SELECT 
             id, title, description, location, start_time, end_time, all_day,
-            created_by, assignee_id, type, source_module, source_id,
-            family_id, created_at, updated_at,
-            is_deleted, deleted_at, deleted_by
+            source_module, source_id, created_by, assignee_id, family_id,
+            created_at, updated_at, is_deleted, deleted_at, deleted_by
         FROM calendar_event
         WHERE id = $1 
         AND family_id = $2 
@@ -76,11 +74,10 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         &event.StartTime,
         &event.EndTime,
         &event.AllDay,
-        &event.CreatedBy,
-        &event.AssigneeID,
-        &event.Type,
         &event.SourceModule,
         &sourceID,
+        &event.CreatedBy,
+        &event.AssigneeID,
         &event.FamilyID,
         &event.CreatedAt,
         &event.UpdatedAt,
@@ -117,9 +114,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     query := `
         SELECT 
             id, title, description, location, start_time, end_time, all_day,
-            created_by, assignee_id, type, source_module, source_id,
-            family_id, created_at, updated_at,
-            is_deleted, deleted_at, deleted_by
+            source_module, source_id, created_by, assignee_id, family_id,
+            created_at, updated_at, is_deleted, deleted_at, deleted_by
         FROM calendar_event
         WHERE family_id = $1 
         AND start_time >= $2 
@@ -139,7 +135,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
 
     rows, err := r.db.Query(query, args...)
     if err != nil {
-        return nil, fmt.Errorf("error querying events: %v", err)
+        return nil, fmt.Errorf("error getting events: %v", err)
     }
     defer rows.Close()
 
@@ -158,11 +154,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &event.StartTime,
             &event.EndTime,
             &event.AllDay,
-            &event.CreatedBy,
-            &event.AssigneeID,
-            &event.Type,
             &event.SourceModule,
             &sourceID,
+            &event.CreatedBy,
+            &event.AssigneeID,
             &event.FamilyID,
             &event.CreatedAt,
             &event.UpdatedAt,
