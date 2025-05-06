@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -35,11 +37,45 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 
 func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+    query := r.URL.Query()
 
-    var params GetEventsParams
-    if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-        writeError(w, http.StatusBadRequest, "invalid request parameters")
+    startTime, err := time.Parse(time.RFC3339, query.Get("startTime"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid startTime format")
         return
+    }
+
+    endTime, err := time.Parse(time.RFC3339, query.Get("endTime"))
+    if err != nil {
+        writeError(w, http.StatusBadRequest, "invalid endTime format")
+        return
+    }
+
+    params := GetEventsParams{
+        StartTime: startTime,
+        EndTime:   endTime,
+    }
+
+    if assigneeIDStr := query.Get("assigneeId"); assigneeIDStr != "" {
+        assigneeID, err := strconv.Atoi(assigneeIDStr)
+        if err != nil {
+            writeError(w, http.StatusBadRequest, "invalid assigneeId format")
+            return
+        }
+        params.AssigneeID = &assigneeID
+    }
+
+    if moduleIDsStr := query.Get("moduleIds"); moduleIDsStr != "" {
+        params.ModuleIDs = strings.Split(moduleIDsStr, ",")
+    }
+
+    if sourceIDStr := query.Get("sourceId"); sourceIDStr != "" {
+        sourceID, err := strconv.Atoi(sourceIDStr)
+        if err != nil {
+            writeError(w, http.StatusBadRequest, "invalid sourceId format")
+            return
+        }
+        params.SourceID = &sourceID
     }
 
     events, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
