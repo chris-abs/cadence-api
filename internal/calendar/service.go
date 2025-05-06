@@ -16,10 +16,6 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (*entities.Event, error) {
-    if err := s.validateEventTimes(&req.StartTime, &req.EndTime, req.AllDay); err != nil {
-        return nil, err
-    }
-
     event := &entities.Event{
         Title:        req.Title,
         Description:  req.Description,
@@ -30,29 +26,41 @@ func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (
         CreatedBy:    createdBy,
         AssigneeID:   req.AssigneeID,
         FamilyID:     familyID,
-        Type:         string(entities.EventTypeGeneral),
-        SourceModule: string(entities.EventTypeGeneral),
+        SourceModule: "GENERAL",
+    }
+
+    if err := s.normaliseEventTimes(event); err != nil {
+        return nil, err
     }
 
     if err := s.repo.Create(event); err != nil {
         return nil, fmt.Errorf("failed to create event: %v", err)
     }
 
-    return s.repo.GetByID(event.ID, familyID)
+    return s.GetByID(event.ID, familyID)
 }
 
-func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
-    if err := s.validateEventTimes(&req.StartTime, &req.EndTime, req.AllDay); err != nil {
-        return nil, err
+func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
+    return s.repo.GetByID(id, familyID)
+}
+
+func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+    if params.EndTime.Before(params.StartTime) {
+        return nil, fmt.Errorf("end time must be after start time")
     }
 
+    return s.repo.GetByDateRange(familyID, params)
+}
+
+
+
+func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
     event, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to get event: %v", err)
     }
 
-    
-    if event.SourceModule != string(entities.EventTypeGeneral) {
+    if event.SourceModule != "GENERAL" {
         return nil, fmt.Errorf("cannot update events from %s module directly", event.SourceModule)
     }
 
@@ -64,23 +72,15 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
     event.AllDay = req.AllDay
     event.AssigneeID = req.AssigneeID
 
+    if err := s.normaliseEventTimes(event); err != nil {
+        return nil, err
+    }
+
     if err := s.repo.Update(event); err != nil {
         return nil, fmt.Errorf("failed to update event: %v", err)
     }
 
-    return s.repo.GetByID(id, familyID)
-}
-
-func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
-    return s.repo.GetByID(id, familyID)
-}
-
-func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
-    if err := s.validateEventTimes(&params.StartTime, &params.EndTime, false); err != nil {
-        return nil, err
-    }
-
-    return s.repo.GetByDateRange(familyID, params)
+    return s.GetByID(id, familyID)
 }
 
 func (s *Service) Delete(id int, familyID int, deletedBy int) error {
@@ -89,8 +89,7 @@ func (s *Service) Delete(id int, familyID int, deletedBy int) error {
         return fmt.Errorf("failed to get event: %v", err)
     }
 
-    
-    if event.SourceModule != string(entities.EventTypeGeneral) {
+    if event.SourceModule != "GENERAL" {
         return fmt.Errorf("cannot delete events from %s module directly", event.SourceModule)
     }
 
@@ -101,16 +100,26 @@ func (s *Service) RestoreDeleted(id int, familyID int) error {
     return s.repo.RestoreDeleted(id, familyID)
 }
 
-func (s *Service) validateEventTimes(start, end *time.Time, allDay bool) error {
-    if start.After(*end) {
+func (s *Service) normaliseEventTimes(event *entities.Event) error {
+    if event.EndTime.Before(event.StartTime) {
         return fmt.Errorf("end time must be after start time")
     }
 
-    if allDay {
-        
-        *start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
-        
-        *end = time.Date(end.Year(), end.Month(), end.Day(), 23, 59, 59, 999999999, time.UTC)
+    if event.AllDay {
+        event.StartTime = time.Date(
+            event.StartTime.Year(), 
+            event.StartTime.Month(), 
+            event.StartTime.Day(), 
+            0, 0, 0, 0, 
+            time.UTC,
+        )
+        event.EndTime = time.Date(
+            event.EndTime.Year(), 
+            event.EndTime.Month(), 
+            event.EndTime.Day(), 
+            23, 59, 59, 999999999, 
+            time.UTC,
+        )
     }
 
     return nil
