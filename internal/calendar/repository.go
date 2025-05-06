@@ -118,17 +118,29 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             created_at, updated_at, is_deleted, deleted_at, deleted_by
         FROM calendar_event
         WHERE family_id = $1 
-        AND start_time >= $2 
-        AND end_time <= $3
+        AND start_time < $2
+        AND end_time > $3
         AND is_deleted = false`
 
-    args := []interface{}{familyID, params.StartTime, params.EndTime}
-    argCount := 3
+    args := []interface{}{familyID, params.EndTime, params.StartTime}
+    paramCount := 3
 
     if params.AssigneeID != nil {
-        argCount++
-        query += fmt.Sprintf(" AND assignee_id = $%d", argCount)
+        paramCount++
+        query += fmt.Sprintf(" AND assignee_id = $%d", paramCount)
         args = append(args, *params.AssigneeID)
+    }
+
+    if len(params.ModuleIDs) > 0 {
+        paramCount++
+        query += fmt.Sprintf(" AND source_module = ANY($%d)", paramCount)
+        args = append(args, params.ModuleIDs)
+    }
+
+    if params.SourceID != nil {
+        paramCount++
+        query += fmt.Sprintf(" AND source_id = $%d", paramCount)
+        args = append(args, *params.SourceID)
     }
 
     query += " ORDER BY start_time ASC"
