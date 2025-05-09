@@ -16,16 +16,14 @@ func (db *PostgresDB) Init() error {
 		db.migrationsManager = migrations.NewManager(db.DB)
 		db.migrationsManager.EnableMigration("011_calendar_event_consolidation")
 		
-		fmt.Println("|| ******************* ||")
-		fmt.Println("Running data migration...")
-		fmt.Println("|| ******************* ||")
+		fmt.Println("\n=== Running Data Migration ===")
 		if err := db.migrationsManager.Run(); err != nil {
 			return fmt.Errorf("migrations failed: %v", err)
 		}
 	}
 
 	if os.Getenv("DROP_TABLES") == "true" {
-		fmt.Println("DROP_TABLES environment variable is set to true. Dropping all tables...")
+		fmt.Println("\n=== Dropping ALL Tables ===")
 		if err := development.DropAllTables(db.DB); err != nil {
 			return fmt.Errorf("failed to drop tables: %v", err)
 		}
