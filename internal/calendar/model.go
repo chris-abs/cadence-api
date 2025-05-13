@@ -5,9 +5,9 @@ import "time"
 type GetEventsParams struct {
     StartTime    time.Time `schema:"startTime"`
     EndTime      time.Time `schema:"endTime"`
-    AssigneeID   *int     `schema:"assigneeId,omitempty"`
-    ModuleIDs    []string `schema:"moduleIds,omitempty"`
-    SourceID     *int     `schema:"sourceId,omitempty"`
+    AssigneeID   *int      `schema:"assigneeId,omitempty"`
+    ModuleIDs    []string  `schema:"moduleIds,omitempty"`
+    SourceID     *int      `schema:"sourceId,omitempty"`
 }
 
 type CreateEventRequest struct {
