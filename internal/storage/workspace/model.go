@@ -6,7 +6,7 @@ type CreateWorkspaceRequest struct {
 }
 
 type UpdateWorkspaceRequest struct {
-    Name        string `json:"name"`
-    Description string `json:"description"`
+    Name        string  `json:"name"`
+    Description string  `json:"description"`
     ContainerIDs []int  `json:"containerIds,omitempty"`
 }
