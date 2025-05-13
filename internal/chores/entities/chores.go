@@ -95,17 +95,17 @@ func (od *OccurrenceData) MarshalJSON() ([]byte, error) {
 }
 
 type Chore struct {
-    ID             int            `json:"id"`
-    Name           string         `json:"name"`
-    Description    string         `json:"description"`
-    CreatorID      int            `json:"creatorId"`
-    AssigneeID     int            `json:"assigneeId"`
-    FamilyID       int            `json:"familyId"`
-    Points         int            `json:"points"`
-    OccurrenceType OccurrenceType `json:"occurrenceType"`
-    OccurrenceData OccurrenceData `json:"occurrenceData"`
-    CreatedAt      time.Time      `json:"createdAt"`
-    UpdatedAt      time.Time      `json:"updatedAt"`
+    ID             int               `json:"id"`
+    Name           string            `json:"name"`
+    Description    string            `json:"description"`
+    CreatorID      int               `json:"creatorId"`
+    AssigneeID     int               `json:"assigneeId"`
+    FamilyID       int               `json:"familyId"`
+    Points         int               `json:"points"`
+    OccurrenceType OccurrenceType    `json:"occurrenceType"`
+    OccurrenceData OccurrenceData    `json:"occurrenceData"`
+    CreatedAt      time.Time         `json:"createdAt"`
+    UpdatedAt      time.Time         `json:"updatedAt"`
     
     Assignee      *models.Profile    `json:"assignee,omitempty"`
     Creator       *models.Profile    `json:"creator,omitempty"`
@@ -113,22 +113,22 @@ type Chore struct {
 }
 
 type ChoreInstance struct {
-    ID              int         `json:"id"`
-    ChoreID         int         `json:"choreId"`
-    AssigneeID      int         `json:"assigneeId"`
-    FamilyID        int         `json:"familyId"`
-    DueDate         time.Time   `json:"dueDate"`
-    Status          ChoreStatus `json:"status"`
-    CompletedAt     *time.Time  `json:"completedAt,omitempty"`
-    VerifiedBy      *int        `json:"verifiedBy,omitempty"`
-    VerifiedAt      *time.Time  `json:"verifiedAt,omitempty"`
-    RejectionReason string      `json:"rejectionReason,omitempty"`
-    Notes           string      `json:"notes"`
-    CreatedAt       time.Time   `json:"createdAt"`
-    UpdatedAt       time.Time   `json:"updatedAt"`
-    IsDeleted       bool        `json:"isDeleted"`
-    DeletedAt       *time.Time  `json:"deletedAt,omitempty"`
-    DeletedBy       *int        `json:"deletedBy,omitempty"`
+    ID              int            `json:"id"`
+    ChoreID         int            `json:"choreId"`
+    AssigneeID      int            `json:"assigneeId"`
+    FamilyID        int            `json:"familyId"`
+    DueDate         time.Time      `json:"dueDate"`
+    Status          ChoreStatus    `json:"status"`
+    CompletedAt     *time.Time     `json:"completedAt,omitempty"`
+    VerifiedBy      *int           `json:"verifiedBy,omitempty"`
+    VerifiedAt      *time.Time     `json:"verifiedAt,omitempty"`
+    RejectionReason string         `json:"rejectionReason,omitempty"`
+    Notes           string         `json:"notes"`
+    CreatedAt       time.Time      `json:"createdAt"`
+    UpdatedAt       time.Time      `json:"updatedAt"`
+    IsDeleted       bool           `json:"isDeleted"`
+    DeletedAt       *time.Time     `json:"deletedAt,omitempty"`
+    DeletedBy       *int           `json:"deletedBy,omitempty"`
     
     Chore          *Chore          `json:"chore,omitempty"`
     Assignee       *models.Profile `json:"assignee,omitempty"`
