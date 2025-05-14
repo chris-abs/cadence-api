@@ -56,13 +56,17 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         EndTime:   endTime,
     }
 
-    if assigneeIDStr := query.Get("assigneeId"); assigneeIDStr != "" {
-        assigneeID, err := strconv.Atoi(assigneeIDStr)
-        if err != nil {
-            writeError(w, http.StatusBadRequest, "invalid assigneeId format")
-            return
+    if assigneeIDsStr := query.Get("assigneeIds"); assigneeIDsStr != "" {
+        assigneeIDs := []int{}
+        for _, idStr := range strings.Split(assigneeIDsStr, ",") {
+            id, err := strconv.Atoi(idStr)
+            if err != nil {
+                writeError(w, http.StatusBadRequest, "invalid assigneeIds format")
+                return
+            }
+            assigneeIDs = append(assigneeIDs, id)
         }
-        params.AssigneeID = &assigneeID
+        params.AssigneeIDs = assigneeIDs
     }
 
     if moduleIDsStr := query.Get("moduleIds"); moduleIDsStr != "" {

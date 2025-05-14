@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
+	"github.com/lib/pq"
 )
 
 type Repository struct {
@@ -125,10 +126,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     args := []interface{}{familyID, params.EndTime, params.StartTime}
     paramCount := 3
 
-    if params.AssigneeID != nil {
+    if len(params.AssigneeIDs) > 0 {
         paramCount++
-        query += fmt.Sprintf(" AND assignee_id = $%d", paramCount)
-        args = append(args, *params.AssigneeID)
+        query += fmt.Sprintf(" AND assignee_id = ANY($%d)", paramCount)
+        args = append(args, pq.Array(params.AssigneeIDs))
     }
 
     if len(params.ModuleIDs) > 0 {
