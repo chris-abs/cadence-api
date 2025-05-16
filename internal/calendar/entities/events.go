@@ -2,13 +2,21 @@ package entities
 
 import "time"
 
-type EventType string
+type RecurrenceType string
 
 const (
-    EventTypeGeneral  EventType = "GENERAL"
-    EventTypeChore    EventType = "CHORE"
-    EventTypeMeal     EventType = "MEAL"
-    EventTypeService  EventType = "SERVICE"
+    RecurrenceNone    RecurrenceType = ""
+    RecurrenceDaily   RecurrenceType = "DAILY"
+    RecurrenceWeekly  RecurrenceType = "WEEKLY"
+    RecurrenceMonthly RecurrenceType = "MONTHLY"
+    RecurrenceYearly  RecurrenceType = "YEARLY"
+)
+
+type RecurrenceState string
+
+const (
+    RecurrenceActive    RecurrenceState = "ACTIVE"
+    RecurrenceCancelled RecurrenceState = "CANCELLED"
 )
 
 type Event struct {
@@ -25,9 +33,24 @@ type Event struct {
     SourceModule string     `json:"sourceModule"`
     SourceID     *int       `json:"sourceId,omitempty"`
     FamilyID     int        `json:"familyId"`
+    
+    RecurrenceType      RecurrenceType  `json:"recurrenceType"`
+    RecurrenceInterval  *int            `json:"recurrenceInterval,omitempty"`
+    RecurrenceEndTime   *time.Time      `json:"recurrenceEndTime,omitempty"`
+    RecurrenceState     RecurrenceState `json:"recurrenceState,omitempty"`
+    RecurrenceCancelledAt *time.Time    `json:"recurrenceCancelledAt,omitempty"`
+    
     CreatedAt    time.Time  `json:"createdAt"`
     UpdatedAt    time.Time  `json:"updatedAt"`
     IsDeleted    bool       `json:"isDeleted"`
     DeletedAt    *time.Time `json:"deletedAt,omitempty"`
     DeletedBy    *int       `json:"deletedBy,omitempty"`
+}
+
+func (e *Event) IsRecurring() bool {
+    return e.RecurrenceType != RecurrenceNone
+}
+
+func (e *Event) IsRecurrenceActive() bool {
+    return e.IsRecurring() && e.RecurrenceState == RecurrenceActive
 }
