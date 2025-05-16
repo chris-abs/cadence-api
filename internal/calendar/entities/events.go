@@ -2,7 +2,17 @@ package entities
 
 import "time"
 
+type EventType string
 type RecurrenceType string
+type RecurrenceState string
+
+
+const (
+    EventTypeGeneral  EventType = "GENERAL"
+    EventTypeChore    EventType = "CHORE"
+    EventTypeMeal     EventType = "MEAL"
+    EventTypeService  EventType = "SERVICE"
+)
 
 const (
     RecurrenceNone    RecurrenceType = ""
@@ -11,8 +21,6 @@ const (
     RecurrenceMonthly RecurrenceType = "MONTHLY"
     RecurrenceYearly  RecurrenceType = "YEARLY"
 )
-
-type RecurrenceState string
 
 const (
     RecurrenceActive    RecurrenceState = "ACTIVE"
@@ -33,12 +41,13 @@ type Event struct {
     SourceModule string     `json:"sourceModule"`
     SourceID     *int       `json:"sourceId,omitempty"`
     FamilyID     int        `json:"familyId"`
+    EventType    EventType   `json:"eventType"`
     
-    RecurrenceType      RecurrenceType  `json:"recurrenceType"`
-    RecurrenceInterval  *int            `json:"recurrenceInterval,omitempty"`
-    RecurrenceEndTime   *time.Time      `json:"recurrenceEndTime,omitempty"`
-    RecurrenceState     RecurrenceState `json:"recurrenceState,omitempty"`
-    RecurrenceCancelledAt *time.Time    `json:"recurrenceCancelledAt,omitempty"`
+    RecurrenceType        RecurrenceType  `json:"recurrenceType"`
+    RecurrenceInterval    *int            `json:"recurrenceInterval,omitempty"`
+    RecurrenceEndTime     *time.Time      `json:"recurrenceEndTime,omitempty"`
+    RecurrenceState       RecurrenceState `json:"recurrenceState,omitempty"`
+    RecurrenceCancelledAt *time.Time      `json:"recurrenceCancelledAt,omitempty"`
     
     CreatedAt    time.Time  `json:"createdAt"`
     UpdatedAt    time.Time  `json:"updatedAt"`
