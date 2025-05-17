@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/profile"
 )
 
@@ -26,11 +27,7 @@ func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
     }
 }
 
-func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
-    return s.repo.GetByID(id, familyID)
-}
-
-func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (*entities.Event, error) {
+func (s *Service) Create(familyID int, req *CreateEventRequest) (*entities.Event, error) {
     event := &entities.Event{
         Title:        req.Title,
         Description:  req.Description,
@@ -38,25 +35,13 @@ func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (
         StartTime:    req.StartTime,
         EndTime:      req.EndTime,
         AllDay:       req.AllDay,
-        CreatedBy:    createdBy,
         AssigneeID:   req.AssigneeID,
         FamilyID:     familyID,
         SourceModule: "GENERAL",
         EventType:    entities.EventTypeGeneral,
     }
 
-    // Handle recurring events
     if req.RepeatType != "" {
-        // Verify parent role for recurring events
-        role, err := s.profileRepo.GetRole(createdBy)
-        if err != nil {
-            return nil, fmt.Errorf("failed to verify role: %v", err)
-        }
-        if role != "PARENT" {
-            return nil, fmt.Errorf("only parents can create recurring events")
-        }
-
-        // Validate repeat type
         recurrenceType := entities.RecurrenceType(req.RepeatType)
         switch recurrenceType {
         case entities.RecurrenceDaily, entities.RecurrenceWeekly, 
@@ -66,7 +51,6 @@ func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (
             return nil, fmt.Errorf("invalid repeat type: %s", req.RepeatType)
         }
 
-        // Validate end date
         if req.RepeatUntil != nil {
             maxEndTime := time.Now().AddDate(MaxYearsAhead, 0, 0)
             if req.RepeatUntil.After(maxEndTime) {
@@ -76,7 +60,6 @@ func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (
         }
 
         event.IsRecurring = true
-        event.RecurrenceState = entities.RecurrenceActive
     }
 
     if err := s.normaliseEventTimes(event); err != nil {
@@ -90,12 +73,15 @@ func (s *Service) Create(createdBy int, familyID int, req *CreateEventRequest) (
     return s.GetByID(event.ID, familyID)
 }
 
+func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
+    return s.repo.GetByID(id, familyID)
+}
+
 func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, bool, error) {
     if params.EndTime.Before(params.StartTime) {
         return nil, false, fmt.Errorf("end time must be after start time")
     }
 
-    // Handle pagination
     if params.Limit <= 0 {
         params.Limit = DefaultLimit
     }
@@ -123,13 +109,12 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
         return nil, fmt.Errorf("cannot update events from %s module directly", event.SourceModule)
     }
 
-    // Check parent role for recurring events
     if event.IsRecurring {
-        role, err := s.profileRepo.GetRole(req.UpdatedBy)
+        profile, err := s.profileRepo.GetByID(req.UpdatedBy)
         if err != nil {
             return nil, fmt.Errorf("failed to verify role: %v", err)
         }
-        if role != "PARENT" {
+        if profile.Role != models.RoleParent {
             return nil, fmt.Errorf("only parents can modify recurring events")
         }
     }
@@ -153,6 +138,72 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
     return s.GetByID(id, familyID)
 }
 
+func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, familyID int) (*entities.Event, error) {
+    originalEvent, err := s.repo.GetByID(req.EventID, familyID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get event: %v", err)
+    }
+
+    if !originalEvent.IsRecurring {
+        return nil, fmt.Errorf("event is not recurring")
+    }
+
+    profile, err := s.profileRepo.GetByID(req.UpdatedBy)
+    if err != nil {
+        return nil, fmt.Errorf("failed to verify role: %v", err)
+    }
+    if profile.Role != models.RoleParent {
+        return nil, fmt.Errorf("only parents can modify recurring events")
+    }
+
+    modifiedInstance := &entities.Event{
+        Title:         originalEvent.Title,
+        Description:   originalEvent.Description,
+        Location:      originalEvent.Location,
+        StartTime:     originalEvent.StartTime,
+        EndTime:       originalEvent.EndTime,
+        AllDay:        originalEvent.AllDay,
+        AssigneeID:    originalEvent.AssigneeID,
+        FamilyID:      familyID,
+        SourceModule:  originalEvent.SourceModule,
+        EventType:     originalEvent.EventType,
+        IsException:   true,
+        ParentEventID: &originalEvent.ID,
+    }
+
+    if req.Title != nil {
+        modifiedInstance.Title = *req.Title
+    }
+    if req.Description != nil {
+        modifiedInstance.Description = req.Description
+    }
+    if req.Location != nil {
+        modifiedInstance.Location = req.Location
+    }
+    if req.StartTime != nil {
+        modifiedInstance.StartTime = *req.StartTime
+    }
+    if req.EndTime != nil {
+        modifiedInstance.EndTime = *req.EndTime
+    }
+    if req.AllDay != nil {
+        modifiedInstance.AllDay = *req.AllDay
+    }
+    if req.AssigneeID != nil {
+        modifiedInstance.AssigneeID = *req.AssigneeID
+    }
+
+    if err := s.normaliseEventTimes(modifiedInstance); err != nil {
+        return nil, err
+    }
+
+    if err := s.repo.CreateModifiedInstance(modifiedInstance); err != nil {
+        return nil, fmt.Errorf("failed to create modified instance: %v", err)
+    }
+
+    return modifiedInstance, nil
+}
+
 func (s *Service) Delete(id int, familyID int, deletedBy int) error {
     event, err := s.repo.GetByID(id, familyID)
     if err != nil {
@@ -163,13 +214,12 @@ func (s *Service) Delete(id int, familyID int, deletedBy int) error {
         return fmt.Errorf("cannot delete events from %s module directly", event.SourceModule)
     }
 
-    // Check parent role for recurring events
     if event.IsRecurring {
-        role, err := s.profileRepo.GetRole(deletedBy)
+        profile, err := s.profileRepo.GetByID(deletedBy)
         if err != nil {
             return fmt.Errorf("failed to verify role: %v", err)
         }
-        if role != "PARENT" {
+        if profile.Role != models.RoleParent {
             return fmt.Errorf("only parents can delete recurring events")
         }
     }
@@ -191,11 +241,11 @@ func (s *Service) CancelRecurringInstance(id int, familyID int, date time.Time, 
         return fmt.Errorf("event is not recurring")
     }
 
-    role, err := s.profileRepo.GetRole(cancelledBy)
+    profile, err := s.profileRepo.GetByID(cancelledBy)
     if err != nil {
         return fmt.Errorf("failed to verify role: %v", err)
     }
-    if role != "PARENT" {
+    if profile.Role != models.RoleParent {
         return fmt.Errorf("only parents can cancel recurring events")
     }
 
@@ -212,11 +262,11 @@ func (s *Service) CancelFutureRecurrences(id int, familyID int, fromDate time.Ti
         return fmt.Errorf("event is not recurring")
     }
 
-    role, err := s.profileRepo.GetRole(cancelledBy)
+    profile, err := s.profileRepo.GetByID(cancelledBy)
     if err != nil {
         return fmt.Errorf("failed to verify role: %v", err)
     }
-    if role != "PARENT" {
+    if profile.Role != models.RoleParent {
         return fmt.Errorf("only parents can cancel recurring events")
     }
 
@@ -230,7 +280,6 @@ func (s *Service) normaliseEventTimes(event *entities.Event) error {
     }
 
     if event.AllDay {
-        // Set to start of day in UTC
         event.StartTime = time.Date(
             event.StartTime.Year(),
             event.StartTime.Month(),
@@ -240,7 +289,7 @@ func (s *Service) normaliseEventTimes(event *entities.Event) error {
         )
         
         event.EndTime = time.Date(
-            event.StartTime.Year(),  // Use StartTime to ensure same day
+            event.StartTime.Year(),  
             event.StartTime.Month(),
             event.StartTime.Day(),
             23, 59, 59, 999999999,
