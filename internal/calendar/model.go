@@ -39,7 +39,7 @@ type UpdateEventRequest struct {
     UpdatedBy   int       `json:"updatedBy" validate:"required"`
 }
 
-type EventResponse struct {
-    *entities.Event
-    HasMore bool `json:"hasMore,omitempty"`
+type PaginatedEvents struct {
+    Events   []*entities.Event `json:"events"`
+    HasMore  bool             `json:"hasMore"`
 }
