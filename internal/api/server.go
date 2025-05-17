@@ -90,7 +90,7 @@ func (s *Server) Run() {
 	searchService := search.NewService(searchRepo)
 	recentService := recent.NewService(recentRepo)
 	choreService := chores.NewService(choreRepo) 
-	calendarService := calendar.NewService(calendarRepo)
+	calendarService := calendar.NewService(calendarRepo, profileRepo)
 
 	// Initialise handlers
 	familyHandler := family.NewHandler(

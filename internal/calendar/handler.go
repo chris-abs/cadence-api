@@ -59,7 +59,6 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         EndTime:   endTime,
     }
 
-    
     if limitStr := query.Get("limit"); limitStr != "" {
         limit, err := strconv.Atoi(limitStr)
         if err != nil {
@@ -110,7 +109,7 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusOK, EventResponse{
+    writeJSON(w, http.StatusOK, PaginatedEvents{
         Events: events,
         HasMore: hasMore,
     })
@@ -167,7 +166,6 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    
     req.UpdatedBy = profileCtx.ProfileID
 
     event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
