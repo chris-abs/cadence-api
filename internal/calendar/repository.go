@@ -22,8 +22,9 @@ func (r *Repository) Create(event *entities.Event) error {
         INSERT INTO calendar_event (
             title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
+            is_recurring, recurrence_type, recurrence_end_time, recurrence_state,
             created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
         RETURNING id, created_at, updated_at`
 
     now := time.Now().UTC()
@@ -41,6 +42,10 @@ func (r *Repository) Create(event *entities.Event) error {
         event.CreatedBy,
         event.AssigneeID,
         event.FamilyID,
+        event.IsRecurring,
+        event.RecurrenceType,
+        event.RecurrenceEndTime,
+        event.RecurrenceState,
         now,
     ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
 
@@ -56,6 +61,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         SELECT 
             id, title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
+            is_recurring, recurrence_type, recurrence_end_time, recurrence_state,
             created_at, updated_at, is_deleted, deleted_at, deleted_by
         FROM calendar_event
         WHERE id = $1 
@@ -65,7 +71,8 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     event := new(entities.Event)
     var description, location sql.NullString
     var sourceID sql.NullInt64
-    var deletedAt sql.NullTime
+    var deletedAt, recurrenceEndTime sql.NullTime
+    var recurrenceType, recurrenceState sql.NullString
 
     err := r.db.QueryRow(query, id, familyID).Scan(
         &event.ID,
@@ -80,6 +87,10 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
         &event.CreatedBy,
         &event.AssigneeID,
         &event.FamilyID,
+        &event.IsRecurring,
+        &recurrenceType,
+        &recurrenceEndTime,
+        &recurrenceState,
         &event.CreatedAt,
         &event.UpdatedAt,
         &event.IsDeleted,
@@ -107,15 +118,41 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     if deletedAt.Valid {
         event.DeletedAt = &deletedAt.Time
     }
+    if recurrenceType.Valid {
+        event.RecurrenceType = entities.RecurrenceType(recurrenceType.String)
+    }
+    if recurrenceEndTime.Valid {
+        event.RecurrenceEndTime = &recurrenceEndTime.Time
+    }
+    if recurrenceState.Valid {
+        event.RecurrenceState = entities.RecurrenceState(recurrenceState.String)
+    }
 
     return event, nil
 }
 
-func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, int, error) {
+    
+    countQuery := `
+        SELECT COUNT(*) 
+        FROM calendar_event
+        WHERE family_id = $1 
+        AND start_time < $2
+        AND end_time > $3
+        AND is_deleted = false`
+
+    var total int
+    err := r.db.QueryRow(countQuery, familyID, params.EndTime, params.StartTime).Scan(&total)
+    if err != nil {
+        return nil, 0, fmt.Errorf("error getting count: %v", err)
+    }
+
+    
     query := `
         SELECT 
             id, title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
+            is_recurring, recurrence_type, recurrence_end_time, recurrence_state,
             created_at, updated_at, is_deleted, deleted_at, deleted_by
         FROM calendar_event
         WHERE family_id = $1 
@@ -135,7 +172,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     if len(params.ModuleIDs) > 0 {
         paramCount++
         query += fmt.Sprintf(" AND source_module = ANY($%d)", paramCount)
-        args = append(args, params.ModuleIDs)
+        args = append(args, pq.Array(params.ModuleIDs))
     }
 
     if params.SourceID != nil {
@@ -145,10 +182,23 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     }
 
     query += " ORDER BY start_time ASC"
+    
+    
+    if params.Limit > 0 {
+        paramCount++
+        query += fmt.Sprintf(" LIMIT $%d", paramCount)
+        args = append(args, params.Limit)
+
+        if params.Offset > 0 {
+            paramCount++
+            query += fmt.Sprintf(" OFFSET $%d", paramCount)
+            args = append(args, params.Offset)
+        }
+    }
 
     rows, err := r.db.Query(query, args...)
     if err != nil {
-        return nil, fmt.Errorf("error getting events: %v", err)
+        return nil, 0, fmt.Errorf("error getting events: %v", err)
     }
     defer rows.Close()
 
@@ -157,7 +207,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         event := new(entities.Event)
         var description, location sql.NullString
         var sourceID sql.NullInt64
-        var deletedAt sql.NullTime
+        var deletedAt, recurrenceEndTime sql.NullTime
+        var recurrenceType, recurrenceState sql.NullString
 
         err := rows.Scan(
             &event.ID,
@@ -172,6 +223,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &event.CreatedBy,
             &event.AssigneeID,
             &event.FamilyID,
+            &event.IsRecurring,
+            &recurrenceType,
+            &recurrenceEndTime,
+            &recurrenceState,
             &event.CreatedAt,
             &event.UpdatedAt,
             &event.IsDeleted,
@@ -179,7 +234,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &event.DeletedBy,
         )
         if err != nil {
-            return nil, fmt.Errorf("error scanning event: %v", err)
+            return nil, 0, fmt.Errorf("error scanning event: %v", err)
         }
 
         if description.Valid {
@@ -195,11 +250,20 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         if deletedAt.Valid {
             event.DeletedAt = &deletedAt.Time
         }
+        if recurrenceType.Valid {
+            event.RecurrenceType = entities.RecurrenceType(recurrenceType.String)
+        }
+        if recurrenceEndTime.Valid {
+            event.RecurrenceEndTime = &recurrenceEndTime.Time
+        }
+        if recurrenceState.Valid {
+            event.RecurrenceState = entities.RecurrenceState(recurrenceState.String)
+        }
 
         events = append(events, event)
     }
 
-    return events, nil
+    return events, total, nil
 }
 
 func (r *Repository) Update(event *entities.Event) error {
@@ -207,9 +271,10 @@ func (r *Repository) Update(event *entities.Event) error {
         UPDATE calendar_event
         SET title = $2, description = $3, location = $4,
             start_time = $5, end_time = $6, all_day = $7,
-            assignee_id = $8, updated_at = $9
+            assignee_id = $8, updated_at = $9,
+            recurrence_end_time = $10
         WHERE id = $1 
-        AND family_id = $10 
+        AND family_id = $11 
         AND is_deleted = false`
 
     result, err := r.db.Exec(
@@ -223,6 +288,7 @@ func (r *Repository) Update(event *entities.Event) error {
         event.AllDay,
         event.AssigneeID,
         time.Now().UTC(),
+        event.RecurrenceEndTime,
         event.FamilyID,
     )
     if err != nil {
@@ -295,4 +361,43 @@ func (r *Repository) RestoreDeleted(id int, familyID int) error {
     }
 
     return nil
+}
+
+func (r *Repository) CreateRecurrenceException(eventID int, date time.Time) error {
+    query := `
+        INSERT INTO calendar_event_exception (event_id, exception_date)
+        VALUES ($1, $2)
+        ON CONFLICT (event_id, exception_date) DO NOTHING`
+
+    _, err := r.db.Exec(query, eventID, date)
+    if err != nil {
+        return fmt.Errorf("error creating recurrence exception: %v", err)
+    }
+
+    return nil
+}
+
+func (r *Repository) GetRecurrenceExceptions(eventID int) ([]time.Time, error) {
+    query := `
+        SELECT exception_date
+        FROM calendar_event_exception
+        WHERE event_id = $1
+        ORDER BY exception_date`
+
+    rows, err := r.db.Query(query, eventID)
+    if err != nil {
+        return nil, fmt.Errorf("error getting recurrence exceptions: %v", err)
+    }
+    defer rows.Close()
+
+    var exceptions []time.Time
+    for rows.Next() {
+        var date time.Time
+        if err := rows.Scan(&date); err != nil {
+            return nil, fmt.Errorf("error scanning exception date: %v", err)
+        }
+        exceptions = append(exceptions, date)
+    }
+
+    return exceptions, nil
 }
