@@ -6,7 +6,6 @@ type EventType string
 type RecurrenceType string
 type RecurrenceState string
 
-
 const (
     EventTypeGeneral  EventType = "GENERAL"
     EventTypeChore    EventType = "CHORE"
@@ -41,13 +40,15 @@ type Event struct {
     SourceModule string     `json:"sourceModule"`
     SourceID     *int       `json:"sourceId,omitempty"`
     FamilyID     int        `json:"familyId"`
-    EventType    EventType   `json:"eventType"`
+    EventType    EventType  `json:"eventType"`
     
-    RecurrenceType        RecurrenceType  `json:"recurrenceType"`
-    RecurrenceInterval    *int            `json:"recurrenceInterval,omitempty"`
-    RecurrenceEndTime     *time.Time      `json:"recurrenceEndTime,omitempty"`
-    RecurrenceState       RecurrenceState `json:"recurrenceState,omitempty"`
-    RecurrenceCancelledAt *time.Time      `json:"recurrenceCancelledAt,omitempty"`
+    IsRecurring         bool            `json:"isRecurring"`
+    RecurrenceID        *int            `json:"recurrenceId,omitempty"`
+    RecurrenceType      RecurrenceType  `json:"recurrenceType"`
+    RecurrenceInterval  *int            `json:"recurrenceInterval,omitempty"`
+    RecurrenceEndTime   *time.Time      `json:"recurrenceEndTime,omitempty"`
+    RecurrenceState     RecurrenceState `json:"recurrenceState,omitempty"`
+    IsException         bool            `json:"isException"`
     
     CreatedAt    time.Time  `json:"createdAt"`
     UpdatedAt    time.Time  `json:"updatedAt"`
@@ -56,10 +57,14 @@ type Event struct {
     DeletedBy    *int       `json:"deletedBy,omitempty"`
 }
 
-func (e *Event) IsRecurring() bool {
+func (e *Event) IsRecurringEvent() bool {
     return e.RecurrenceType != RecurrenceNone
 }
 
 func (e *Event) IsRecurrenceActive() bool {
-    return e.IsRecurring() && e.RecurrenceState == RecurrenceActive
+    return e.IsRecurring && e.RecurrenceState == RecurrenceActive
+}
+
+func (e *Event) IsInFuture() bool {
+    return e.StartTime.After(time.Now())
 }
