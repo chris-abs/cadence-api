@@ -33,6 +33,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/calendar/events/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteEvent)).Methods("DELETE")
     
     router.HandleFunc("/calendar/events/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreEvent)).Methods("PUT")
+    
+    router.HandleFunc("/calendar/events/{id}/cancel-instance", h.authMiddleware.ProfileAuthHandler(h.handleCancelInstance)).Methods("POST")
+    router.HandleFunc("/calendar/events/{id}/cancel-future", h.authMiddleware.ProfileAuthHandler(h.handleCancelFutureRecurrences)).Methods("POST")
 }
 
 func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
@@ -54,6 +57,25 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     params := GetEventsParams{
         StartTime: startTime,
         EndTime:   endTime,
+    }
+
+    
+    if limitStr := query.Get("limit"); limitStr != "" {
+        limit, err := strconv.Atoi(limitStr)
+        if err != nil {
+            writeError(w, http.StatusBadRequest, "invalid limit format")
+            return
+        }
+        params.Limit = limit
+    }
+
+    if offsetStr := query.Get("offset"); offsetStr != "" {
+        offset, err := strconv.Atoi(offsetStr)
+        if err != nil {
+            writeError(w, http.StatusBadRequest, "invalid offset format")
+            return
+        }
+        params.Offset = offset
     }
 
     if assigneeIDsStr := query.Get("assigneeIds"); assigneeIDsStr != "" {
@@ -82,13 +104,16 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         params.SourceID = &sourceID
     }
 
-    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
+    events, hasMore, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
 
-    writeJSON(w, http.StatusOK, events)
+    writeJSON(w, http.StatusOK, EventResponse{
+        Events: events,
+        HasMore: hasMore,
+    })
 }
 
 func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +167,9 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    
+    req.UpdatedBy = profileCtx.ProfileID
+
     event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
@@ -183,6 +211,56 @@ func (h *Handler) handleRestoreEvent(w http.ResponseWriter, r *http.Request) {
     }
 
     writeJSON(w, http.StatusOK, map[string]int{"restored": eventID})
+}
+
+func (h *Handler) handleCancelInstance(w http.ResponseWriter, r *http.Request) {
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+
+    eventID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    var req struct {
+        Date time.Time `json:"date"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    if err := h.service.CancelRecurringInstance(eventID, profileCtx.FamilyID, req.Date, profileCtx.ProfileID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
+}
+
+func (h *Handler) handleCancelFutureRecurrences(w http.ResponseWriter, r *http.Request) {
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+
+    eventID, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+
+    var req struct {
+        FromDate time.Time `json:"fromDate"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    if err := h.service.CancelFutureRecurrences(eventID, profileCtx.FamilyID, req.FromDate, profileCtx.ProfileID); err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
