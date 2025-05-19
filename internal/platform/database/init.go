@@ -14,7 +14,7 @@ func (db *PostgresDB) Init() error {
 
 	if os.Getenv("RUN_MIGRATION") == "true" {
 		db.migrationsManager = migrations.NewManager(db.DB)
-		db.migrationsManager.EnableMigration("011_calendar_event_consolidation")
+		db.migrationsManager.EnableMigration("012_calendar_recurrence")
 		
 		fmt.Println("\n=== Running Data Migration ===")
 		if err := db.migrationsManager.Run(); err != nil {
