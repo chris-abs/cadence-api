@@ -12,19 +12,17 @@ type GetEventsParams struct {
     AssigneeIDs  []int     `schema:"assigneeIds,omitempty"` 
     ModuleIDs    []string  `schema:"moduleIds,omitempty"`
     SourceID     *int      `schema:"sourceId,omitempty"`
-    Limit        int       `schema:"limit,omitempty"`
-    Offset       int       `schema:"offset,omitempty"`
 }
 
 type CreateEventRequest struct {
-    Title        string     `json:"title" validate:"required"`
-    Description  *string    `json:"description"`
-    Location     *string    `json:"location"`
-    StartTime    time.Time  `json:"startTime" validate:"required"`
-    EndTime      time.Time  `json:"endTime" validate:"required,gtfield=StartTime"`
-    AllDay       bool       `json:"allDay"`
-    AssigneeID   int        `json:"assigneeId" validate:"required"`
-    RepeatType   string     `json:"repeatType,omitempty"`
+    Title       string    `json:"title" validate:"required"`
+    Description *string   `json:"description"`
+    Location    *string   `json:"location"`
+    StartTime   time.Time `json:"startTime" validate:"required"`
+    EndTime     time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay      bool      `json:"allDay"`
+    AssigneeID  int       `json:"assigneeId" validate:"required"`
+    RepeatType   string    `json:"repeatType,omitempty"`
     RepeatUntil  *time.Time `json:"repeatUntil,omitempty"`
 }
 

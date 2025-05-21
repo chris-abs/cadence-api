@@ -10,8 +10,6 @@ import (
 )
 
 const (
-    DefaultLimit = 50
-    MaxLimit     = 200
     MaxYearsAhead = 2
 )
 
@@ -77,26 +75,17 @@ func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, bool, error) {
+func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
     if params.EndTime.Before(params.StartTime) {
-        return nil, false, fmt.Errorf("end time must be after start time")
+        return nil, fmt.Errorf("end time must be after start time")
     }
 
-    if params.Limit <= 0 {
-        params.Limit = DefaultLimit
-    }
-    if params.Limit > MaxLimit {
-        params.Limit = MaxLimit
-    }
-
-    events, total, err := s.repo.GetByDateRange(familyID, params)
+    events, err := s.repo.GetByDateRange(familyID, params)
     if err != nil {
-        return nil, false, fmt.Errorf("failed to get events: %v", err)
+        return nil, fmt.Errorf("failed to get events: %v", err)
     }
 
-    hasMore := (params.Offset + len(events)) < total
-
-    return events, hasMore, nil
+    return events, nil
 }
 
 func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
@@ -139,12 +128,12 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
 }
 
 func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, familyID int) (*entities.Event, error) {
-    originalEvent, err := s.repo.GetByID(req.EventID, familyID)
+    event, err := s.repo.GetByID(req.EventID, familyID)
     if err != nil {
         return nil, fmt.Errorf("failed to get event: %v", err)
     }
 
-    if !originalEvent.IsRecurring {
+    if !event.IsRecurring {
         return nil, fmt.Errorf("event is not recurring")
     }
 
@@ -157,18 +146,18 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
     }
 
     modifiedInstance := &entities.Event{
-        Title:         originalEvent.Title,
-        Description:   originalEvent.Description,
-        Location:      originalEvent.Location,
-        StartTime:     originalEvent.StartTime,
-        EndTime:       originalEvent.EndTime,
-        AllDay:        originalEvent.AllDay,
-        AssigneeID:    originalEvent.AssigneeID,
+        Title:         event.Title,
+        Description:   event.Description,
+        Location:      event.Location,
+        StartTime:     event.StartTime,
+        EndTime:       event.EndTime,
+        AllDay:        event.AllDay,
+        AssigneeID:    event.AssigneeID,
         FamilyID:      familyID,
-        SourceModule:  originalEvent.SourceModule,
-        EventType:     originalEvent.EventType,
+        SourceModule:  event.SourceModule,
+        EventType:     event.EventType,
         IsException:   true,
-        ParentEventID: &originalEvent.ID,
+        ParentEventID: &event.ID,
     }
 
     if req.Title != nil {

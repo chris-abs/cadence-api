@@ -31,7 +31,6 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/calendar/events/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateEvent)).Methods("PUT")
     router.HandleFunc("/calendar/events/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteEvent)).Methods("DELETE")
     router.HandleFunc("/calendar/events/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreEvent)).Methods("PUT")
-    
     router.HandleFunc("/calendar/events/{id}/modify-instance", h.authMiddleware.ProfileAuthHandler(h.handleModifyInstance)).Methods("POST")
     router.HandleFunc("/calendar/events/{id}/cancel-instance", h.authMiddleware.ProfileAuthHandler(h.handleCancelInstance)).Methods("POST")
 }
@@ -55,24 +54,6 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     params := GetEventsParams{
         StartTime: startTime,
         EndTime:   endTime,
-    }
-
-    if limitStr := query.Get("limit"); limitStr != "" {
-        limit, err := strconv.Atoi(limitStr)
-        if err != nil {
-            writeError(w, http.StatusBadRequest, "invalid limit format")
-            return
-        }
-        params.Limit = limit
-    }
-
-    if offsetStr := query.Get("offset"); offsetStr != "" {
-        offset, err := strconv.Atoi(offsetStr)
-        if err != nil {
-            writeError(w, http.StatusBadRequest, "invalid offset format")
-            return
-        }
-        params.Offset = offset
     }
 
     if assigneeIDsStr := query.Get("assigneeIds"); assigneeIDsStr != "" {
@@ -101,16 +82,13 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         params.SourceID = &sourceID
     }
 
-    events, hasMore, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
+    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
 
-    writeJSON(w, http.StatusOK, PaginatedEvents{
-        Events: events,
-        HasMore: hasMore,
-    })
+    writeJSON(w, http.StatusOK, events)
 }
 
 func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
@@ -164,8 +142,6 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    req.UpdatedBy = profileCtx.ProfileID
-
     event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
@@ -191,8 +167,6 @@ func (h *Handler) handleModifyInstance(w http.ResponseWriter, r *http.Request) {
     }
 
     req.EventID = eventID
-    req.UpdatedBy = profileCtx.ProfileID
-
     event, err := h.service.ModifyRecurringInstance(&req, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())

@@ -141,76 +141,21 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     return event, nil
 }
 
-func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, int, error) {
-    // First get total count for pagination
-    countQuery := `
-        SELECT COUNT(*) FROM (
-            SELECT 1 FROM calendar_event e
-            WHERE e.family_id = $1 
-            AND e.start_time < $2
-            AND e.end_time > $3
-            AND e.is_deleted = false
-            AND NOT EXISTS (
-                -- Exclude instances that have been modified (they'll be included separately)
-                SELECT 1 FROM calendar_event modified
-                WHERE modified.parent_event_id = e.id
-                AND modified.start_time = e.start_time
-                AND modified.is_deleted = false
-            )
-            UNION ALL
-            -- Include modified instances
-            SELECT 1 FROM calendar_event e
-            WHERE e.family_id = $1
-            AND e.start_time < $2
-            AND e.end_time > $3
-            AND e.is_deleted = false
-            AND e.is_exception = true
-        ) as combined`
-
-    var total int
-    err := r.db.QueryRow(countQuery, familyID, params.EndTime, params.StartTime).Scan(&total)
-    if err != nil {
-        return nil, 0, fmt.Errorf("error getting count: %v", err)
-    }
-
-    // Then get paginated results
+func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
     query := `
-        WITH combined_events AS (
-            -- Regular and recurring events
-            SELECT e.*, NULL as exception_date
-            FROM calendar_event e
-            WHERE e.family_id = $1 
-            AND e.start_time < $2
-            AND e.end_time > $3
-            AND e.is_deleted = false
-            AND NOT EXISTS (
-                SELECT 1 FROM calendar_event modified
-                WHERE modified.parent_event_id = e.id
-                AND modified.start_time = e.start_time
-                AND modified.is_deleted = false
-            )
-            UNION ALL
-            -- Modified instances
-            SELECT e.*, NULL as exception_date
-            FROM calendar_event e
-            WHERE e.family_id = $1
-            AND e.start_time < $2
-            AND e.end_time > $3
-            AND e.is_deleted = false
-            AND e.is_exception = true
-        )
         SELECT 
             e.id, e.title, e.description, e.location, e.start_time, e.end_time,
             e.all_day, e.source_module, e.source_id, e.assignee_id, e.family_id,
             e.is_recurring, e.recurrence_type, e.recurrence_end_time,
             e.is_exception, e.parent_event_id,
             e.created_at, e.updated_at, e.is_deleted, e.deleted_at, e.deleted_by,
-            p.id, p.name, p.role, p.image_url, p.colour,
-            ce.exception_date
-        FROM combined_events e
+            p.id, p.name, p.role, p.image_url, p.colour
+        FROM calendar_event e
         LEFT JOIN profile p ON e.assignee_id = p.id
-        LEFT JOIN calendar_event_exception ce ON e.id = ce.event_id 
-            AND ce.exception_date BETWEEN $3 AND $2`
+        WHERE e.family_id = $1 
+        AND e.start_time < $2
+        AND e.end_time > $3
+        AND e.is_deleted = false`
 
     args := []interface{}{familyID, params.EndTime, params.StartTime}
     paramCount := 3
@@ -234,23 +179,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     }
 
     query += " ORDER BY e.start_time ASC"
-    
-    // Add pagination
-    if params.Limit > 0 {
-        paramCount++
-        query += fmt.Sprintf(" LIMIT $%d", paramCount)
-        args = append(args, params.Limit)
-
-        if params.Offset > 0 {
-            paramCount++
-            query += fmt.Sprintf(" OFFSET $%d", paramCount)
-            args = append(args, params.Offset)
-        }
-    }
 
     rows, err := r.db.Query(query, args...)
     if err != nil {
-        return nil, 0, fmt.Errorf("error getting events: %v", err)
+        return nil, fmt.Errorf("error getting events: %v", err)
     }
     defer rows.Close()
 
@@ -260,7 +192,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         assignee := new(models.Profile)
         var description, location sql.NullString
         var sourceID, parentEventID sql.NullInt64
-        var deletedAt, recurrenceEndTime, exceptionDate sql.NullTime
+        var deletedAt, recurrenceEndTime sql.NullTime
         var recurrenceType sql.NullString
 
         err := rows.Scan(
@@ -290,10 +222,9 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             &assignee.Role,
             &assignee.ImageURL,
             &assignee.Colour,
-            &exceptionDate,
         )
         if err != nil {
-            return nil, 0, fmt.Errorf("error scanning event: %v", err)
+            return nil, fmt.Errorf("error scanning event: %v", err)
         }
 
         if description.Valid {
@@ -324,7 +255,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         events = append(events, event)
     }
 
-    return events, total, nil
+    return events, nil
 }
 
 func (r *Repository) Update(event *entities.Event) error {
@@ -392,8 +323,8 @@ func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
         event.SourceID,
         event.AssigneeID,
         event.FamilyID,
-        false, // is_recurring
-        true,  // is_exception
+        false, 
+        true,  
         event.ParentEventID,
         now,
     ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
