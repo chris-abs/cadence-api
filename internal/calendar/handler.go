@@ -100,7 +100,7 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.Create(profileCtx.FamilyID, &req)
+    event, err := h.service.Create(profileCtx.ProfileID, profileCtx.FamilyID, &req)  
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

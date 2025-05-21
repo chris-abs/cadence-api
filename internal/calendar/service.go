@@ -25,7 +25,7 @@ func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
     }
 }
 
-func (s *Service) Create(familyID int, req *CreateEventRequest) (*entities.Event, error) {
+func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (*entities.Event, error) {
     event := &entities.Event{
         Title:        req.Title,
         Description:  req.Description,
@@ -33,6 +33,7 @@ func (s *Service) Create(familyID int, req *CreateEventRequest) (*entities.Event
         StartTime:    req.StartTime,
         EndTime:      req.EndTime,
         AllDay:       req.AllDay,
+        CreatedBy:    profileID,
         AssigneeID:   req.AssigneeID,
         FamilyID:     familyID,
         SourceModule: "GENERAL",
