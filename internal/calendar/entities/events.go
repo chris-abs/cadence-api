@@ -46,6 +46,8 @@ type Event struct {
     IsException       bool           `json:"isException"` 
     ParentEventID     *int           `json:"parentEventId,omitempty"` 
     
+    InstanceDate      *time.Time     `json:"instanceDate,omitempty"`
+    
     CreatedAt    time.Time   `json:"createdAt"`
     UpdatedAt    time.Time   `json:"updatedAt"`
     IsDeleted    bool        `json:"isDeleted"`
