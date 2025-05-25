@@ -19,7 +19,7 @@ func InitCalendarSchema(db *sql.DB) error {
 
 func createEventTable(db *sql.DB) error {
     query := `
-       CREATE TABLE IF NOT EXISTS calendar_event (
+    CREATE TABLE IF NOT EXISTS calendar_event (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT,
@@ -46,15 +46,7 @@ func createEventTable(db *sql.DB) error {
         CONSTRAINT valid_recurrence_type 
         CHECK (recurrence_type IN ('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY') OR recurrence_type IS NULL)
     );
-    
-    CREATE TABLE IF NOT EXISTS calendar_event_exception (
-        id SERIAL PRIMARY KEY,
-        event_id INTEGER NOT NULL REFERENCES calendar_event(id) ON DELETE CASCADE,
-        exception_date TIMESTAMP WITH TIME ZONE NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(event_id, exception_date)
-    );
-    
+
     CREATE INDEX IF NOT EXISTS idx_calendar_event_family ON calendar_event(family_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_event_assignee ON calendar_event(assignee_id);
     CREATE INDEX IF NOT EXISTS idx_calendar_event_source ON calendar_event(source_module, source_id);
@@ -64,7 +56,6 @@ func createEventTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_calendar_event_exception ON calendar_event(parent_event_id) WHERE parent_event_id IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_calendar_event_instance_date ON calendar_event(instance_date) WHERE instance_date IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_calendar_event_dates_recurring ON calendar_event(start_time, end_time, is_recurring) WHERE is_deleted = false;
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_exception_date ON calendar_event_exception(event_id, exception_date);
     `
     
     _, err := db.Exec(query)
@@ -81,7 +72,6 @@ func createEventExceptionTable(db *sql.DB) error {
         UNIQUE(event_id, exception_date)
     );
 
-    -- Index for efficient exception lookups
     CREATE INDEX IF NOT EXISTS idx_calendar_event_exception_date 
         ON calendar_event_exception(event_id, exception_date);
     `

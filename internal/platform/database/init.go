@@ -48,6 +48,10 @@ func (db *PostgresDB) initializeSchema() error {
 	}
 
 	fmt.Println("Initializing module schemas...")
+
+	if err := schema.InitCalendarSchema(db.DB); err != nil {
+		return fmt.Errorf("calendar module schema initialization failed: %v", err)
+	}
 	
 	if err := schema.InitStorageSchema(db.DB); err != nil {
 		return fmt.Errorf("storage module schema initialization failed: %v", err)
