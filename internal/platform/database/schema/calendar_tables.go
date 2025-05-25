@@ -10,6 +10,10 @@ func InitCalendarSchema(db *sql.DB) error {
         return fmt.Errorf("failed to create event table: %v", err)
     }
 
+    if err := createEventExceptionTable(db); err != nil {
+        return fmt.Errorf("failed to create event exception table: %v", err)
+    }
+
     return nil
 }
 
@@ -25,6 +29,7 @@ func createEventTable(db *sql.DB) error {
         all_day BOOLEAN DEFAULT FALSE,
         source_module VARCHAR(50) DEFAULT 'GENERAL',
         source_id INTEGER,
+        created_by INTEGER REFERENCES profile(id),
         assignee_id INTEGER REFERENCES profile(id),
         family_id INTEGER REFERENCES family_account(id) NOT NULL,
         
@@ -68,6 +73,25 @@ func createEventTable(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_calendar_event_dates_recurring 
         ON calendar_event(start_time, end_time, is_recurring) 
         WHERE is_deleted = false;
+    `
+    
+    _, err := db.Exec(query)
+    return err
+}
+
+func createEventExceptionTable(db *sql.DB) error {
+    query := `
+    CREATE TABLE IF NOT EXISTS calendar_event_exception (
+        id SERIAL PRIMARY KEY,
+        event_id INTEGER NOT NULL REFERENCES calendar_event(id) ON DELETE CASCADE,
+        exception_date TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(event_id, exception_date)
+    );
+
+    -- Index for efficient exception lookups
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_exception_date 
+        ON calendar_event_exception(event_id, exception_date);
     `
     
     _, err := db.Exec(query)
