@@ -140,7 +140,7 @@ func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, end
 
 func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
     var instances []*entities.Event
-    
+
     cancelled := make(map[string]bool)
     for _, date := range cancelledDates {
         cancelled[date.Format("2006-01-02")] = true

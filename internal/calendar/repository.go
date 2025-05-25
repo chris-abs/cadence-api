@@ -87,9 +87,16 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         FROM calendar_event e
         LEFT JOIN profile p ON e.assignee_id = p.id
         WHERE e.family_id = $1 
-        AND e.start_time < $2
-        AND e.end_time > $3
-        AND e.is_deleted = false`
+        AND e.is_deleted = false
+        AND (
+            -- Regular events: normal overlap check
+            (e.is_recurring = false AND e.start_time < $2 AND e.end_time > $3)
+            OR 
+            -- Recurring events: check if they could have instances in range
+            (e.is_recurring = true 
+             AND e.start_time <= $2 
+             AND (e.recurrence_end_time IS NULL OR e.recurrence_end_time >= $3))
+        )`
 
     args := []interface{}{familyID, params.EndTime, params.StartTime}
     paramCount := 3
