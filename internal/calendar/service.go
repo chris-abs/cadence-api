@@ -38,6 +38,8 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         FamilyID:     familyID,
         SourceModule: "GENERAL",
         EventType:    entities.EventTypeGeneral,
+        IsRecurring:  false, 
+        RecurrenceType: entities.RecurrenceNone, 
     }
 
     if req.RepeatType != "" {
@@ -46,6 +48,7 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         case entities.RecurrenceDaily, entities.RecurrenceWeekly, 
              entities.RecurrenceMonthly, entities.RecurrenceYearly:
             event.RecurrenceType = recurrenceType
+            event.IsRecurring = true
         default:
             return nil, fmt.Errorf("invalid repeat type: %s", req.RepeatType)
         }
@@ -57,8 +60,6 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
             }
             event.RecurrenceEndTime = req.RepeatUntil
         }
-
-        event.IsRecurring = true
     }
 
     if err := s.normaliseEventTimes(event); err != nil {
@@ -402,12 +403,8 @@ func (s *Service) CancelFutureRecurrences(id int, familyID int, fromDate time.Ti
 }
 
 func (s *Service) normaliseEventTimes(event *entities.Event) error {
-    if event.EndTime.Before(event.StartTime) {
-        return fmt.Errorf("end time must be after start time")
-    }
-
     if event.AllDay {
-        event.StartTime = time.Date(
+        startOfDay := time.Date(
             event.StartTime.Year(),
             event.StartTime.Month(),
             event.StartTime.Day(),
@@ -415,13 +412,12 @@ func (s *Service) normaliseEventTimes(event *entities.Event) error {
             time.UTC,
         )
         
-        event.EndTime = time.Date(
-            event.StartTime.Year(),  
-            event.StartTime.Month(),
-            event.StartTime.Day(),
-            23, 59, 59, 999999999,
-            time.UTC,
-        )
+        event.StartTime = startOfDay
+        event.EndTime = startOfDay.Add(24 * time.Hour) 
+    }
+
+    if event.EndTime.Before(event.StartTime) || event.EndTime.Equal(event.StartTime) {
+        return fmt.Errorf("end time must be after start time")
     }
 
     return nil
