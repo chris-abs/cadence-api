@@ -17,7 +17,6 @@ const (
 )
 
 const (
-    RecurrenceNone    RecurrenceType = ""
     RecurrenceDaily   RecurrenceType = "DAILY"
     RecurrenceWeekly  RecurrenceType = "WEEKLY"
     RecurrenceMonthly RecurrenceType = "MONTHLY"

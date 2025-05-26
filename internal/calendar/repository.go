@@ -428,7 +428,7 @@ func (r *Repository) scanEvent(scanner interface {
     if recurrenceType.Valid && recurrenceType.String != "" {
         event.RecurrenceType = entities.RecurrenceType(recurrenceType.String)
     } else {
-        event.RecurrenceType = entities.RecurrenceNone
+        event.RecurrenceType = ""
     }
     
     if recurrenceEndTime.Valid {

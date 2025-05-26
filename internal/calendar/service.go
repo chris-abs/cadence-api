@@ -39,7 +39,7 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         SourceModule: "GENERAL",
         EventType:    entities.EventTypeGeneral,
         IsRecurring:  false, 
-        RecurrenceType: entities.RecurrenceNone, 
+        RecurrenceType: "", 
     }
 
     if req.RepeatType != "" {
