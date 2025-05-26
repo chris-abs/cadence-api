@@ -424,9 +424,13 @@ func (r *Repository) scanEvent(scanner interface {
     if deletedAt.Valid {
         event.DeletedAt = &deletedAt.Time
     }
-    if recurrenceType.Valid {
+    
+    if recurrenceType.Valid && recurrenceType.String != "" {
         event.RecurrenceType = entities.RecurrenceType(recurrenceType.String)
+    } else {
+        event.RecurrenceType = entities.RecurrenceNone
     }
+    
     if recurrenceEndTime.Valid {
         event.RecurrenceEndTime = &recurrenceEndTime.Time
     }
