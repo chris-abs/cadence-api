@@ -39,13 +39,13 @@ type Event struct {
     FamilyID     int             `json:"familyId"`
     EventType    EventType       `json:"eventType"`
     
-    IsRecurring       bool           `json:"isRecurring"`
-    RecurrenceType    RecurrenceType `json:"recurrenceType"`
-    RecurrenceEndTime *time.Time     `json:"recurrenceEndTime,omitempty"`
-    IsException       bool           `json:"isException"` 
-    ParentEventID     *int           `json:"parentEventId,omitempty"` 
+    IsRecurring       bool            `json:"isRecurring"`
+    RecurrenceType    *RecurrenceType `json:"recurrenceType,omitempty"` 
+    RecurrenceEndTime *time.Time      `json:"recurrenceEndTime,omitempty"`
+    IsException       bool            `json:"isException"` 
+    ParentEventID     *int            `json:"parentEventId,omitempty"` 
     
-    InstanceDate      *time.Time     `json:"instanceDate,omitempty"`
+    InstanceDate      *time.Time      `json:"instanceDate,omitempty"`
     
     CreatedAt    time.Time   `json:"createdAt"`
     UpdatedAt    time.Time   `json:"updatedAt"`

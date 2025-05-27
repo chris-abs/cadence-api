@@ -38,19 +38,19 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         FamilyID:     familyID,
         SourceModule: "GENERAL",
         EventType:    entities.EventTypeGeneral,
-        IsRecurring:  false, 
-        RecurrenceType: "", 
+        IsRecurring:  false,
+        RecurrenceType: nil, 
     }
 
-    if req.RepeatType != "" {
-        recurrenceType := entities.RecurrenceType(req.RepeatType)
+    if req.RepeatType != nil && *req.RepeatType != "" {
+        recurrenceType := entities.RecurrenceType(*req.RepeatType)
         switch recurrenceType {
         case entities.RecurrenceDaily, entities.RecurrenceWeekly, 
              entities.RecurrenceMonthly, entities.RecurrenceYearly:
-            event.RecurrenceType = recurrenceType
+            event.RecurrenceType = &recurrenceType 
             event.IsRecurring = true
         default:
-            return nil, fmt.Errorf("invalid repeat type: %s", req.RepeatType)
+            return nil, fmt.Errorf("invalid repeat type: %s", *req.RepeatType)
         }
 
         if req.RepeatUntil != nil {
@@ -161,7 +161,7 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
             instanceDateKey := currentDate.Format("2006-01-02")
             
             if cancelled[instanceDateKey] {
-                currentDate = s.getNextOccurrence(currentDate, event.RecurrenceType)
+                currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType) 
                 continue
             }
 
@@ -201,7 +201,7 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
             }
         }
 
-        currentDate = s.getNextOccurrence(currentDate, event.RecurrenceType)
+        currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
         
         if currentDate.After(time.Now().AddDate(MaxYearsAhead, 0, 0)) {
             break

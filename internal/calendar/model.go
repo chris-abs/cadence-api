@@ -15,15 +15,15 @@ type GetEventsParams struct {
 }
 
 type CreateEventRequest struct {
-    Title       string    `json:"title" validate:"required"`
-    Description *string   `json:"description"`
-    Location    *string   `json:"location"`
-    StartTime   time.Time `json:"startTime" validate:"required"`
-    EndTime     time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
-    AllDay      bool      `json:"allDay"`
-    AssigneeID  int       `json:"assigneeId" validate:"required"`
-    RepeatType   string    `json:"repeatType,omitempty"`
-    RepeatUntil  *time.Time `json:"repeatUntil,omitempty"`
+    Title       string        `json:"title" validate:"required"`
+    Description *string       `json:"description"`
+    Location    *string       `json:"location"`
+    StartTime   time.Time     `json:"startTime" validate:"required"`
+    EndTime     time.Time     `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay      bool          `json:"allDay"`
+    AssigneeID  int           `json:"assigneeId" validate:"required"`
+    RepeatType  *string       `json:"repeatType,omitempty"`
+    RepeatUntil  *time.Time   `json:"repeatUntil,omitempty"`
 }
 
 type UpdateEventRequest struct {
