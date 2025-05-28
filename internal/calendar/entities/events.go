@@ -32,7 +32,7 @@ type Event struct {
     EndTime      time.Time       `json:"endTime"`
     AllDay       bool            `json:"allDay"`
     CreatedBy    int             `json:"-"`
-    AssigneeID   int             `json:"assigneeId"`
+    AssigneeID   *int            `json:"assigneeId,omitempty"`
     Assignee     *models.Profile `json:"assignee,omitempty"`
     SourceModule string          `json:"sourceModule"`
     SourceID     *int            `json:"sourceId,omitempty"`

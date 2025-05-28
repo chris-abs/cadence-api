@@ -318,7 +318,7 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         modifiedInstance.AllDay = *req.AllDay
     }
     if req.AssigneeID != nil {
-        modifiedInstance.AssigneeID = *req.AssigneeID
+        modifiedInstance.AssigneeID = req.AssigneeID
     }
 
     if err := s.normaliseEventTimes(modifiedInstance); err != nil {

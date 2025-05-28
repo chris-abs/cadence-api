@@ -369,7 +369,7 @@ func (r *Repository) scanEvent(scanner interface {
     event := new(entities.Event)
     assignee := new(models.Profile)
     var description, location sql.NullString
-    var sourceID, parentEventID sql.NullInt64
+    var sourceID, parentEventID, assigneeID sql.NullInt64 
     var deletedAt, recurrenceEndTime, instanceDate sql.NullTime
     var recurrenceType sql.NullString
 
@@ -384,7 +384,7 @@ func (r *Repository) scanEvent(scanner interface {
         &event.SourceModule,
         &sourceID,
         &event.CreatedBy,
-        &event.AssigneeID,
+        &assigneeID,     
         &event.FamilyID,
         &event.IsRecurring,
         &recurrenceType,
@@ -421,17 +421,18 @@ func (r *Repository) scanEvent(scanner interface {
         id := int(sourceID.Int64)
         event.SourceID = &id
     }
+    if assigneeID.Valid {
+        id := int(assigneeID.Int64)
+        event.AssigneeID = &id
+        event.Assignee = assignee 
+    }
     if deletedAt.Valid {
         event.DeletedAt = &deletedAt.Time
     }
-    
     if recurrenceType.Valid && recurrenceType.String != "" {
         rt := entities.RecurrenceType(recurrenceType.String)
-        event.RecurrenceType = &rt 
-    } else {
-        event.RecurrenceType = nil
+        event.RecurrenceType = &rt
     }
-    
     if recurrenceEndTime.Valid {
         event.RecurrenceEndTime = &recurrenceEndTime.Time
     }
@@ -443,6 +444,5 @@ func (r *Repository) scanEvent(scanner interface {
         event.InstanceDate = &instanceDate.Time
     }
 
-    event.Assignee = assignee
     return event, nil
 }

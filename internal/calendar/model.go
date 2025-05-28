@@ -21,7 +21,7 @@ type CreateEventRequest struct {
     StartTime   time.Time     `json:"startTime" validate:"required"`
     EndTime     time.Time     `json:"endTime" validate:"required,gtfield=StartTime"`
     AllDay      bool          `json:"allDay"`
-    AssigneeID  int           `json:"assigneeId" validate:"required"`
+    AssigneeID  *int          `json:"assigneeId"`
     RepeatType  *string       `json:"repeatType,omitempty"`
     RepeatUntil  *time.Time   `json:"repeatUntil,omitempty"`
 }
@@ -33,7 +33,7 @@ type UpdateEventRequest struct {
     StartTime   time.Time `json:"startTime" validate:"required"`
     EndTime     time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
     AllDay      bool      `json:"allDay"`
-    AssigneeID  int       `json:"assigneeId" validate:"required"`
+    AssigneeID  *int      `json:"assigneeId"`
     UpdatedBy   int       `json:"updatedBy" validate:"required"`
 }
 
