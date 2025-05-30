@@ -297,6 +297,7 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         IsException:   true,
         ParentEventID: &event.ID,
         InstanceDate:  &req.InstanceDate, 
+        CreatedBy:     req.UpdatedBy,
     }
 
     if req.Title != nil {
