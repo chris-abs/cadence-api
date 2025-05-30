@@ -330,6 +330,19 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         return nil, fmt.Errorf("failed to create modified instance: %v", err)
     }
 
+    exceptionDate := time.Date(
+        req.InstanceDate.Year(),
+        req.InstanceDate.Month(),
+        req.InstanceDate.Day(),
+        0, 0, 0, 0, time.UTC,
+    )
+    
+    fmt.Printf("Creating exception for eventID: %d, date: %v\n", event.ID, exceptionDate)
+    
+    if err := s.repo.CreateRecurrenceException(event.ID, exceptionDate); err != nil {
+        return nil, fmt.Errorf("failed to create recurrence exception: %v", err)
+    }
+
     return modifiedInstance, nil
 }
 
