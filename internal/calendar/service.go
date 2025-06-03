@@ -144,8 +144,13 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
 
     cancelled := make(map[string]bool)
     for _, date := range cancelledDates {
-        cancelled[date.Format("2006-01-02")] = true
+        dateKey := date.Format("2006-01-02")
+        cancelled[dateKey] = true
+        fmt.Printf("DEBUG: Added cancelled date: %s for event %d\n", dateKey, event.ID) 
     }
+
+    fmt.Printf("DEBUG: Cancelled dates for event %d: %v\n", event.ID, cancelled)
+
 
     duration := event.EndTime.Sub(event.StartTime)
 
@@ -160,8 +165,11 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
         if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
             instanceDateKey := currentDate.Format("2006-01-02")
             
+            fmt.Printf("DEBUG: Checking date %s for event %d, cancelled: %t\n", instanceDateKey, event.ID, cancelled[instanceDateKey]) // Add this
+            
             if cancelled[instanceDateKey] {
-                currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType) 
+                fmt.Printf("DEBUG: Skipping cancelled date %s for event %d\n", instanceDateKey, event.ID)
+                currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
                 continue
             }
 
