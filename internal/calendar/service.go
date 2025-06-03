@@ -78,6 +78,8 @@ func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
 }
 
 func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+    fmt.Printf("DEBUG: GetByDateRange called for family %d, start: %v, end: %v\n", familyID, params.StartTime, params.EndTime)
+    
     if params.EndTime.Before(params.StartTime) {
         return nil, fmt.Errorf("end time must be after start time")
     }
@@ -87,11 +89,18 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entit
         return nil, fmt.Errorf("failed to get events: %v", err)
     }
 
+    fmt.Printf("DEBUG: Found %d events from database\n", len(events))
+    for _, event := range events {
+        fmt.Printf("DEBUG: Event: %s (ID: %d, IsRecurring: %t, IsException: %t)\n", 
+            event.Title, event.ID, event.IsRecurring, event.IsException)
+    }
+
     expandedEvents, err := s.expandRecurringEvents(events, params.StartTime, params.EndTime)
     if err != nil {
         return nil, fmt.Errorf("failed to expand recurring events: %v", err)
     }
 
+    fmt.Printf("DEBUG: After expansion, returning %d events\n", len(expandedEvents))
     return expandedEvents, nil
 }
 
