@@ -45,7 +45,7 @@ func (r *Repository) Create(profile *models.Profile) error {
 
 func (r *Repository) GetByID(id int) (*models.Profile, error) {
     query := `
-        SELECT id, family_id, name, role, pin, image_url, colour, is_owner, created_at, updated_at
+        SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
         WHERE id = $1 AND is_deleted = false`
 
@@ -58,6 +58,7 @@ func (r *Repository) GetByID(id int) (*models.Profile, error) {
         &profile.Pin,
         &profile.ImageURL,
         &profile.Colour,
+        &profile.TimezoneName,
         &profile.IsOwner,
         &profile.CreatedAt,
         &profile.UpdatedAt,
@@ -75,10 +76,9 @@ func (r *Repository) GetByID(id int) (*models.Profile, error) {
     return profile, nil
 }
 
-
 func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
     query := `
-        SELECT id, family_id, name, role, pin, image_url, colour, is_owner, created_at, updated_at
+        SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
         WHERE family_id = $1 AND is_deleted = false
         ORDER BY 
@@ -104,6 +104,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
             &profile.Pin,
             &profile.ImageURL,
             &profile.Colour,
+            &profile.TimezoneName,
             &profile.IsOwner,
             &profile.CreatedAt,
             &profile.UpdatedAt,
@@ -128,9 +129,10 @@ func (r *Repository) Update(profile *models.Profile) error {
             pin = $4,
             image_url = $5,
             colour = $6,
-            is_owner = $7,
-            updated_at = $8
-        WHERE id = $1 AND family_id = $9 AND is_deleted = false`
+            timezone_name = $7,
+            is_owner = $8,
+            updated_at = $9
+        WHERE id = $1 AND family_id = $10 AND is_deleted = false`
 
     result, err := r.db.Exec(
         query,
@@ -140,6 +142,7 @@ func (r *Repository) Update(profile *models.Profile) error {
         profile.Pin,
         profile.ImageURL,
         profile.Colour,
+        profile.TimezoneName,
         profile.IsOwner,
         time.Now().UTC(),
         profile.FamilyID,
@@ -209,7 +212,7 @@ func (r *Repository) Restore(id int, familyID int) error {
 
 func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
 	query := `
-		SELECT id, family_id, name, role, pin, image_url, is_owner, created_at, updated_at
+		SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
 		FROM profile
 		WHERE family_id = $1 AND is_owner = true AND is_deleted = false
 		LIMIT 1`
@@ -222,6 +225,8 @@ func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
 		&profile.Role,
 		&profile.Pin,
 		&profile.ImageURL,
+		&profile.Colour,
+		&profile.TimezoneName, 
 		&profile.IsOwner,
 		&profile.CreatedAt,
 		&profile.UpdatedAt,
