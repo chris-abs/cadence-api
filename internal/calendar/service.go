@@ -163,11 +163,7 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
     for _, date := range cancelledDates {
         dateKey := date.Format("2006-01-02")
         cancelled[dateKey] = true
-        fmt.Printf("DEBUG: Added cancelled date: %s for event %d\n", dateKey, event.ID) 
     }
-
-    fmt.Printf("DEBUG: Cancelled dates for event %d: %v\n", event.ID, cancelled)
-
 
     duration := event.EndTime.Sub(event.StartTime)
 
@@ -182,22 +178,17 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
         if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
             instanceDateKey := currentDate.Format("2006-01-02")
             
-            fmt.Printf("DEBUG: Checking date %s for event %d, cancelled: %t\n", instanceDateKey, event.ID, cancelled[instanceDateKey]) // Add this
-            
             if cancelled[instanceDateKey] {
-                fmt.Printf("DEBUG: Skipping cancelled date %s for event %d\n", instanceDateKey, event.ID)
                 currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
                 continue
             }
-
-            fmt.Printf("DEBUG: About to create instance - currentDate: %s, instanceDate will be: %s\n", 
-            currentDate.Format("2006-01-02T15:04:05Z"), currentDate.Format("2006-01-02T15:04:05Z"))
-
 
             modifiedKey := fmt.Sprintf("%d-%s", event.ID, instanceDateKey)
             if modifiedInstance, exists := modifiedInstanceMap[modifiedKey]; exists {
                 instances = append(instances, modifiedInstance)
             } else {
+                instanceDate := currentDate
+                
                 instance := &entities.Event{
                     ID:                event.ID, 
                     Title:             event.Title,
@@ -218,21 +209,17 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
                     RecurrenceEndTime: event.RecurrenceEndTime,
                     IsException:       false,
                     ParentEventID:     nil, 
-                    InstanceDate:      &currentDate, 
+                    InstanceDate:      &instanceDate,
                     CreatedAt:         event.CreatedAt,
                     UpdatedAt:         event.UpdatedAt,
                     IsDeleted:         false,
                 }
-                fmt.Printf("DEBUG: Created instance - startTime: %s, instanceDate: %s\n", 
-                instance.StartTime.Format("2006-01-02T15:04:05Z"), 
-                instance.InstanceDate.Format("2006-01-02T15:04:05Z"))
 
                 if err := s.normaliseEventTimes(instance); err == nil {
                     instances = append(instances, instance)
                 }
-            }   
+            }
         }
-
 
         currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
         
