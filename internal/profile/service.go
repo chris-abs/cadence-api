@@ -24,6 +24,17 @@ func NewService(repo *Repository, jwtSecret string) *Service {
     }
 }
 
+func (s *Service) validateTimezone(timezone string) error {
+    if timezone == "" {
+        return nil 
+    }
+    _, err := time.LoadLocation(timezone)
+    if err != nil {
+        return fmt.Errorf("invalid timezone: %s", timezone)
+    }
+    return nil
+}
+
 func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.ProfileRole, isOwner bool) (string, error) {
     token := jwt.New(jwt.SigningMethodHS256)
     claims := token.Claims.(jwt.MapClaims)
@@ -41,6 +52,10 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
         return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
     }
 
+    if err := s.validateTimezone(req.TimezoneName); err != nil {
+        return nil, err
+    }
+
     existingProfiles, err := s.repo.GetByFamilyID(familyID)
     if err != nil {
         return nil, fmt.Errorf("error checking existing profiles: %v", err)
@@ -52,16 +67,22 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
         return nil, fmt.Errorf("owner profile must be a parent")
     }
 
+    timezoneName := req.TimezoneName
+    if timezoneName == "" {
+        timezoneName = "UTC"
+    }
+
     profile := &models.Profile{
-        FamilyID:  familyID,
-        Name:      req.Name,
-        Role:      req.Role,
-        Pin:       req.Pin,
-        ImageURL:  req.ImageURL,
-        Colour:    req.Colour,
-        IsOwner:   isOwner,
-        CreatedAt: time.Now().UTC(),
-        UpdatedAt: time.Now().UTC(),
+        FamilyID:     familyID,
+        Name:         req.Name,
+        Role:         req.Role,
+        Pin:          req.Pin,
+        ImageURL:     req.ImageURL,
+        Colour:       req.Colour,
+        TimezoneName: timezoneName, 
+        IsOwner:      isOwner,
+        CreatedAt:    time.Now().UTC(),
+        UpdatedAt:    time.Now().UTC(),
     }
 
     if err := s.repo.Create(profile); err != nil {
@@ -105,6 +126,13 @@ func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest,
             return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
         }
         profile.Colour = req.Colour
+    }
+
+    if req.TimezoneName != "" {
+        if err := s.validateTimezone(req.TimezoneName); err != nil {
+            return nil, err
+        }
+        profile.TimezoneName = req.TimezoneName
     }
 
     if req.Pin != nil {
