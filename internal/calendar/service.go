@@ -78,8 +78,6 @@ func (s *Service) GetByID(id int, familyID int) (*entities.Event, error) {
 }
 
 func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
-    fmt.Printf("DEBUG: GetByDateRange called for family %d, start: %v, end: %v\n", familyID, params.StartTime, params.EndTime)
-    
     if params.EndTime.Before(params.StartTime) {
         return nil, fmt.Errorf("end time must be after start time")
     }
@@ -89,26 +87,11 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entit
         return nil, fmt.Errorf("failed to get events: %v", err)
     }
 
-    fmt.Printf("DEBUG: Found %d events from database\n", len(events))
-    for _, event := range events {
-        fmt.Printf("DEBUG: Event: %s (ID: %d, IsRecurring: %t, IsException: %t)\n", 
-            event.Title, event.ID, event.IsRecurring, event.IsException)
-    }
-
     expandedEvents, err := s.expandRecurringEvents(events, params.StartTime, params.EndTime)
     if err != nil {
         return nil, fmt.Errorf("failed to expand recurring events: %v", err)
     }
 
-    for _, event := range expandedEvents {
-        if event.Title == "shopping" && event.InstanceDate != nil {
-            fmt.Printf("DEBUG: Returning shopping event - ID: %d, startTime: %s, instanceDate: %s\n", 
-                event.ID, event.StartTime.Format("2006-01-02T15:04:05Z"), 
-                event.InstanceDate.Format("2006-01-02T15:04:05Z"))
-        }
-    }
-
-    fmt.Printf("DEBUG: After expansion, returning %d events\n", len(expandedEvents))
     return expandedEvents, nil
 }
 
@@ -303,6 +286,24 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         return nil, fmt.Errorf("only parents can modify recurring events")
     }
 
+    exceptionDate := time.Date(
+        req.InstanceDate.Year(),
+        req.InstanceDate.Month(),
+        req.InstanceDate.Day(),
+        0, 0, 0, 0, time.UTC,
+    )
+
+    existingInstance, err := s.repo.GetModifiedInstanceByDate(req.EventID, exceptionDate)
+    if err != nil && err.Error() != "modified instance not found" {
+        return nil, fmt.Errorf("failed to check for existing modified instance: %v", err)
+    }
+
+    if existingInstance != nil {
+        if err := s.repo.Delete(existingInstance.ID, familyID, req.UpdatedBy); err != nil {
+            return nil, fmt.Errorf("failed to delete existing modified instance: %v", err)
+        }
+    }
+
     modifiedInstance := &entities.Event{
         Title:         event.Title,
         Description:   event.Description,
@@ -350,17 +351,11 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         return nil, fmt.Errorf("failed to create modified instance: %v", err)
     }
 
-    exceptionDate := time.Date(
-        req.InstanceDate.Year(),
-        req.InstanceDate.Month(),
-        req.InstanceDate.Day(),
-        0, 0, 0, 0, time.UTC,
-    )
-    
-    fmt.Printf("Creating exception for eventID: %d, date: %v\n", event.ID, exceptionDate)
-    
-    if err := s.repo.CreateRecurrenceException(event.ID, exceptionDate); err != nil {
-        return nil, fmt.Errorf("failed to create recurrence exception: %v", err)
+    // Only create exception if it doesn't exist (for first-time edits)
+    if existingInstance == nil {
+        if err := s.repo.CreateRecurrenceException(event.ID, exceptionDate); err != nil {
+            return nil, fmt.Errorf("failed to create recurrence exception: %v", err)
+        }
     }
 
     return modifiedInstance, nil
