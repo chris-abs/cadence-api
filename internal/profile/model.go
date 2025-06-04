@@ -10,6 +10,7 @@ type CreateProfileRequest struct {
 	Pin      string             `json:"pin,omitempty"`
 	ImageURL string             `json:"imageUrl,omitempty"`
 	Colour   string             `json:"colour"`
+	TimezoneName string         `json:"timezoneName,omitempty"`
 }
 
 type UpdateProfileRequest struct {
@@ -20,6 +21,7 @@ type UpdateProfileRequest struct {
     CurrentPin string             `json:"currentPin,omitempty"`
 	ImageURL   string             `json:"imageUrl,omitempty"`
 	Colour     string             `json:"colour,omitempty"`
+	TimezoneName string           `json:"timezoneName,omitempty"`
 }
 
 type SelectProfileRequest struct {

@@ -59,6 +59,7 @@ func createProfileTable(db *sql.DB) error {
         pin VARCHAR(6),
         image_url TEXT,
         is_owner BOOLEAN NOT NULL DEFAULT false,
+        timezone_name VARCHAR(50) NOT NULL DEFAULT 'UTC',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
