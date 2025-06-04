@@ -251,6 +251,34 @@ func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
     return nil
 }
 
+func (r *Repository) GetModifiedInstanceByDate(parentEventID int, instanceDate time.Time) (*entities.Event, error) {
+    query := `
+        SELECT 
+            e.id, e.title, e.description, e.location, e.start_time, e.end_time,
+            e.all_day, e.source_module, e.source_id, e.created_by, e.assignee_id, 
+            e.family_id, e.is_recurring, e.recurrence_type, e.recurrence_end_time,
+            e.is_exception, e.parent_event_id, e.instance_date, e.created_at, e.updated_at,
+            e.is_deleted, e.deleted_at, e.deleted_by,
+            p.id, p.name, p.role, p.image_url, p.colour
+        FROM calendar_event e
+        LEFT JOIN profile p ON e.assignee_id = p.id
+        WHERE e.parent_event_id = $1 
+            AND e.instance_date = $2 
+            AND e.is_exception = true 
+            AND e.is_deleted = false
+    `
+    
+    event, err := r.scanEvent(r.db.QueryRow(query, parentEventID, instanceDate))
+    if err != nil {
+        if err.Error() == "event not found" {
+            return nil, fmt.Errorf("modified instance not found")
+        }
+        return nil, fmt.Errorf("failed to get modified instance: %v", err)
+    }
+    
+    return event, nil
+}
+
 func (r *Repository) Update(event *entities.Event) error {
     query := `
         UPDATE calendar_event
