@@ -247,6 +247,8 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
         if profile.Role != models.RoleParent {
             return nil, fmt.Errorf("only parents can modify recurring events")
         }
+
+        return s.updateRecurringSeries(event, familyID, req)
     }
 
     event.Title = req.Title
@@ -351,7 +353,6 @@ func (s *Service) ModifyRecurringInstance(req *ModifyRecurringInstanceRequest, f
         return nil, fmt.Errorf("failed to create modified instance: %v", err)
     }
 
-    // Only create exception if it doesn't exist (for first-time edits)
     if existingInstance == nil {
         if err := s.repo.CreateRecurrenceException(event.ID, exceptionDate); err != nil {
             return nil, fmt.Errorf("failed to create recurrence exception: %v", err)
