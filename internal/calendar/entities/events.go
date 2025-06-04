@@ -1,6 +1,8 @@
 package entities
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
@@ -52,4 +54,34 @@ type Event struct {
     IsDeleted    bool        `json:"isDeleted"`
     DeletedAt    *time.Time  `json:"deletedAt,omitempty"`
     DeletedBy    *int        `json:"deletedBy,omitempty"`
+}
+
+func (rt *RecurrenceType) UnmarshalJSON(data []byte) error {
+    var s string
+    if err := json.Unmarshal(data, &s); err != nil {
+        return err
+    }
+    
+    switch RecurrenceType(s) {
+    case RecurrenceDaily, RecurrenceWeekly, RecurrenceMonthly, RecurrenceYearly:
+        *rt = RecurrenceType(s)
+        return nil
+    default:
+        return fmt.Errorf("invalid recurrence type: %s", s)
+    }
+}
+
+func (et *EventType) UnmarshalJSON(data []byte) error {
+    var s string
+    if err := json.Unmarshal(data, &s); err != nil {
+        return err
+    }
+    
+    switch EventType(s) {
+    case EventTypeGeneral, EventTypeChore, EventTypeMeal, EventTypeService:
+        *et = EventType(s)
+        return nil
+    default:
+        return fmt.Errorf("invalid event type: %s", s)
+    }
 }
