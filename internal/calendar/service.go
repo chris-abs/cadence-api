@@ -95,140 +95,6 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entit
     return expandedEvents, nil
 }
 
-func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, endTime time.Time) ([]*entities.Event, error) {
-    var result []*entities.Event
-    var recurringEvents []*entities.Event
-    var recurringEventIDs []int
-
-    for _, event := range events {
-        if event.IsRecurring && !event.IsException {
-            recurringEvents = append(recurringEvents, event)
-            recurringEventIDs = append(recurringEventIDs, event.ID)
-        } else {
-            result = append(result, event)
-        }
-    }
-
-    if len(recurringEvents) == 0 {
-        return result, nil
-    }
-
-    exceptions, err := s.repo.GetExceptionsForEvents(recurringEventIDs)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get exceptions: %v", err)
-    }
-
-    modifiedInstances, err := s.repo.GetModifiedInstancesInDateRange(events[0].FamilyID, startTime, endTime, recurringEventIDs)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get modified instances: %v", err)
-    }
-
-    modifiedInstanceMap := make(map[string]*entities.Event)
-    for _, instance := range modifiedInstances {
-        if instance.ParentEventID != nil && instance.InstanceDate != nil {
-            key := fmt.Sprintf("%d-%s", *instance.ParentEventID, instance.InstanceDate.Format("2006-01-02"))
-            modifiedInstanceMap[key] = instance
-        }
-    }
-
-    for _, recurringEvent := range recurringEvents {
-        instances := s.generateRecurringInstances(recurringEvent, startTime, endTime, exceptions[recurringEvent.ID], modifiedInstanceMap)
-        result = append(result, instances...)
-    }
-
-    return result, nil
-}
-
-func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
-    var instances []*entities.Event
-
-    cancelled := make(map[string]bool)
-    for _, date := range cancelledDates {
-        dateKey := date.Format("2006-01-02")
-        cancelled[dateKey] = true
-    }
-
-    duration := event.EndTime.Sub(event.StartTime)
-
-    currentDate := event.StartTime
-    recurrenceEnd := endTime
-    if event.RecurrenceEndTime != nil && event.RecurrenceEndTime.Before(endTime) {
-        recurrenceEnd = *event.RecurrenceEndTime
-    }
-
-    for currentDate.Before(recurrenceEnd) {
-        occurrenceEnd := currentDate.Add(duration)
-        if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
-            instanceDateKey := currentDate.Format("2006-01-02")
-            
-            if cancelled[instanceDateKey] {
-                currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
-                continue
-            }
-
-            modifiedKey := fmt.Sprintf("%d-%s", event.ID, instanceDateKey)
-            if modifiedInstance, exists := modifiedInstanceMap[modifiedKey]; exists {
-                instances = append(instances, modifiedInstance)
-            } else {
-                instanceDate := currentDate
-                
-                instance := &entities.Event{
-                    ID:                event.ID, 
-                    Title:             event.Title,
-                    Description:       event.Description,
-                    Location:          event.Location,
-                    StartTime:         currentDate,
-                    EndTime:           currentDate.Add(duration),
-                    AllDay:            event.AllDay,
-                    CreatedBy:         event.CreatedBy,
-                    AssigneeID:        event.AssigneeID,
-                    Assignee:          event.Assignee,
-                    SourceModule:      event.SourceModule,
-                    SourceID:          event.SourceID,
-                    FamilyID:          event.FamilyID,
-                    EventType:         event.EventType,
-                    IsRecurring:       true,
-                    RecurrenceType:    event.RecurrenceType,
-                    RecurrenceEndTime: event.RecurrenceEndTime,
-                    IsException:       false,
-                    ParentEventID:     nil, 
-                    InstanceDate:      &instanceDate,
-                    CreatedAt:         event.CreatedAt,
-                    UpdatedAt:         event.UpdatedAt,
-                    IsDeleted:         false,
-                }
-
-                if err := s.normaliseEventTimes(instance); err == nil {
-                    instances = append(instances, instance)
-                }
-            }
-        }
-
-        currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
-        
-        if currentDate.After(time.Now().AddDate(MaxYearsAhead, 0, 0)) {
-            break
-        }
-    }
-
-    return instances
-}
-
-func (s *Service) getNextOccurrence(current time.Time, recurrenceType entities.RecurrenceType) time.Time {
-    switch recurrenceType {
-    case entities.RecurrenceDaily:
-        return current.AddDate(0, 0, 1)
-    case entities.RecurrenceWeekly:
-        return current.AddDate(0, 0, 7)
-    case entities.RecurrenceMonthly:
-        return current.AddDate(0, 1, 0)
-    case entities.RecurrenceYearly:
-        return current.AddDate(1, 0, 0)
-    default:
-        return current.AddDate(0, 0, 1) 
-    }
-}
-
 func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
     event, err := s.repo.GetByID(id, familyID)
     if err != nil {
@@ -430,6 +296,213 @@ func (s *Service) CancelFutureRecurrences(id int, familyID int, fromDate time.Ti
 
     event.RecurrenceEndTime = &fromDate
     return s.repo.Update(event)
+}
+
+func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, endTime time.Time) ([]*entities.Event, error) {
+    var result []*entities.Event
+    var recurringEvents []*entities.Event
+    var recurringEventIDs []int
+
+    for _, event := range events {
+        if event.IsRecurring && !event.IsException {
+            recurringEvents = append(recurringEvents, event)
+            recurringEventIDs = append(recurringEventIDs, event.ID)
+        } else {
+            result = append(result, event)
+        }
+    }
+
+    if len(recurringEvents) == 0 {
+        return result, nil
+    }
+
+    exceptions, err := s.repo.GetExceptionsForEvents(recurringEventIDs)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get exceptions: %v", err)
+    }
+
+    modifiedInstances, err := s.repo.GetModifiedInstancesInDateRange(events[0].FamilyID, startTime, endTime, recurringEventIDs)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get modified instances: %v", err)
+    }
+
+    modifiedInstanceMap := make(map[string]*entities.Event)
+    for _, instance := range modifiedInstances {
+        if instance.ParentEventID != nil && instance.InstanceDate != nil {
+            key := fmt.Sprintf("%d-%s", *instance.ParentEventID, instance.InstanceDate.Format("2006-01-02"))
+            modifiedInstanceMap[key] = instance
+        }
+    }
+
+    for _, recurringEvent := range recurringEvents {
+        instances := s.generateRecurringInstances(recurringEvent, startTime, endTime, exceptions[recurringEvent.ID], modifiedInstanceMap)
+        result = append(result, instances...)
+    }
+
+    return result, nil
+}
+
+func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
+    var instances []*entities.Event
+
+    cancelled := make(map[string]bool)
+    for _, date := range cancelledDates {
+        dateKey := date.Format("2006-01-02")
+        cancelled[dateKey] = true
+    }
+
+    duration := event.EndTime.Sub(event.StartTime)
+
+    currentDate := event.StartTime
+    recurrenceEnd := endTime
+    if event.RecurrenceEndTime != nil && event.RecurrenceEndTime.Before(endTime) {
+        recurrenceEnd = *event.RecurrenceEndTime
+    }
+
+    for currentDate.Before(recurrenceEnd) {
+        occurrenceEnd := currentDate.Add(duration)
+        if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
+            instanceDateKey := currentDate.Format("2006-01-02")
+            
+            if cancelled[instanceDateKey] {
+                currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
+                continue
+            }
+
+            modifiedKey := fmt.Sprintf("%d-%s", event.ID, instanceDateKey)
+            if modifiedInstance, exists := modifiedInstanceMap[modifiedKey]; exists {
+                instances = append(instances, modifiedInstance)
+            } else {
+                instanceDate := currentDate
+                
+                instance := &entities.Event{
+                    ID:                event.ID, 
+                    Title:             event.Title,
+                    Description:       event.Description,
+                    Location:          event.Location,
+                    StartTime:         currentDate,
+                    EndTime:           currentDate.Add(duration),
+                    AllDay:            event.AllDay,
+                    CreatedBy:         event.CreatedBy,
+                    AssigneeID:        event.AssigneeID,
+                    Assignee:          event.Assignee,
+                    SourceModule:      event.SourceModule,
+                    SourceID:          event.SourceID,
+                    FamilyID:          event.FamilyID,
+                    EventType:         event.EventType,
+                    IsRecurring:       true,
+                    RecurrenceType:    event.RecurrenceType,
+                    RecurrenceEndTime: event.RecurrenceEndTime,
+                    IsException:       false,
+                    ParentEventID:     nil, 
+                    InstanceDate:      &instanceDate,
+                    CreatedAt:         event.CreatedAt,
+                    UpdatedAt:         event.UpdatedAt,
+                    IsDeleted:         false,
+                }
+
+                if err := s.normaliseEventTimes(instance); err == nil {
+                    instances = append(instances, instance)
+                }
+            }
+        }
+
+        currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
+        
+        if currentDate.After(time.Now().AddDate(MaxYearsAhead, 0, 0)) {
+            break
+        }
+    }
+
+    return instances
+}
+
+func (s *Service) getNextOccurrence(current time.Time, recurrenceType entities.RecurrenceType) time.Time {
+    switch recurrenceType {
+    case entities.RecurrenceDaily:
+        return current.AddDate(0, 0, 1)
+    case entities.RecurrenceWeekly:
+        return current.AddDate(0, 0, 7)
+    case entities.RecurrenceMonthly:
+        return current.AddDate(0, 1, 0)
+    case entities.RecurrenceYearly:
+        return current.AddDate(1, 0, 0)
+    default:
+        return current.AddDate(0, 0, 1) 
+    }
+}
+
+func (s *Service) updateRecurringSeries(originalEvent *entities.Event, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
+    now := time.Now().UTC()
+    today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+    yesterday := today.AddDate(0, 0, -1)
+
+    if originalEvent.StartTime.After(today) {
+        originalEvent.Title = req.Title
+        originalEvent.Description = req.Description
+        originalEvent.Location = req.Location
+        originalEvent.StartTime = req.StartTime
+        originalEvent.EndTime = req.EndTime
+        originalEvent.AllDay = req.AllDay
+        originalEvent.AssigneeID = req.AssigneeID
+
+        if err := s.normaliseEventTimes(originalEvent); err != nil {
+            return nil, err
+        }
+
+        if err := s.repo.Update(originalEvent); err != nil {
+            return nil, fmt.Errorf("failed to update future series: %v", err)
+        }
+
+        return s.GetByID(originalEvent.ID, familyID)
+    }
+
+    newStartTime := time.Date(
+        today.Year(), today.Month(), today.Day(),
+        req.StartTime.Hour(), req.StartTime.Minute(), req.StartTime.Second(),
+        0, time.UTC,
+    )
+    newEndTime := time.Date(
+        today.Year(), today.Month(), today.Day(),
+        req.EndTime.Hour(), req.EndTime.Minute(), req.EndTime.Second(),
+        0, time.UTC,
+    )
+
+    originalEvent.RecurrenceEndTime = &yesterday
+    if err := s.repo.Update(originalEvent); err != nil {
+        return nil, fmt.Errorf("failed to end original series: %v", err)
+    }
+
+    newSeries := &entities.Event{
+        Title:             req.Title,
+        Description:       req.Description,
+        Location:          req.Location,
+        StartTime:         newStartTime,
+        EndTime:           newEndTime,
+        AllDay:            req.AllDay,
+        CreatedBy:         req.UpdatedBy,
+        AssigneeID:        req.AssigneeID,
+        FamilyID:          familyID,
+        SourceModule:      originalEvent.SourceModule,
+        EventType:         originalEvent.EventType,
+        IsRecurring:       true,
+        RecurrenceType:    originalEvent.RecurrenceType,
+        RecurrenceEndTime: originalEvent.RecurrenceEndTime,
+    }
+
+    if originalEvent.RecurrenceEndTime != nil {
+        newSeries.RecurrenceEndTime = originalEvent.RecurrenceEndTime
+    }
+
+    if err := s.normaliseEventTimes(newSeries); err != nil {
+        return nil, err
+    }
+
+    if err := s.repo.Create(newSeries); err != nil {
+        return nil, fmt.Errorf("failed to create new series: %v", err)
+    }
+
+    return s.GetByID(newSeries.ID, familyID)
 }
 
 func (s *Service) normaliseEventTimes(event *entities.Event) error {
