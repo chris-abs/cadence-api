@@ -31,7 +31,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
     router.HandleFunc("/calendar/events/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateEvent)).Methods("PUT")
     router.HandleFunc("/calendar/events/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteEvent)).Methods("DELETE")
     router.HandleFunc("/calendar/events/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreEvent)).Methods("PUT")
-    router.HandleFunc("/calendar/events/{id}/modify-instance", h.authMiddleware.ProfileAuthHandler(h.handleModifyInstance)).Methods("POST")
+    router.HandleFunc("/calendar/events/{id}/modify-instance", h.authMiddleware.ProfileAuthHandler(h.handleUpdateInstance)).Methods("POST")
     router.HandleFunc("/calendar/events/{id}/cancel-instance", h.authMiddleware.ProfileAuthHandler(h.handleCancelInstance)).Methods("POST")
 }
 
@@ -151,7 +151,7 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, http.StatusOK, event)
 }
 
-func (h *Handler) handleModifyInstance(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
     eventID, err := getIDFromRequest(r)
@@ -160,14 +160,14 @@ func (h *Handler) handleModifyInstance(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    var req ModifyRecurringInstanceRequest
+    var req UpdateRecurringInstanceRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
         return
     }
 
     req.EventID = eventID
-    event, err := h.service.ModifyRecurringInstance(&req, profileCtx.FamilyID)
+    event, err := h.service.UpdateRecurringInstance(&req, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return

@@ -37,7 +37,7 @@ type UpdateEventRequest struct {
     UpdatedBy   int       `json:"updatedBy" validate:"required"`
 }
 
-type ModifyRecurringInstanceRequest struct {
+type UpdateRecurringInstanceRequest struct {
     EventID     int        `json:"eventId" validate:"required"`
     InstanceDate time.Time `json:"instanceDate" validate:"required"`
     UpdatedBy   int        `json:"updatedBy" validate:"required"`
