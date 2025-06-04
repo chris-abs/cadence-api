@@ -393,6 +393,8 @@ func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, end
 
 func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
     var instances []*entities.Event
+    maxInstances := 500
+    iterationCount := 0
 
     cancelled := make(map[string]bool)
     for _, date := range cancelledDates {
@@ -409,6 +411,11 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
     }
 
     for currentDate.Before(recurrenceEnd) {
+        iterationCount++
+        if iterationCount > maxInstances {
+			fmt.Printf("Warning: event count exceeds: %v", maxInstances)
+            break
+        }
         occurrenceEnd := currentDate.Add(duration)
         if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
             instanceDateKey := currentDate.Format("2006-01-02")
