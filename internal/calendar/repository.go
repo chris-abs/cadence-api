@@ -90,7 +90,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         AND e.is_deleted = false
         AND (
             -- Regular events: normal overlap check
-            (e.is_recurring = false AND e.start_time < $2 AND e.end_time > $3)
+            (e.is_recurring = false AND e.start_time < $3 AND e.end_time > $2)
             OR 
             -- Recurring events: check if they could have instances in range
             (e.is_recurring = true 
