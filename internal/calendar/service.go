@@ -100,6 +100,14 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams) ([]*entit
         return nil, fmt.Errorf("failed to expand recurring events: %v", err)
     }
 
+    for _, event := range expandedEvents {
+        if event.Title == "shopping" && event.InstanceDate != nil {
+            fmt.Printf("DEBUG: Returning shopping event - ID: %d, startTime: %s, instanceDate: %s\n", 
+                event.ID, event.StartTime.Format("2006-01-02T15:04:05Z"), 
+                event.InstanceDate.Format("2006-01-02T15:04:05Z"))
+        }
+    }
+
     fmt.Printf("DEBUG: After expansion, returning %d events\n", len(expandedEvents))
     return expandedEvents, nil
 }
@@ -182,6 +190,10 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
                 continue
             }
 
+            fmt.Printf("DEBUG: About to create instance - currentDate: %s, instanceDate will be: %s\n", 
+            currentDate.Format("2006-01-02T15:04:05Z"), currentDate.Format("2006-01-02T15:04:05Z"))
+
+
             modifiedKey := fmt.Sprintf("%d-%s", event.ID, instanceDateKey)
             if modifiedInstance, exists := modifiedInstanceMap[modifiedKey]; exists {
                 instances = append(instances, modifiedInstance)
@@ -211,12 +223,16 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
                     UpdatedAt:         event.UpdatedAt,
                     IsDeleted:         false,
                 }
+                fmt.Printf("DEBUG: Created instance - startTime: %s, instanceDate: %s\n", 
+                instance.StartTime.Format("2006-01-02T15:04:05Z"), 
+                instance.InstanceDate.Format("2006-01-02T15:04:05Z"))
 
                 if err := s.normaliseEventTimes(instance); err == nil {
                     instances = append(instances, instance)
                 }
-            }
+            }   
         }
+
 
         currentDate = s.getNextOccurrence(currentDate, *event.RecurrenceType)
         
