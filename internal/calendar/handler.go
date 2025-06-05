@@ -69,8 +69,8 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         params.AssigneeIDs = assigneeIDs
     }
 
-    if moduleIDsStr := query.Get("moduleIds"); moduleIDsStr != "" {
-        params.ModuleIDs = strings.Split(moduleIDsStr, ",")
+    if sourceModulesStr := query.Get("sourceModules"); sourceModulesStr != "" {
+        params.SourceModules = strings.Split(sourceModulesStr, ",")
     }
 
     if sourceIDStr := query.Get("sourceId"); sourceIDStr != "" {
@@ -82,7 +82,7 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         params.SourceID = &sourceID
     }
 
-    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params)
+    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params, profileCtx.ProfileID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -118,7 +118,7 @@ func (h *Handler) handleGetEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.GetByID(eventID, profileCtx.FamilyID)
+    event, err := h.service.GetByID(eventID, profileCtx.FamilyID, profileCtx.ProfileID)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
