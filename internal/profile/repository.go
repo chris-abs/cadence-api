@@ -19,8 +19,8 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) Create(profile *models.Profile) error {
     query := `
         INSERT INTO profile (
-            family_id, name, role, pin, image_url, colour, is_owner, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id, created_at, updated_at`
 
     err := r.db.QueryRow(
@@ -31,6 +31,7 @@ func (r *Repository) Create(profile *models.Profile) error {
         profile.Pin,
         profile.ImageURL,
         profile.Colour,
+        profile.TimezoneName,
         profile.IsOwner,
         time.Now().UTC(),
         time.Now().UTC(),
