@@ -7,11 +7,11 @@ import (
 )
 
 type GetEventsParams struct {
-    StartTime    time.Time `schema:"startTime"`
-    EndTime      time.Time `schema:"endTime"`
-    AssigneeIDs  []int     `schema:"assigneeIds,omitempty"` 
-    ModuleIDs    []string  `schema:"moduleIds,omitempty"`
-    SourceID     *int      `schema:"sourceId,omitempty"`
+    StartTime     time.Time `schema:"startTime"`
+    EndTime       time.Time `schema:"endTime"`
+    AssigneeIDs   []int     `schema:"assigneeIds,omitempty"` 
+    SourceModules []string  `schema:"sourceModules,omitempty"`
+    SourceID      *int      `schema:"sourceId,omitempty"`
 }
 
 type CreateEventRequest struct {
