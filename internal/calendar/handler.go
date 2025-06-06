@@ -142,6 +142,8 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    req.UpdatedBy = profileCtx.ProfileID
+
     event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
@@ -167,6 +169,8 @@ func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
     }
 
     req.EventID = eventID
+    req.UpdatedBy = profileCtx.ProfileID
+
     event, err := h.service.UpdateRecurringInstance(&req, profileCtx.FamilyID)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
