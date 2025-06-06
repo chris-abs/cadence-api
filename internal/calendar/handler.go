@@ -41,13 +41,18 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
 
     startTime, err := time.Parse(time.RFC3339, query.Get("startTime"))
     if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid startTime format")
+        writeError(w, http.StatusBadRequest, "invalid startTime format - expected RFC3339")
         return
     }
 
     endTime, err := time.Parse(time.RFC3339, query.Get("endTime"))
     if err != nil {
-        writeError(w, http.StatusBadRequest, "invalid endTime format")
+        writeError(w, http.StatusBadRequest, "invalid endTime format - expected RFC3339")
+        return
+    }
+    
+    if endTime.Before(startTime) {
+        writeError(w, http.StatusBadRequest, "endTime must be after startTime")
         return
     }
 
@@ -99,6 +104,16 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         writeError(w, http.StatusBadRequest, "invalid request body")
         return
     }
+    
+    if req.Title == "" {
+        writeError(w, http.StatusBadRequest, "title is required")
+        return
+    }
+
+    if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
+        writeError(w, http.StatusBadRequest, "endTime must be after startTime")
+        return
+    }
 
     event, err := h.service.Create(profileCtx.ProfileID, profileCtx.FamilyID, &req)  
     if err != nil {
@@ -142,6 +157,16 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    if req.Title == "" {
+        writeError(w, http.StatusBadRequest, "title is required")
+        return
+    }
+
+    if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
+        writeError(w, http.StatusBadRequest, "endTime must be after startTime")
+        return
+    }
+
     req.UpdatedBy = profileCtx.ProfileID
 
     event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
@@ -166,6 +191,19 @@ func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
         return
+    }
+
+    if req.Title == nil && req.Description == nil && req.Location == nil && 
+       req.StartTime == nil && req.EndTime == nil && req.AllDay == nil && req.AssigneeID == nil {
+        writeError(w, http.StatusBadRequest, "at least one field must be updated")
+        return
+    }
+
+    if req.StartTime != nil && req.EndTime != nil {
+        if req.EndTime.Before(*req.StartTime) || req.EndTime.Equal(*req.StartTime) {
+            writeError(w, http.StatusBadRequest, "endTime must be after startTime")
+            return
+        }
     }
 
     req.EventID = eventID
@@ -194,6 +232,11 @@ func (h *Handler) handleCancelInstance(w http.ResponseWriter, r *http.Request) {
     }
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    if req.Date.IsZero() {
+        writeError(w, http.StatusBadRequest, "date is required")
         return
     }
 
