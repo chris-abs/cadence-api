@@ -21,10 +21,15 @@ func (c *Converter) ConvertLocalToUTC(localTime time.Time, timezoneName string) 
 		return time.Time{}, fmt.Errorf("invalid timezone: %s", timezoneName)
 	}
 	
+	if localTime.Location() != time.UTC && localTime.Location().String() != "Local" {
+		localTime = localTime.In(loc)
+	}
+	
+	
 	timeInTZ := time.Date(
 		localTime.Year(), localTime.Month(), localTime.Day(),
 		localTime.Hour(), localTime.Minute(), localTime.Second(),
-		0, loc,
+		localTime.Nanosecond(), loc,
 	)
 	
 	return timeInTZ.UTC(), nil
@@ -32,12 +37,12 @@ func (c *Converter) ConvertLocalToUTC(localTime time.Time, timezoneName string) 
 
 func (c *Converter) ConvertUTCToLocal(utcTime time.Time, timezoneName string) time.Time {
 	if timezoneName == "" || timezoneName == "UTC" {
-		return utcTime
+		return utcTime.UTC()
 	}
 	
 	loc, err := time.LoadLocation(timezoneName)
 	if err != nil {
-		return utcTime 
+		return utcTime.UTC()
 	}
 	
 	return utcTime.In(loc)
@@ -62,4 +67,27 @@ func (c *Converter) GetUserTimezone(timezone string) string {
 		return "UTC"
 	}
 	return timezone
+}
+
+func (c *Converter) GetDateBoundaryInTimezone(date time.Time, timezoneName string) (time.Time, error) {
+	loc, err := time.LoadLocation(timezoneName)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid timezone: %s", timezoneName)
+	}
+	
+	startOfDay := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		0, 0, 0, 0, loc,
+	)
+	
+	return startOfDay, nil
+}
+
+func (c *Converter) ConvertDateToUTCBoundary(date time.Time, timezoneName string) (time.Time, error) {
+	boundary, err := c.GetDateBoundaryInTimezone(date, timezoneName)
+	if err != nil {
+		return time.Time{}, err
+	}
+	
+	return boundary.UTC(), nil
 }
