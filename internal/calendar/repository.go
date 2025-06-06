@@ -107,10 +107,10 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         args = append(args, pq.Array(params.AssigneeIDs))
     }
 
-    if len(params.SourceModules) > 0 {  
+    if len(params.SourceModules) > 0 {
         paramCount++
         query += fmt.Sprintf(" AND e.source_module = ANY($%d)", paramCount)
-        args = append(args, pq.Array(params.SourceModules)) 
+        args = append(args, pq.Array(params.SourceModules))
     }
 
     if params.SourceID != nil {
