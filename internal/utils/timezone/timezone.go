@@ -12,6 +12,10 @@ func NewConverter() *Converter {
 }
 
 func (c *Converter) ConvertLocalToUTC(localTime time.Time, timezoneName string) (time.Time, error) {
+	if timezoneName == "" || timezoneName == "UTC" {
+		return localTime.UTC(), nil
+	}
+	
 	loc, err := time.LoadLocation(timezoneName)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("invalid timezone: %s", timezoneName)
@@ -27,10 +31,15 @@ func (c *Converter) ConvertLocalToUTC(localTime time.Time, timezoneName string) 
 }
 
 func (c *Converter) ConvertUTCToLocal(utcTime time.Time, timezoneName string) time.Time {
+	if timezoneName == "" || timezoneName == "UTC" {
+		return utcTime
+	}
+	
 	loc, err := time.LoadLocation(timezoneName)
 	if err != nil {
 		return utcTime 
 	}
+	
 	return utcTime.In(loc)
 }
 
@@ -53,12 +62,4 @@ func (c *Converter) GetUserTimezone(timezone string) string {
 		return "UTC"
 	}
 	return timezone
-}
-
-func (c *Converter) ConvertTimeSlice(utcTimes []time.Time, timezoneName string) []time.Time {
-	localTimes := make([]time.Time, len(utcTimes))
-	for i, utcTime := range utcTimes {
-		localTimes[i] = c.ConvertUTCToLocal(utcTime, timezoneName)
-	}
-	return localTimes
 }
