@@ -109,8 +109,8 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         writeError(w, http.StatusBadRequest, "title is required")
         return
     }
-
-    if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
+    
+    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
         writeError(w, http.StatusBadRequest, "endTime must be after startTime")
         return
     }
@@ -161,8 +161,8 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         writeError(w, http.StatusBadRequest, "title is required")
         return
     }
-
-    if req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime) {
+    
+    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
         writeError(w, http.StatusBadRequest, "endTime must be after startTime")
         return
     }
@@ -199,7 +199,7 @@ func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if req.StartTime != nil && req.EndTime != nil {
+    if req.StartTime != nil && req.EndTime != nil && req.AllDay != nil && !*req.AllDay {
         if req.EndTime.Before(*req.StartTime) || req.EndTime.Equal(*req.StartTime) {
             writeError(w, http.StatusBadRequest, "endTime must be after startTime")
             return
