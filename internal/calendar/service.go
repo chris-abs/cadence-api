@@ -12,6 +12,7 @@ import (
 
 const (
     MaxYearsAhead = 2
+    MaxTotalEvents = 1000 
 )
 
 type Service struct {
@@ -28,18 +29,23 @@ func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
     }
 }
 
-func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (*entities.Event, error) {
-    profile, err := s.profileRepo.GetByID(profileID)
+func (s *Service) Create(profileCtx *models.ProfileContext, req *CreateEventRequest) (*entities.Event, error) {
+    
+    profile, err := s.profileRepo.GetByID(profileCtx.ProfileID)
     if err != nil {
         return nil, fmt.Errorf("failed to get profile: %v", err)
     }
     
-    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, profile.TimezoneName)
+    return s.createWithTimezone(profileCtx, req, profile.TimezoneName)
+}
+
+func (s *Service) createWithTimezone(profileCtx *models.ProfileContext, req *CreateEventRequest, timezone string) (*entities.Event, error) {
+    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert start time: %v", err)
     }
     
-    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, profile.TimezoneName)
+    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert end time: %v", err)
     }
@@ -51,9 +57,9 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         StartTime:    startUTC,
         EndTime:      endUTC,
         AllDay:       req.AllDay,
-        CreatedBy:    profileID,
+        CreatedBy:    profileCtx.ProfileID,
         AssigneeID:   req.AssigneeID,
-        FamilyID:     familyID,
+        FamilyID:     profileCtx.FamilyID,
         SourceModule: "GENERAL",
         EventType:    entities.EventTypeGeneral,
         IsRecurring:  false,
@@ -77,7 +83,7 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
                 return nil, fmt.Errorf("repeat until date cannot exceed %d years from now", MaxYearsAhead)
             }
             
-            repeatUntilUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.RepeatUntil, profile.TimezoneName)
+            repeatUntilUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.RepeatUntil, timezone)
             if err != nil {
                 return nil, fmt.Errorf("failed to convert repeat until time: %v", err)
             }
@@ -85,7 +91,7 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         }
     }
 
-    if err := s.normaliseEventTimes(event, profile.TimezoneName); err != nil {
+    if err := s.normaliseEventTimes(event, timezone); err != nil {
         return nil, err
     }
 
@@ -93,42 +99,47 @@ func (s *Service) Create(profileID int, familyID int, req *CreateEventRequest) (
         return nil, fmt.Errorf("failed to create event: %v", err)
     }
 
-    return s.GetByID(event.ID, familyID, profileID)
+    return s.getByIDWithTimezone(event.ID, profileCtx.FamilyID, timezone)
 }
 
-func (s *Service) GetByID(id int, familyID int, currentProfileID int) (*entities.Event, error) {
+func (s *Service) GetByID(id int, profileCtx *models.ProfileContext) (*entities.Event, error) {
+    
+    profile, err := s.profileRepo.GetByID(profileCtx.ProfileID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get profile: %v", err)
+    }
+    
+    return s.getByIDWithTimezone(id, profileCtx.FamilyID, profile.TimezoneName)
+}
+
+func (s *Service) getByIDWithTimezone(id int, familyID int, timezone string) (*entities.Event, error) {
     event, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, err
     }
     
-    profile, err := s.profileRepo.GetByID(currentProfileID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get profile: %v", err)
-    }
     
-    event.StartTime = s.timezoneConverter.ConvertUTCToLocal(event.StartTime, profile.TimezoneName)
-    event.EndTime = s.timezoneConverter.ConvertUTCToLocal(event.EndTime, profile.TimezoneName)
-    if event.RecurrenceEndTime != nil {
-        convertedEnd := s.timezoneConverter.ConvertUTCToLocal(*event.RecurrenceEndTime, profile.TimezoneName)
-        event.RecurrenceEndTime = &convertedEnd
-    }
-    
-    return event, nil
+    return s.convertEventTimesToLocal(event, timezone), nil
 }
 
-func (s *Service) GetByDateRange(familyID int, params GetEventsParams, currentProfileID int) ([]*entities.Event, error) {
-    profile, err := s.profileRepo.GetByID(currentProfileID)
+func (s *Service) GetByDateRange(familyID int, params GetEventsParams, profileCtx *models.ProfileContext) ([]*entities.Event, error) {
+    
+    profile, err := s.profileRepo.GetByID(profileCtx.ProfileID)
     if err != nil {
         return nil, fmt.Errorf("failed to get profile: %v", err)
     }
     
-    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(params.StartTime, profile.TimezoneName)
+    return s.getByDateRangeWithTimezone(familyID, params, profile.TimezoneName)
+}
+
+func (s *Service) getByDateRangeWithTimezone(familyID int, params GetEventsParams, timezone string) ([]*entities.Event, error) {
+    
+    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(params.StartTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert start time: %v", err)
     }
     
-    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(params.EndTime, profile.TimezoneName)
+    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(params.EndTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert end time: %v", err)
     }
@@ -150,25 +161,37 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams, currentPr
         return nil, fmt.Errorf("failed to get events: %v", err)
     }
 
+    
+    const maxEventsToProcess = 200
+    if len(events) > maxEventsToProcess {
+        events = events[:maxEventsToProcess]
+    }
+
     expandedEvents, err := s.expandRecurringEvents(events, startUTC, endUTC)
     if err != nil {
         return nil, fmt.Errorf("failed to expand recurring events: %v", err)
     }
     
-    for _, event := range expandedEvents {
-        event.StartTime = s.timezoneConverter.ConvertUTCToLocal(event.StartTime, profile.TimezoneName)
-        event.EndTime = s.timezoneConverter.ConvertUTCToLocal(event.EndTime, profile.TimezoneName)
-        if event.RecurrenceEndTime != nil {
-            convertedEnd := s.timezoneConverter.ConvertUTCToLocal(*event.RecurrenceEndTime, profile.TimezoneName)
-            event.RecurrenceEndTime = &convertedEnd
-        }
+    
+    result := make([]*entities.Event, len(expandedEvents))
+    for i, event := range expandedEvents {
+        result[i] = s.convertEventTimesToLocal(event, timezone)
     }
-
-    return expandedEvents, nil
+    return result, nil
 }
 
-func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
-    event, err := s.repo.GetByID(id, familyID)
+func (s *Service) Update(id int, req *UpdateEventRequest, profileCtx *models.ProfileContext) (*entities.Event, error) {
+    
+    profile, err := s.profileRepo.GetByID(profileCtx.ProfileID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get profile: %v", err)
+    }
+    
+    return s.updateWithTimezone(id, req, profileCtx, profile.TimezoneName)
+}
+
+func (s *Service) updateWithTimezone(id int, req *UpdateEventRequest, profileCtx *models.ProfileContext, timezone string) (*entities.Event, error) {
+    event, err := s.repo.GetByID(id, profileCtx.FamilyID)
     if err != nil {
         return nil, fmt.Errorf("failed to get event: %v", err)
     }
@@ -181,20 +204,15 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
         if err := s.validateRecurringPermissions(req.UpdatedBy); err != nil {
             return nil, err
         }
-        return s.updateRecurringSeries(event, familyID, req)
+        return s.updateRecurringSeries(event, profileCtx, req, timezone)
     }
     
-    updaterProfile, err := s.profileRepo.GetByID(req.UpdatedBy)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get updater profile: %v", err)
-    }
-
-    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, updaterProfile.TimezoneName)
+    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert start time: %v", err)
     }
     
-    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, updaterProfile.TimezoneName)
+    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert end time: %v", err)
     }
@@ -207,7 +225,7 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
     event.AllDay = req.AllDay
     event.AssigneeID = req.AssigneeID
 
-    if err := s.normaliseEventTimes(event, updaterProfile.TimezoneName); err != nil {
+    if err := s.normaliseEventTimes(event, timezone); err != nil {
         return nil, err
     }
 
@@ -215,7 +233,7 @@ func (s *Service) Update(id int, familyID int, req *UpdateEventRequest) (*entiti
         return nil, fmt.Errorf("failed to update event: %v", err)
     }
 
-    return s.GetByID(id, familyID, req.UpdatedBy)
+    return s.getByIDWithTimezone(id, profileCtx.FamilyID, timezone)
 }
 
 func (s *Service) Delete(id int, familyID int, deletedBy int) error {
@@ -241,22 +259,17 @@ func (s *Service) RestoreDeleted(id int, familyID int) error {
     return s.repo.RestoreDeleted(id, familyID)
 }
 
-func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req *UpdateEventRequest) (*entities.Event, error) {
-    updaterProfile, err := s.profileRepo.GetByID(req.UpdatedBy)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get updater profile: %v", err)
-    }
-
+func (s *Service) updateRecurringSeries(event *entities.Event, profileCtx *models.ProfileContext, req *UpdateEventRequest, timezone string) (*entities.Event, error) {
     now := time.Now().UTC()
     today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
     yesterday := today.AddDate(0, 0, -1)
     
-    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, updaterProfile.TimezoneName)
+    startUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.StartTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert start time: %v", err)
     }
     
-    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, updaterProfile.TimezoneName)
+    endUTC, err := s.timezoneConverter.ConvertLocalToUTC(req.EndTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert end time: %v", err)
     }
@@ -270,7 +283,7 @@ func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req
         event.AllDay = req.AllDay
         event.AssigneeID = req.AssigneeID
 
-        if err := s.normaliseEventTimes(event, updaterProfile.TimezoneName); err != nil {
+        if err := s.normaliseEventTimes(event, timezone); err != nil {
             return nil, err
         }
 
@@ -278,7 +291,7 @@ func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req
             return nil, fmt.Errorf("failed to update future series: %v", err)
         }
 
-        return s.GetByID(event.ID, familyID, req.UpdatedBy)
+        return s.getByIDWithTimezone(event.ID, profileCtx.FamilyID, timezone)
     }
 
     newStartTime := time.Date(
@@ -307,7 +320,7 @@ func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req
         AllDay:            req.AllDay,
         CreatedBy:         req.UpdatedBy,
         AssigneeID:        req.AssigneeID,
-        FamilyID:          familyID,
+        FamilyID:          profileCtx.FamilyID,
         SourceModule:      event.SourceModule,
         EventType:         event.EventType,
         IsRecurring:       true,
@@ -315,7 +328,7 @@ func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req
         RecurrenceEndTime: originalRecurrenceEnd,
     }
 
-    if err := s.normaliseEventTimes(newSeries, updaterProfile.TimezoneName); err != nil {
+    if err := s.normaliseEventTimes(newSeries, timezone); err != nil {
         return nil, err
     }
 
@@ -323,11 +336,21 @@ func (s *Service) updateRecurringSeries(event *entities.Event, familyID int, req
         return nil, fmt.Errorf("failed to create new series: %v", err)
     }
 
-    return s.GetByID(newSeries.ID, familyID, req.UpdatedBy)
+    return s.getByIDWithTimezone(newSeries.ID, profileCtx.FamilyID, timezone)
 }
 
-func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, familyID int) (*entities.Event, error) {
-    event, err := s.repo.GetByID(req.EventID, familyID)
+func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, profileCtx *models.ProfileContext) (*entities.Event, error) {
+    
+    profile, err := s.profileRepo.GetByID(profileCtx.ProfileID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get profile: %v", err)
+    }
+    
+    return s.updateRecurringInstanceWithTimezone(req, profileCtx, profile.TimezoneName)
+}
+
+func (s *Service) updateRecurringInstanceWithTimezone(req *UpdateRecurringInstanceRequest, profileCtx *models.ProfileContext, timezone string) (*entities.Event, error) {
+    event, err := s.repo.GetByID(req.EventID, profileCtx.FamilyID)
     if err != nil {
         return nil, fmt.Errorf("failed to get event: %v", err)
     }
@@ -340,14 +363,9 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
         return nil, err
     }
 
-    updaterProfile, err := s.profileRepo.GetByID(req.UpdatedBy)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get updater profile: %v", err)
-    }
-
-    instanceLocal := s.timezoneConverter.ConvertUTCToLocal(req.InstanceDate, updaterProfile.TimezoneName)
+    instanceLocal := s.timezoneConverter.ConvertUTCToLocal(req.InstanceDate, timezone)
     
-    loc, err := time.LoadLocation(updaterProfile.TimezoneName)
+    loc, err := time.LoadLocation(timezone)
     if err != nil {
         loc = time.UTC
     }
@@ -367,7 +385,7 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
     }
 
     if existingInstance != nil {
-        if err := s.repo.Delete(existingInstance.ID, familyID, req.UpdatedBy); err != nil {
+        if err := s.repo.Delete(existingInstance.ID, profileCtx.FamilyID, req.UpdatedBy); err != nil {
             return nil, fmt.Errorf("failed to delete existing modified instance: %v", err)
         }
     }
@@ -380,7 +398,7 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
         EndTime:       event.EndTime,      
         AllDay:        event.AllDay,
         AssigneeID:    event.AssigneeID,
-        FamilyID:      familyID,
+        FamilyID:      profileCtx.FamilyID,
         SourceModule:  event.SourceModule,
         EventType:     event.EventType,
         IsException:   true,
@@ -399,14 +417,14 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
         updatedInstance.Location = req.Location
     }
     if req.StartTime != nil {
-        startUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.StartTime, updaterProfile.TimezoneName)
+        startUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.StartTime, timezone)
         if err != nil {
             return nil, fmt.Errorf("failed to convert start time: %v", err)
         }
         updatedInstance.StartTime = startUTC
     }
     if req.EndTime != nil {
-        endUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.EndTime, updaterProfile.TimezoneName)
+        endUTC, err := s.timezoneConverter.ConvertLocalToUTC(*req.EndTime, timezone)
         if err != nil {
             return nil, fmt.Errorf("failed to convert end time: %v", err)
         }
@@ -419,7 +437,7 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
         updatedInstance.AssigneeID = req.AssigneeID
     }
 
-    if err := s.normaliseEventTimes(updatedInstance, updaterProfile.TimezoneName); err != nil {
+    if err := s.normaliseEventTimes(updatedInstance, timezone); err != nil {
         return nil, err
     }
 
@@ -433,10 +451,7 @@ func (s *Service) UpdateRecurringInstance(req *UpdateRecurringInstanceRequest, f
         }
     }
 
-    updatedInstance.StartTime = s.timezoneConverter.ConvertUTCToLocal(updatedInstance.StartTime, updaterProfile.TimezoneName)
-    updatedInstance.EndTime = s.timezoneConverter.ConvertUTCToLocal(updatedInstance.EndTime, updaterProfile.TimezoneName)
-
-    return updatedInstance, nil
+    return s.convertEventTimesToLocal(updatedInstance, timezone), nil
 }
 
 func (s *Service) CancelRecurringInstance(id int, familyID int, date time.Time, cancelledBy int) error {
@@ -530,19 +545,38 @@ func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, end
             modifiedInstanceMap[key] = instance
         }
     }
-
+    
     for _, recurringEvent := range recurringEvents {
         instances := s.generateRecurringInstances(recurringEvent, startTime, endTime, exceptions[recurringEvent.ID], modifiedInstanceMap)
         result = append(result, instances...)
+        
+        if len(result) >= MaxTotalEvents {
+            result = result[:MaxTotalEvents]
+            break
+        }
     }
 
     return result, nil
 }
 
+
 func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
     var instances []*entities.Event
-    maxInstances := 500
-    iterationCount := 0
+    dayCount := int(endTime.Sub(startTime).Hours()/24) + 1
+    
+    var maxInstances int
+    switch *event.RecurrenceType {
+    case entities.RecurrenceDaily:
+        maxInstances = dayCount
+    case entities.RecurrenceWeekly:
+        maxInstances = (dayCount / 7) + 1
+    case entities.RecurrenceMonthly:
+        maxInstances = (dayCount / 28) + 2  
+    case entities.RecurrenceYearly:
+        maxInstances = (dayCount / 365) + 1
+    default:
+        maxInstances = 50 
+    }
 
     cancelled := make(map[string]bool)
     for _, date := range cancelledDates {
@@ -558,13 +592,7 @@ func (s *Service) generateRecurringInstances(event *entities.Event, startTime, e
         recurrenceEnd = *event.RecurrenceEndTime
     }
 
-    for currentDate.Before(recurrenceEnd) {
-        iterationCount++
-        if iterationCount > maxInstances {
-            fmt.Printf("Warning: event count exceeds: %v", maxInstances)
-            break
-        }
-        
+    for currentDate.Before(recurrenceEnd) && len(instances) < maxInstances {
         occurrenceEnd := currentDate.Add(duration)
         if occurrenceEnd.After(startTime) && currentDate.Before(endTime) {
             instanceDateKey := currentDate.Format("2006-01-02")
@@ -667,4 +695,15 @@ func (s *Service) normaliseEventTimes(event *entities.Event, userTimezone string
     }
 
     return nil
+}
+
+func (s *Service) convertEventTimesToLocal(event *entities.Event, timezone string) *entities.Event {
+    eventCopy := *event
+    eventCopy.StartTime = s.timezoneConverter.ConvertUTCToLocal(event.StartTime, timezone)
+    eventCopy.EndTime = s.timezoneConverter.ConvertUTCToLocal(event.EndTime, timezone)
+    if event.RecurrenceEndTime != nil {
+        convertedEnd := s.timezoneConverter.ConvertUTCToLocal(*event.RecurrenceEndTime, timezone)
+        eventCopy.RecurrenceEndTime = &convertedEnd
+    }
+    return &eventCopy
 }

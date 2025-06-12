@@ -87,7 +87,7 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         params.SourceID = &sourceID
     }
 
-    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params, profileCtx.ProfileID)
+    events, err := h.service.GetByDateRange(profileCtx.FamilyID, params, profileCtx)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -115,7 +115,7 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.Create(profileCtx.ProfileID, profileCtx.FamilyID, &req)  
+    event, err := h.service.Create(profileCtx, &req)  
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -133,7 +133,7 @@ func (h *Handler) handleGetEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    event, err := h.service.GetByID(eventID, profileCtx.FamilyID, profileCtx.ProfileID)
+    event, err := h.service.GetByID(eventID, profileCtx)
     if err != nil {
         writeError(w, http.StatusNotFound, err.Error())
         return
@@ -169,7 +169,7 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 
     req.UpdatedBy = profileCtx.ProfileID
 
-    event, err := h.service.Update(eventID, profileCtx.FamilyID, &req)
+    event, err := h.service.Update(eventID, &req, profileCtx)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
@@ -209,7 +209,7 @@ func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
     req.EventID = eventID
     req.UpdatedBy = profileCtx.ProfileID
 
-    event, err := h.service.UpdateRecurringInstance(&req, profileCtx.FamilyID)
+    event, err := h.service.UpdateRecurringInstance(&req, profileCtx)
     if err != nil {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
