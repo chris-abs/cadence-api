@@ -89,13 +89,13 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         WHERE e.family_id = $1 
         AND e.is_deleted = false
         AND (
-            -- Regular events: normal overlap check
+            -- Single events: normal overlap check (start < queryEnd AND end > queryStart)
             (e.is_recurring = false AND e.start_time < $3 AND e.end_time > $2)
             OR 
             -- Recurring events: check if they could have instances in range
             (e.is_recurring = true 
-             AND e.start_time <= $2 
-             AND (e.recurrence_end_time IS NULL OR e.recurrence_end_time >= $3))
+             AND e.start_time <= $3 
+             AND (e.recurrence_end_time IS NULL OR e.recurrence_end_time >= $2))
         )`
 
     args := []interface{}{familyID, params.StartTime, params.EndTime}
