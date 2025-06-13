@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func MigrateCalendarPerformanceIndexes(tx *sql.Tx) error {
+func MigrateCalendarIndexes(tx *sql.Tx) error {
     // Add performance indexes for calendar queries
     indexQueries := []string{
         // Core calendar query performance - for GetByDateRange filtering

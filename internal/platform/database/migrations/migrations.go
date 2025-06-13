@@ -75,10 +75,15 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateCalendarConsolidation,
             // },
+            // {
+            //     ID:      "012_calendar_recurrence",
+            //     Enabled: true,
+            //     Run:     MigrateCalendarRecurrence,
+            // },
             {
-                ID:      "012_calendar_recurrence",
+                ID:      "013_calendar_indexes",
                 Enabled: true,
-                Run:     MigrateCalendarRecurrence,
+                Run:     MigrateCalendarIndexes,
             },
         },
     }
