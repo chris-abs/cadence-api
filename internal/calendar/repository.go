@@ -98,7 +98,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
              AND (e.recurrence_end_time IS NULL OR e.recurrence_end_time >= $3))
         )`
 
-    args := []interface{}{familyID, params.EndTime, params.StartTime}
+    args := []interface{}{familyID, params.StartTime, params.EndTime}
     paramCount := 3
 
     if len(params.AssigneeIDs) > 0 {
