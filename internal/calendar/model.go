@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type GetEventsParams struct {
@@ -53,4 +54,77 @@ type UpdateRecurringInstanceRequest struct {
 type PaginatedEvents struct {
     Events     []*entities.Event `json:"events"`
     HasMore    bool              `json:"hasMore"`
+}
+
+type CalendarResponse struct {
+    Events   []*CalendarEventDTO    `json:"events"`
+    Profiles map[int]*models.Profile `json:"profiles"`
+}
+
+type CalendarEventDTO struct {
+    ID                int                       `json:"id"`
+    Title             string                    `json:"title"`
+    Description       *string                   `json:"description,omitempty"`
+    Location          *string                   `json:"location,omitempty"`
+    StartTime         time.Time                 `json:"startTime"`
+    EndTime           time.Time                 `json:"endTime"`
+    AllDay            bool                      `json:"allDay"`
+    AssigneeID        *int                      `json:"assigneeId,omitempty"`
+    SourceModule      string                    `json:"sourceModule"`
+    SourceID          *int                      `json:"sourceId,omitempty"`
+    FamilyID          int                       `json:"familyId"`
+    EventType         entities.EventType        `json:"eventType"`
+    IsRecurring       bool                      `json:"isRecurring"`
+    RecurrenceType    *entities.RecurrenceType  `json:"recurrenceType,omitempty"`
+    RecurrenceEndTime *time.Time                `json:"recurrenceEndTime,omitempty"`
+    IsException       bool                      `json:"isException"`
+    ParentEventID     *int                      `json:"parentEventId,omitempty"`
+    InstanceDate      *time.Time                `json:"instanceDate,omitempty"`
+    CreatedAt         time.Time                 `json:"createdAt"`
+    UpdatedAt         time.Time                 `json:"updatedAt"`
+    IsDeleted         bool                      `json:"isDeleted"`
+    DeletedAt         *time.Time                `json:"deletedAt,omitempty"`
+    DeletedBy         *int                      `json:"deletedBy,omitempty"`
+}
+
+func NormalizeEventsResponse(events []*entities.Event) *CalendarResponse {
+    profiles := make(map[int]*models.Profile)
+    eventDTOs := make([]*CalendarEventDTO, len(events))
+    
+    for i, event := range events {
+        if event.Assignee != nil {
+            profiles[event.Assignee.ID] = event.Assignee
+        }
+        
+        eventDTOs[i] = &CalendarEventDTO{
+            ID:                event.ID,
+            Title:             event.Title,
+            Description:       event.Description,
+            Location:          event.Location,
+            StartTime:         event.StartTime,
+            EndTime:           event.EndTime,
+            AllDay:            event.AllDay,
+            AssigneeID:        event.AssigneeID,
+            SourceModule:      event.SourceModule,
+            SourceID:          event.SourceID,
+            FamilyID:          event.FamilyID,
+            EventType:         event.EventType,
+            IsRecurring:       event.IsRecurring,
+            RecurrenceType:    event.RecurrenceType,
+            RecurrenceEndTime: event.RecurrenceEndTime,
+            IsException:       event.IsException,
+            ParentEventID:     event.ParentEventID,
+            InstanceDate:      event.InstanceDate,
+            CreatedAt:         event.CreatedAt,
+            UpdatedAt:         event.UpdatedAt,
+            IsDeleted:         event.IsDeleted,
+            DeletedAt:         event.DeletedAt,
+            DeletedBy:         event.DeletedBy,
+        }
+    }
+    
+    return &CalendarResponse{
+        Events:   eventDTOs,
+        Profiles: profiles,
+    }
 }
