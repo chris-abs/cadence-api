@@ -13,6 +13,8 @@ import (
 const (
     MaxYearsAhead = 2
     MaxTotalEvents = 1000 
+    MaxDateRangeDays = 45 
+    MaxHistoryYears = 5 
 )
 
 type Service struct {
@@ -27,6 +29,26 @@ func NewService(repo *Repository, profileRepo *profile.Repository) *Service {
         profileRepo:       profileRepo,
         timezoneConverter: timezone.NewConverter(),
     }
+}
+
+func (s *Service) validateDateRange(start, end time.Time) error {
+    if end.Sub(start) > MaxDateRangeDays*24*time.Hour {
+        return fmt.Errorf("date range cannot exceed %d days", MaxDateRangeDays)
+    }
+    
+    if start.After(time.Now().AddDate(MaxYearsAhead, 0, 0)) {
+        return fmt.Errorf("cannot request events more than %d years in advance", MaxYearsAhead)
+    }
+    
+    if end.Before(time.Now().AddDate(-MaxHistoryYears, 0, 0)) {
+        return fmt.Errorf("cannot request events older than %d years", MaxHistoryYears)
+    }
+    
+    if end.Before(start) || end.Equal(start) {
+        return fmt.Errorf("end time must be after start time")
+    }
+    
+    return nil
 }
 
 func (s *Service) Create(profileCtx *models.ProfileContext, req *CreateEventRequest) (*entities.Event, error) {
@@ -133,7 +155,6 @@ func (s *Service) GetByDateRange(familyID int, params GetEventsParams, profileCt
 }
 
 func (s *Service) getByDateRangeWithTimezone(familyID int, params GetEventsParams, timezone string) ([]*entities.Event, error) {
-    
     startUTC, err := s.timezoneConverter.ConvertLocalToUTC(params.StartTime, timezone)
     if err != nil {
         return nil, fmt.Errorf("failed to convert start time: %v", err)
@@ -143,9 +164,9 @@ func (s *Service) getByDateRangeWithTimezone(familyID int, params GetEventsParam
     if err != nil {
         return nil, fmt.Errorf("failed to convert end time: %v", err)
     }
-
-    if endUTC.Before(startUTC) {
-        return nil, fmt.Errorf("end time must be after start time")
+    
+    if err := s.validateDateRange(startUTC, endUTC); err != nil {
+        return nil, err
     }
     
     utcParams := GetEventsParams{
@@ -161,17 +182,10 @@ func (s *Service) getByDateRangeWithTimezone(familyID int, params GetEventsParam
         return nil, fmt.Errorf("failed to get events: %v", err)
     }
 
-    
-    const maxEventsToProcess = 200
-    if len(events) > maxEventsToProcess {
-        events = events[:maxEventsToProcess]
-    }
-
     expandedEvents, err := s.expandRecurringEvents(events, startUTC, endUTC)
     if err != nil {
         return nil, fmt.Errorf("failed to expand recurring events: %v", err)
     }
-    
     
     result := make([]*entities.Event, len(expandedEvents))
     for i, event := range expandedEvents {
@@ -547,18 +561,22 @@ func (s *Service) expandRecurringEvents(events []*entities.Event, startTime, end
     }
     
     for _, recurringEvent := range recurringEvents {
-        instances := s.generateRecurringInstances(recurringEvent, startTime, endTime, exceptions[recurringEvent.ID], modifiedInstanceMap)
-        result = append(result, instances...)
-        
         if len(result) >= MaxTotalEvents {
-            result = result[:MaxTotalEvents]
-            break
+            break 
         }
+        
+        instances := s.generateRecurringInstances(recurringEvent, startTime, endTime, exceptions[recurringEvent.ID], modifiedInstanceMap)
+        
+        remainingSlots := MaxTotalEvents - len(result)
+        if len(instances) > remainingSlots {
+            instances = instances[:remainingSlots]
+        }
+        
+        result = append(result, instances...)
     }
 
     return result, nil
 }
-
 
 func (s *Service) generateRecurringInstances(event *entities.Event, startTime, endTime time.Time, cancelledDates []time.Time, modifiedInstanceMap map[string]*entities.Event) []*entities.Event {
     var instances []*entities.Event
