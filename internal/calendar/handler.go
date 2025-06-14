@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -93,7 +94,8 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusOK, events)
+    response := NormalizeEventsResponse(events)
+    writeJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
@@ -105,13 +107,8 @@ func (h *Handler) handleCreateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if req.Title == "" {
-        writeError(w, http.StatusBadRequest, "title is required")
-        return
-    }
-    
-    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
-        writeError(w, http.StatusBadRequest, "endTime must be after startTime")
+    if err := h.validateCreateEventRequest(&req); err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
         return
     }
 
@@ -157,13 +154,8 @@ func (h *Handler) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if req.Title == "" {
-        writeError(w, http.StatusBadRequest, "title is required")
-        return
-    }
-    
-    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
-        writeError(w, http.StatusBadRequest, "endTime must be after startTime")
+    if err := h.validateUpdateEventRequest(&req); err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
         return
     }
 
@@ -193,17 +185,9 @@ func (h *Handler) handleUpdateInstance(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if req.Title == nil && req.Description == nil && req.Location == nil && 
-       req.StartTime == nil && req.EndTime == nil && req.AllDay == nil && req.AssigneeID == nil {
-        writeError(w, http.StatusBadRequest, "at least one field must be updated")
+    if err := h.validateUpdateInstanceRequest(&req); err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
         return
-    }
-
-    if req.StartTime != nil && req.EndTime != nil && req.AllDay != nil && !*req.AllDay {
-        if req.EndTime.Before(*req.StartTime) || req.EndTime.Equal(*req.StartTime) {
-            writeError(w, http.StatusBadRequest, "endTime must be after startTime")
-            return
-        }
     }
 
     req.EventID = eventID
@@ -280,6 +264,45 @@ func (h *Handler) handleRestoreEvent(w http.ResponseWriter, r *http.Request) {
     }
 
     writeJSON(w, http.StatusOK, map[string]int{"restored": eventID})
+}
+
+func (h *Handler) validateCreateEventRequest(req *CreateEventRequest) error {
+    if req.Title == "" {
+        return fmt.Errorf("title is required")
+    }
+    
+    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
+        return fmt.Errorf("endTime must be after startTime")
+    }
+    
+    return nil
+}
+
+func (h *Handler) validateUpdateEventRequest(req *UpdateEventRequest) error {
+    if req.Title == "" {
+        return fmt.Errorf("title is required")
+    }
+    
+    if !req.AllDay && (req.EndTime.Before(req.StartTime) || req.EndTime.Equal(req.StartTime)) {
+        return fmt.Errorf("endTime must be after startTime")
+    }
+    
+    return nil
+}
+
+func (h *Handler) validateUpdateInstanceRequest(req *UpdateRecurringInstanceRequest) error {
+    if req.Title == nil && req.Description == nil && req.Location == nil && 
+       req.StartTime == nil && req.EndTime == nil && req.AllDay == nil && req.AssigneeID == nil {
+        return fmt.Errorf("at least one field must be updated")
+    }
+
+    if req.StartTime != nil && req.EndTime != nil && req.AllDay != nil && !*req.AllDay {
+        if req.EndTime.Before(*req.StartTime) || req.EndTime.Equal(*req.StartTime) {
+            return fmt.Errorf("endTime must be after startTime")
+        }
+    }
+    
+    return nil
 }
 
 func getIDFromRequest(r *http.Request) (int, error) {
