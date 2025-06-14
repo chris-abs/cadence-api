@@ -8,15 +8,7 @@ import (
 	"github.com/chrisabs/cadence/internal/models"
 )
 
-type EventType string
 type RecurrenceType string
-
-const (
-    EventTypeGeneral  EventType = "GENERAL"
-    EventTypeChore    EventType = "CHORE"
-    EventTypeMeal     EventType = "MEAL"
-    EventTypeService  EventType = "SERVICE"
-)
 
 const (
     RecurrenceDaily   RecurrenceType = "DAILY"
@@ -39,7 +31,6 @@ type Event struct {
     SourceModule string          `json:"sourceModule"`
     SourceID     *int            `json:"sourceId,omitempty"`
     FamilyID     int             `json:"familyId"`
-    EventType    EventType       `json:"eventType"`
     
     IsRecurring       bool            `json:"isRecurring"`
     RecurrenceType    *RecurrenceType `json:"recurrenceType,omitempty"` 
@@ -68,20 +59,5 @@ func (rt *RecurrenceType) UnmarshalJSON(data []byte) error {
         return nil
     default:
         return fmt.Errorf("invalid recurrence type: %s", s)
-    }
-}
-
-func (et *EventType) UnmarshalJSON(data []byte) error {
-    var s string
-    if err := json.Unmarshal(data, &s); err != nil {
-        return err
-    }
-    
-    switch EventType(s) {
-    case EventTypeGeneral, EventTypeChore, EventTypeMeal, EventTypeService:
-        *et = EventType(s)
-        return nil
-    default:
-        return fmt.Errorf("invalid event type: %s", s)
     }
 }

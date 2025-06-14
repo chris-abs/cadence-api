@@ -73,7 +73,6 @@ type CalendarEventDTO struct {
     SourceModule      string                    `json:"sourceModule"`
     SourceID          *int                      `json:"sourceId,omitempty"`
     FamilyID          int                       `json:"familyId"`
-    EventType         entities.EventType        `json:"eventType"`
     IsRecurring       bool                      `json:"isRecurring"`
     RecurrenceType    *entities.RecurrenceType  `json:"recurrenceType,omitempty"`
     RecurrenceEndTime *time.Time                `json:"recurrenceEndTime,omitempty"`
@@ -108,7 +107,6 @@ func NormalizeEventsResponse(events []*entities.Event) *CalendarResponse {
             SourceModule:      event.SourceModule,
             SourceID:          event.SourceID,
             FamilyID:          event.FamilyID,
-            EventType:         event.EventType,
             IsRecurring:       event.IsRecurring,
             RecurrenceType:    event.RecurrenceType,
             RecurrenceEndTime: event.RecurrenceEndTime,
