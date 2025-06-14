@@ -57,6 +57,133 @@ func (r *Repository) Create(event *entities.Event) error {
     return nil
 }
 
+func (r *Repository) scanEventWithoutProfile(scanner interface {
+    Scan(dest ...interface{}) error
+}) (*entities.Event, error) {
+    event := new(entities.Event)
+    var description, location sql.NullString
+    var sourceID, parentEventID, assigneeID, deletedBy sql.NullInt64 
+    var deletedAt, recurrenceEndTime, instanceDate sql.NullTime
+    var recurrenceType sql.NullString
+
+    err := scanner.Scan(
+        &event.ID,
+        &event.Title,
+        &description,
+        &location,
+        &event.StartTime,
+        &event.EndTime,
+        &event.AllDay,
+        &event.SourceModule,
+        &sourceID,
+        &event.CreatedBy,
+        &assigneeID,     
+        &event.FamilyID,
+        &event.IsRecurring,
+        &recurrenceType,
+        &recurrenceEndTime,
+        &event.IsException,
+        &parentEventID,
+        &instanceDate,
+        &event.CreatedAt,
+        &event.UpdatedAt,
+        &event.IsDeleted,
+        &deletedAt,
+        &deletedBy,
+    )
+
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("event not found")
+    }
+    if err != nil {
+        return nil, err
+    }
+
+    
+    if description.Valid {
+        event.Description = &description.String
+    }
+    if location.Valid {
+        event.Location = &location.String
+    }
+    if sourceID.Valid {
+        id := int(sourceID.Int64)
+        event.SourceID = &id
+    }
+    if assigneeID.Valid {
+        id := int(assigneeID.Int64)
+        event.AssigneeID = &id
+    }
+    if deletedAt.Valid {
+        event.DeletedAt = &deletedAt.Time
+    }
+    if deletedBy.Valid {
+        id := int(deletedBy.Int64)
+        event.DeletedBy = &id
+    }
+    if recurrenceType.Valid && recurrenceType.String != "" {
+        rt := entities.RecurrenceType(recurrenceType.String)
+        event.RecurrenceType = &rt
+    }
+    if recurrenceEndTime.Valid {
+        event.RecurrenceEndTime = &recurrenceEndTime.Time
+    }
+    if parentEventID.Valid {
+        id := int(parentEventID.Int64)
+        event.ParentEventID = &id
+    }
+    if instanceDate.Valid {
+        event.InstanceDate = &instanceDate.Time
+    }
+
+    return event, nil
+}
+
+func (r *Repository) batchLoadProfiles(assigneeIDs []int) (map[int]*models.Profile, error) {
+    if len(assigneeIDs) == 0 {
+        return make(map[int]*models.Profile), nil
+    }
+
+    uniqueIDs := make(map[int]bool)
+    for _, id := range assigneeIDs {
+        uniqueIDs[id] = true
+    }
+    
+    var ids []int
+    for id := range uniqueIDs {
+        ids = append(ids, id)
+    }
+
+    query := `
+        SELECT id, name, role, image_url, colour
+        FROM profile 
+        WHERE id = ANY($1)`
+
+    rows, err := r.db.Query(query, pq.Array(ids))
+    if err != nil {
+        return nil, fmt.Errorf("error batch loading profiles: %v", err)
+    }
+    defer rows.Close()
+
+    profiles := make(map[int]*models.Profile)
+    for rows.Next() {
+        profile := &models.Profile{}
+        err := rows.Scan(
+            &profile.ID,
+            &profile.Name,
+            &profile.Role,
+            &profile.ImageURL,
+            &profile.Colour,
+        )
+        if err != nil {
+            return nil, fmt.Errorf("error scanning profile: %v", err)
+        }
+        profiles[profile.ID] = profile
+    }
+
+    return profiles, nil
+}
+
 func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     query := `
         SELECT 
@@ -64,15 +191,28 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
             e.all_day, e.source_module, e.source_id, e.created_by, e.assignee_id, 
             e.family_id, e.is_recurring, e.recurrence_type, e.recurrence_end_time,
             e.is_exception, e.parent_event_id, e.instance_date, e.created_at, e.updated_at,
-            e.is_deleted, e.deleted_at, e.deleted_by,
-            p.id, p.name, p.role, p.image_url, p.colour
+            e.is_deleted, e.deleted_at, e.deleted_by
         FROM calendar_event e
-        LEFT JOIN profile p ON e.assignee_id = p.id
         WHERE e.id = $1 
         AND e.family_id = $2 
         AND e.is_deleted = false`
 
-    return r.scanEvent(r.db.QueryRow(query, id, familyID))
+    event, err := r.scanEventWithoutProfile(r.db.QueryRow(query, id, familyID))
+    if err != nil {
+        return nil, err
+    }
+
+    if event.AssigneeID != nil {
+        profiles, err := r.batchLoadProfiles([]int{*event.AssigneeID})
+        if err != nil {
+            return nil, fmt.Errorf("error loading profile: %v", err)
+        }
+        if profile, exists := profiles[*event.AssigneeID]; exists {
+            event.Assignee = profile
+        }
+    }
+
+    return event, nil
 }
 
 func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
@@ -82,10 +222,8 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
             e.all_day, e.source_module, e.source_id, e.created_by, e.assignee_id, 
             e.family_id, e.is_recurring, e.recurrence_type, e.recurrence_end_time,
             e.is_exception, e.parent_event_id, e.instance_date, e.created_at, e.updated_at,
-            e.is_deleted, e.deleted_at, e.deleted_by,
-            p.id, p.name, p.role, p.image_url, p.colour
+            e.is_deleted, e.deleted_at, e.deleted_by
         FROM calendar_event e
-        LEFT JOIN profile p ON e.assignee_id = p.id
         WHERE e.family_id = $1 
         AND e.is_deleted = false
         AND (
@@ -128,12 +266,36 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     defer rows.Close()
 
     var events []*entities.Event
+    var assigneeIDs []int
+    
     for rows.Next() {
-        event, err := r.scanEvent(rows)
+        event, err := r.scanEventWithoutProfile(rows)
         if err != nil {
             return nil, fmt.Errorf("error scanning event: %v", err)
         }
         events = append(events, event)
+        
+        
+        if event.AssigneeID != nil {
+            assigneeIDs = append(assigneeIDs, *event.AssigneeID)
+        }
+    }
+
+    
+    if len(assigneeIDs) > 0 {
+        profiles, err := r.batchLoadProfiles(assigneeIDs)
+        if err != nil {
+            return nil, fmt.Errorf("error batch loading profiles: %v", err)
+        }
+        
+        
+        for _, event := range events {
+            if event.AssigneeID != nil {
+                if profile, exists := profiles[*event.AssigneeID]; exists {
+                    event.Assignee = profile
+                }
+            }
+        }
     }
 
     return events, nil
@@ -237,8 +399,8 @@ func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
         event.CreatedBy,
         event.AssigneeID,
         event.FamilyID,
-        false, // is_recurring
-        true,  // is_exception
+        false, 
+        true,  
         event.ParentEventID,
         event.InstanceDate,
         now,
