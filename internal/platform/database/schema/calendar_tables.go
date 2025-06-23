@@ -10,8 +10,8 @@ func InitCalendarSchema(db *sql.DB) error {
         return fmt.Errorf("failed to create event table: %v", err)
     }
 
-    if err := createEventExceptionTable(db); err != nil {
-        return fmt.Errorf("failed to create event exception table: %v", err)
+    if err := createEventInstanceTable(db); err != nil {
+        return fmt.Errorf("failed to create event instance table: %v", err)
     }
 
     return nil
@@ -35,11 +35,9 @@ func createEventTable(db *sql.DB) error {
         is_recurring BOOLEAN NOT NULL DEFAULT false,
         recurrence_type VARCHAR(50),
         recurrence_end_time TIMESTAMP WITH TIME ZONE,
-        is_exception BOOLEAN NOT NULL DEFAULT false,
-        parent_event_id INTEGER REFERENCES calendar_event(id),
-        instance_date TIMESTAMP WITH TIME ZONE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_by INTEGER REFERENCES profile(id),
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
         deleted_by INTEGER REFERENCES profile(id),
@@ -64,31 +62,46 @@ func createEventTable(db *sql.DB) error {
         ON calendar_event(family_id, source_module, start_time) 
         WHERE is_deleted = false;
     
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_modified_instances 
-        ON calendar_event(parent_event_id, instance_date) 
-        WHERE is_exception = true AND is_deleted = false;
-    
-    -- Additional useful indexes
     CREATE INDEX IF NOT EXISTS idx_calendar_event_source ON calendar_event(source_module, source_id);
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_exception ON calendar_event(parent_event_id) WHERE parent_event_id IS NOT NULL;
     `
     
     _, err := db.Exec(query)
     return err
 }
 
-func createEventExceptionTable(db *sql.DB) error {
+func createEventInstanceTable(db *sql.DB) error {
     query := `
-    CREATE TABLE IF NOT EXISTS calendar_event_exception (
+    CREATE TABLE IF NOT EXISTS calendar_event_instance (
         id SERIAL PRIMARY KEY,
-        event_id INTEGER NOT NULL REFERENCES calendar_event(id) ON DELETE CASCADE,
-        exception_date TIMESTAMP WITH TIME ZONE NOT NULL,
+        base_event_id INTEGER NOT NULL REFERENCES calendar_event(id) ON DELETE CASCADE,
+        instance_date DATE NOT NULL,
+        
+        -- Override fields (NULL = inherit from base event)
+        title VARCHAR(255),
+        description TEXT,
+        location TEXT,
+        start_time TIMESTAMP WITH TIME ZONE,
+        end_time TIMESTAMP WITH TIME ZONE,
+        all_day BOOLEAN,
+        assignee_id INTEGER REFERENCES profile(id),
+        
+        -- Instance state
+        is_deleted BOOLEAN NOT NULL DEFAULT false,
         created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(event_id, exception_date)
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_by INTEGER REFERENCES profile(id),
+        deleted_at TIMESTAMP WITH TIME ZONE,
+        deleted_by INTEGER REFERENCES profile(id),
+        
+        UNIQUE(base_event_id, instance_date)
     );
 
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_exception_date 
-        ON calendar_event_exception(event_id, exception_date);
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_instance_base 
+        ON calendar_event_instance(base_event_id, instance_date);
+        
+    CREATE INDEX IF NOT EXISTS idx_calendar_event_instance_date_range
+        ON calendar_event_instance(base_event_id, instance_date)
+        WHERE is_deleted = false;
     `
     
     _, err := db.Exec(query)
