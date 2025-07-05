@@ -14,18 +14,16 @@ func (db *PostgresDB) Init() error {
 
 	if os.Getenv("RUN_MIGRATION") == "true" {
 		db.migrationsManager = migrations.NewManager(db.DB)
-		db.migrationsManager.EnableMigration("008_chore_verification")
+		db.migrationsManager.EnableMigration("013_calendar_instance")
 		
-		fmt.Println("|| ******************* ||")
-		fmt.Println("Running data migration...")
-		fmt.Println("|| ******************* ||")
+		fmt.Println("\n=== Running Data Migration ===")
 		if err := db.migrationsManager.Run(); err != nil {
 			return fmt.Errorf("migrations failed: %v", err)
 		}
 	}
 
 	if os.Getenv("DROP_TABLES") == "true" {
-		fmt.Println("DROP_TABLES environment variable is set to true. Dropping all tables...")
+		fmt.Println("\n=== Dropping ALL Tables ===")
 		if err := development.DropAllTables(db.DB); err != nil {
 			return fmt.Errorf("failed to drop tables: %v", err)
 		}
@@ -50,6 +48,10 @@ func (db *PostgresDB) initializeSchema() error {
 	}
 
 	fmt.Println("Initializing module schemas...")
+
+	if err := schema.InitCalendarSchema(db.DB); err != nil {
+		return fmt.Errorf("calendar module schema initialization failed: %v", err)
+	}
 	
 	if err := schema.InitStorageSchema(db.DB); err != nil {
 		return fmt.Errorf("storage module schema initialization failed: %v", err)

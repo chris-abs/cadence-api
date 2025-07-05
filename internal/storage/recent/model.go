@@ -10,7 +10,7 @@ type EntityPreview struct {
 
 type EntityStats struct {
     Recent []EntityPreview `json:"recent"`
-    Total  int            `json:"total"`
+    Total  int             `json:"total"`
 }
 
 type Response struct {

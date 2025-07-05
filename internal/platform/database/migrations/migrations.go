@@ -55,10 +55,35 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateSoftDelete,
             // },
+            // {
+            //     ID:      "008_chore_verification",
+            //     Enabled: true,
+            //     Run:     MigrateChoreVerification,
+            // },
+            // {
+            //     ID:      "009_calendar_support",
+            //     Enabled: true,
+            //     Run:     MigrateCalendarSupport,
+            // },
+            // {
+            //     ID:      "010_profile_colour",
+            //     Enabled: true,
+            //     Run:     MigrateProfileColour,
+            // },
+            // {
+            //     ID:      "011_calendar_event_consolidation",
+            //     Enabled: true,
+            //     Run:     MigrateCalendarConsolidation,
+            // },
+            // {
+            //     ID:      "012_calendar_recurrence",
+            //     Enabled: true,
+            //     Run:     MigrateCalendarRecurrence,
+            // },
             {
-                ID:      "008_chore_verification",
+                ID:      "013_calendar_indexes",
                 Enabled: true,
-                Run:     MigrateChoreVerification,
+                Run:     MigrateCalendarIndexes,
             },
         },
     }

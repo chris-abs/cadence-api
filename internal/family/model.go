@@ -38,8 +38,8 @@ type LoginRequest struct {
 }
 
 type FamilyAuthResponse struct {
-	Token    string        `json:"token"`
-	Family   FamilyAccount `json:"family"`
+	Token    string           `json:"token"`
+	Family   FamilyAccount    `json:"family"`
 	Profiles []models.Profile `json:"profiles"`
 }
 

@@ -31,23 +31,23 @@ type UpdateChoreInstanceRequest struct {
 
 type ReviewChoreRequest struct {
     Status          entities.ChoreStatus `json:"status"`
-    Notes           string              `json:"notes"`
-    RejectionReason string              `json:"rejectionReason,omitempty"` 
+    Notes           string               `json:"notes"`
+    RejectionReason string               `json:"rejectionReason,omitempty"` 
 }
 
 type VerifyDayRequest struct {
-    Date            string              `json:"date"`
-    AssigneeID      int                 `json:"assigneeId"`
+    Date            string               `json:"date"`
+    AssigneeID      int                  `json:"assigneeId"`
     Status          entities.ChoreStatus `json:"status"`
-    Notes           string              `json:"notes"`
-    RejectionReason string              `json:"rejectionReason,omitempty"`
+    Notes           string               `json:"notes"`
+    RejectionReason string               `json:"rejectionReason,omitempty"`
 }
 
 type ChoreVerificationResponse struct {
-    Success        bool                `json:"success"`
-    Message        string             `json:"message"`
-    VerifiedCount  int                `json:"verifiedCount,omitempty"`
-    RejectedCount  int                `json:"rejectedCount,omitempty"`
+    Success        bool                    `json:"success"`
+    Message        string                  `json:"message"`
+    VerifiedCount  int                     `json:"verifiedCount,omitempty"`
+    RejectedCount  int                     `json:"rejectedCount,omitempty"`
     Instance       *entities.ChoreInstance `json:"instance,omitempty"`
 }
 

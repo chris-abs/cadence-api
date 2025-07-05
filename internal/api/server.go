@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chrisabs/cadence/internal/calendar"
 	"github.com/chrisabs/cadence/internal/chores"
 	"github.com/chrisabs/cadence/internal/config"
 	"github.com/chrisabs/cadence/internal/family"
@@ -40,7 +41,7 @@ func (s *Server) Run() {
 	// CORS setup
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"*"},
 		ExposedHeaders:   []string{"Content-Length"},
 		AllowCredentials: true,
@@ -57,6 +58,7 @@ func (s *Server) Run() {
 	searchRepo := search.NewRepository(s.db.DB)
 	recentRepo := recent.NewRepository(s.db.DB)
 	choreRepo := chores.NewRepository(s.db.DB)  
+	calendarRepo := calendar.NewRepository(s.db.DB)
 
 	// Initialise core services
 	familyService := family.NewService(
@@ -88,6 +90,7 @@ func (s *Server) Run() {
 	searchService := search.NewService(searchRepo)
 	recentService := recent.NewService(recentRepo)
 	choreService := chores.NewService(choreRepo) 
+	calendarService := calendar.NewService(calendarRepo, profileRepo)
 
 	// Initialise handlers
 	familyHandler := family.NewHandler(
@@ -107,6 +110,7 @@ func (s *Server) Run() {
 	searchHandler := search.NewHandler(searchService, authMiddleware)
 	recentHandler := recent.NewHandler(recentService, authMiddleware)
 	choreHandler := chores.NewHandler(choreService, authMiddleware)  
+	calendarHandler := calendar.NewHandler(calendarService, authMiddleware)
 
 	// Register routes
 	familyHandler.RegisterRoutes(router)
@@ -118,6 +122,7 @@ func (s *Server) Run() {
 	searchHandler.RegisterRoutes(router)
 	recentHandler.RegisterRoutes(router)
 	choreHandler.RegisterRoutes(router)  
+	calendarHandler.RegisterRoutes(router)
 
 	handler := c.Handler(router)
 

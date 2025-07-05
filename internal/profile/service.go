@@ -7,36 +7,55 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/cloud"
+	"github.com/chrisabs/cadence/internal/config/theme"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/golang-jwt/jwt"
 )
 
 type Service struct {
-	repo      *Repository
-	jwtSecret string
+    repo      *Repository
+    jwtSecret string
 }
 
 func NewService(repo *Repository, jwtSecret string) *Service {
-	return &Service{
-		repo:      repo,
-		jwtSecret: jwtSecret,
-	}
+    return &Service{
+        repo:      repo,
+        jwtSecret: jwtSecret,
+    }
+}
+
+func (s *Service) validateTimezone(timezone string) error {
+    if timezone == "" {
+        return nil 
+    }
+    _, err := time.LoadLocation(timezone)
+    if err != nil {
+        return fmt.Errorf("invalid timezone: %s", timezone)
+    }
+    return nil
 }
 
 func (s *Service) GenerateProfileJWT(familyID, profileID int, role models.ProfileRole, isOwner bool) (string, error) {
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["familyId"] = familyID
-	claims["profileId"] = profileID
-	claims["role"] = string(role)
-	claims["isOwner"] = isOwner
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+    token := jwt.New(jwt.SigningMethodHS256)
+    claims := token.Claims.(jwt.MapClaims)
+    claims["familyId"] = familyID
+    claims["profileId"] = profileID
+    claims["role"] = string(role)
+    claims["isOwner"] = isOwner
+    claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	return token.SignedString([]byte(s.jwtSecret))
+    return token.SignedString([]byte(s.jwtSecret))
 }
 
-
 func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*models.Profile, error) {
+    if !theme.IsValid(req.Colour) {
+        return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
+    }
+
+    if err := s.validateTimezone(req.TimezoneName); err != nil {
+        return nil, err
+    }
+
     existingProfiles, err := s.repo.GetByFamilyID(familyID)
     if err != nil {
         return nil, fmt.Errorf("error checking existing profiles: %v", err)
@@ -48,15 +67,22 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
         return nil, fmt.Errorf("owner profile must be a parent")
     }
 
+    timezoneName := req.TimezoneName
+    if timezoneName == "" {
+        timezoneName = "UTC"
+    }
+
     profile := &models.Profile{
-        FamilyID:  familyID,
-        Name:      req.Name,
-        Role:      req.Role,
-        Pin:       req.Pin,
-        ImageURL:  req.ImageURL,
-        IsOwner:   isOwner, 
-        CreatedAt: time.Now().UTC(),
-        UpdatedAt: time.Now().UTC(),
+        FamilyID:     familyID,
+        Name:         req.Name,
+        Role:         req.Role,
+        Pin:          req.Pin,
+        ImageURL:     req.ImageURL,
+        Colour:       req.Colour,
+        TimezoneName: timezoneName, 
+        IsOwner:      isOwner,
+        CreatedAt:    time.Now().UTC(),
+        UpdatedAt:    time.Now().UTC(),
     }
 
     if err := s.repo.Create(profile); err != nil {
@@ -67,130 +93,144 @@ func (s *Service) CreateProfile(familyID int, req *CreateProfileRequest) (*model
 }
 
 func (s *Service) GetProfileByID(id int) (*models.Profile, error) {
-	return s.repo.GetByID(id)
+    return s.repo.GetByID(id)
 }
 
 func (s *Service) GetProfilesByFamilyID(familyID int) ([]*models.Profile, error) {
-	return s.repo.GetByFamilyID(familyID)
+    return s.repo.GetByFamilyID(familyID)
 }
 
 func (s *Service) UpdateProfile(id int, familyID int, req *UpdateProfileRequest, imageFile *multipart.FileHeader) (*models.Profile, error) {
-	profile, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, fmt.Errorf("profile not found: %v", err)
-	}
+    profile, err := s.repo.GetByID(id)
+    if err != nil {
+        return nil, fmt.Errorf("profile not found: %v", err)
+    }
 
-	if profile.FamilyID != familyID {
-		return nil, fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return nil, fmt.Errorf("profile does not belong to this family")
+    }
 
-	if req.Name != "" {
-		profile.Name = req.Name
-	}
+    if req.Name != "" {
+        profile.Name = req.Name
+    }
 
-	if req.Role != "" {
-		if profile.IsOwner && req.Role != models.RoleParent {
-			return nil, fmt.Errorf("cannot change role of owner profile")
-		}
-		profile.Role = req.Role
-	}
+    if req.Role != "" {
+        if profile.IsOwner && req.Role != models.RoleParent {
+            return nil, fmt.Errorf("cannot change role of owner profile")
+        }
+        profile.Role = req.Role
+    }
 
-	if req.Pin != nil {
-		if profile.HasPin && profile.Pin != "" {
-			if req.CurrentPin == "" {
-				return nil, fmt.Errorf("current PIN required to change PIN")
-			}
-			if req.CurrentPin != profile.Pin {
-				return nil, fmt.Errorf("invalid current PIN")
-			}
-		}
-	
-		if *req.Pin == "" {
-			profile.Pin = ""
-			profile.HasPin = false
-		} else {
-			if len(*req.Pin) != 6 || !regexp.MustCompile(`^\d{6}$`).MatchString(*req.Pin) {
-				return nil, fmt.Errorf("PIN must be exactly 6 digits")
-			}
-			profile.Pin = *req.Pin
-			profile.HasPin = true
-		}
-	}
+    if req.Colour != "" {
+        if !theme.IsValid(req.Colour) {
+            return nil, fmt.Errorf("invalid colour: must be a valid Tailwind colour name")
+        }
+        profile.Colour = req.Colour
+    }
 
-	if imageFile != nil {
-		s3Handler, err := cloud.NewS3Handler()
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize storage: %v", err)
-		}
+    if req.TimezoneName != "" {
+        if err := s.validateTimezone(req.TimezoneName); err != nil {
+            return nil, err
+        }
+        profile.TimezoneName = req.TimezoneName
+    }
 
-		imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("profiles/%d", id))
-		if err != nil {
-			return nil, fmt.Errorf("failed to upload image: %v", err)
-		}
-		profile.ImageURL = imageURL
-	} else if req.ImageURL != "" {
-		profile.ImageURL = req.ImageURL
-	}
+    if req.Pin != nil {
+        if profile.HasPin && profile.Pin != "" {
+            if req.CurrentPin == "" {
+                return nil, fmt.Errorf("current PIN required to change PIN")
+            }
+            if req.CurrentPin != profile.Pin {
+                return nil, fmt.Errorf("invalid current PIN")
+            }
+        }
+    
+        if *req.Pin == "" {
+            profile.Pin = ""
+            profile.HasPin = false
+        } else {
+            if len(*req.Pin) != 6 || !regexp.MustCompile(`^\d{6}$`).MatchString(*req.Pin) {
+                return nil, fmt.Errorf("PIN must be exactly 6 digits")
+            }
+            profile.Pin = *req.Pin
+            profile.HasPin = true
+        }
+    }
 
-	profile.UpdatedAt = time.Now().UTC()
+    if imageFile != nil {
+        s3Handler, err := cloud.NewS3Handler()
+        if err != nil {
+            return nil, fmt.Errorf("failed to initialize storage: %v", err)
+        }
 
-	if err := s.repo.Update(profile); err != nil {
-		return nil, fmt.Errorf("failed to update profile: %v", err)
-	}
+        imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("profiles/%d", id))
+        if err != nil {
+            return nil, fmt.Errorf("failed to upload image: %v", err)
+        }
+        profile.ImageURL = imageURL
+    } else if req.ImageURL != "" {
+        profile.ImageURL = req.ImageURL
+    }
 
-	return s.repo.GetByID(profile.ID)
+    profile.UpdatedAt = time.Now().UTC()
+
+    if err := s.repo.Update(profile); err != nil {
+        return nil, fmt.Errorf("failed to update profile: %v", err)
+    }
+
+    return s.repo.GetByID(profile.ID)
 }
 
 func (s *Service) DeleteProfile(id int, familyID int, deletedBy int) error {
-	profile, err := s.repo.GetByID(id)
-	if err != nil {
-		return fmt.Errorf("profile not found: %v", err)
-	}
+    profile, err := s.repo.GetByID(id)
+    if err != nil {
+        return fmt.Errorf("profile not found: %v", err)
+    }
 
-	if profile.FamilyID != familyID {
-		return fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return fmt.Errorf("profile does not belong to this family")
+    }
 
-	if profile.IsOwner {
-		return fmt.Errorf("cannot delete the owner profile")
-	}
+    if profile.IsOwner {
+        return fmt.Errorf("cannot delete the owner profile")
+    }
 
-	return s.repo.Delete(id, familyID, deletedBy)
+    return s.repo.Delete(id, familyID, deletedBy)
 }
 
 func (s *Service) RestoreProfile(id int, familyID int) error {
-	return s.repo.Restore(id, familyID)
+    return s.repo.Restore(id, familyID)
 }
 
 func (s *Service) VerifyPin(familyID int, profileID int, pin string) (*ProfileResponse, error) {
-	profile, err := s.repo.GetByID(profileID)
-	if err != nil {
-		return nil, fmt.Errorf("profile not found")
-	}
+    profile, err := s.repo.GetByID(profileID)
+    if err != nil {
+        return nil, fmt.Errorf("profile not found")
+    }
 
-	if profile.FamilyID != familyID {
-		return nil, fmt.Errorf("profile does not belong to this family")
-	}
+    if profile.FamilyID != familyID {
+        return nil, fmt.Errorf("profile does not belong to this family")
+    }
 
-	if profile.HasPin && (pin == "" || profile.Pin != pin) {
-		return nil, fmt.Errorf("invalid PIN")
-	}
+    if profile.HasPin && (pin == "" || profile.Pin != pin) {
+        return nil, fmt.Errorf("invalid PIN")
+    }
 
-	token, err := s.GenerateProfileJWT(familyID, profileID, profile.Role, profile.IsOwner)
-	if err != nil {
-		return nil, fmt.Errorf("error generating token")
-	}
+    token, err := s.GenerateProfileJWT(familyID, profileID, profile.Role, profile.IsOwner)
+    if err != nil {
+        return nil, fmt.Errorf("error generating token")
+    }
 
-	return &ProfileResponse{
-		Token:   token,
-		Profile: *profile,
-	}, nil
+    return &ProfileResponse{
+        Token:   token,
+        Profile: *profile,
+    }, nil
 }
 
 func (s *Service) SelectProfile(familyID int, req *SelectProfileRequest) (*ProfileResponse, error) {
-	return s.VerifyPin(familyID, req.ProfileID, req.Pin)
+    return s.VerifyPin(familyID, req.ProfileID, req.Pin)
 }
 
 func (s *Service) GetOwnerProfile(familyID int) (*models.Profile, error) {
-	return s.repo.GetOwnerProfile(familyID)
+    return s.repo.GetOwnerProfile(familyID)
 }

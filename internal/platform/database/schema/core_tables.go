@@ -18,10 +18,6 @@ func InitCoreSchema(db *sql.DB) error {
         return fmt.Errorf("failed to create family settings table: %v", err)
     }
 
-    if err := createCalendarTable(db); err != nil {
-        return fmt.Errorf("failed to create calendar table: %v", err)
-    }
-
     if err := createNotificationTable(db); err != nil {
         return fmt.Errorf("failed to create notification table: %v", err)
     }
@@ -59,6 +55,7 @@ func createProfileTable(db *sql.DB) error {
         pin VARCHAR(6),
         image_url TEXT,
         is_owner BOOLEAN NOT NULL DEFAULT false,
+        timezone_name VARCHAR(50) NOT NULL DEFAULT 'UTC',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -98,35 +95,6 @@ func createFamilySettingsTable(db *sql.DB) error {
         deleted_at TIMESTAMP WITH TIME ZONE,
         deleted_by INTEGER REFERENCES profile(id)
     );
-    `
-    _, err := db.Exec(query)
-    return err
-}
-
-func createCalendarTable(db *sql.DB) error {
-    query := `
-    CREATE TABLE IF NOT EXISTS calendar_event (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        description TEXT,
-        start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-        end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-        all_day BOOLEAN DEFAULT FALSE,
-        source_module VARCHAR(50) NOT NULL,
-        source_id INTEGER NOT NULL,
-        profile_id INTEGER REFERENCES profile(id),
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        is_deleted BOOLEAN NOT NULL DEFAULT false,
-        deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_family ON calendar_event(family_id);
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_profile ON calendar_event(profile_id);
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_source ON calendar_event(source_module, source_id);
-    CREATE INDEX IF NOT EXISTS idx_calendar_event_date ON calendar_event(start_time, end_time);
     `
     _, err := db.Exec(query)
     return err

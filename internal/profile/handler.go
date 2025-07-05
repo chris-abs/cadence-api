@@ -31,8 +31,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/profiles/select", h.authMiddleware.FamilyAuthHandler(h.handleSelectProfile)).Methods("POST")
 	router.HandleFunc("/profiles/verify", h.authMiddleware.FamilyAuthHandler(h.handleVerifyPin)).Methods("POST")
 
+    router.HandleFunc("/profiles/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateProfile)).Methods("PATCH")
 	router.HandleFunc("/profiles/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetProfile)).Methods("GET")
-	router.HandleFunc("/profiles/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateProfile)).Methods("PUT")
 	router.HandleFunc("/profiles/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteProfile)).Methods("DELETE")
 	router.HandleFunc("/profiles/{id}/restore", h.authMiddleware.ProfileAuthHandler(h.handleRestoreProfile)).Methods("PUT")
 }
@@ -138,48 +138,60 @@ func (h *Handler) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
-	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
-	
-	id, err := getIDFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
+    profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+    
+    id, err := getIDFromRequest(r)
+    if err != nil {
+        writeError(w, http.StatusBadRequest, err.Error())
+        return
+    }
 
-	if !profileCtx.IsOwner && profileCtx.Role != models.RoleParent {
-		writeError(w, http.StatusForbidden, "only parents can update profiles")
-		return
-	}
-	
-	var imageFile *multipart.FileHeader
-	if err := r.ParseMultipartForm(10 << 20); err == nil {
-		if file, header, err := r.FormFile("image"); err == nil {
-			defer file.Close()
-			imageFile = header
-		}
-	}
-	
-	var req UpdateProfileRequest
-	profileData := r.FormValue("profileData")
-	if profileData != "" {
-		if err := json.Unmarshal([]byte(profileData), &req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid profile data")
-			return
-		}
-	} else {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid request body")
-			return
-		}
-	}
-	
-	profile, err := h.service.UpdateProfile(id, profileCtx.FamilyID, &req, imageFile)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	
-	writeJSON(w, http.StatusOK, profile)
+    if id != profileCtx.ProfileID && !profileCtx.IsOwner && profileCtx.Role != models.RoleParent {
+        writeError(w, http.StatusForbidden, "you can only update your own profile")
+        return
+    }
+    
+    var imageFile *multipart.FileHeader
+    if err := r.ParseMultipartForm(10 << 20); err == nil {
+        if file, header, err := r.FormFile("image"); err == nil {
+            defer file.Close()
+            imageFile = header
+        }
+    }
+    
+    var req UpdateProfileRequest
+    profileData := r.FormValue("profileData")
+    if profileData != "" {
+        if err := json.Unmarshal([]byte(profileData), &req); err != nil {
+            writeError(w, http.StatusBadRequest, "invalid profile data")
+            return
+        }
+    } else {
+        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+            writeError(w, http.StatusBadRequest, "invalid request body")
+            return
+        }
+    }
+
+    if req.Role != "" {
+        if id == profileCtx.ProfileID {
+            writeError(w, http.StatusForbidden, "cannot update own role")
+            return
+        }
+        
+        if !profileCtx.IsOwner && profileCtx.Role != models.RoleParent {
+            writeError(w, http.StatusForbidden, "only parents can update roles")
+            return
+        }
+    }
+    
+    profile, err := h.service.UpdateProfile(id, profileCtx.FamilyID, &req, imageFile)
+    if err != nil {
+        writeError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    
+    writeJSON(w, http.StatusOK, profile)
 }
 
 func (h *Handler) handleDeleteProfile(w http.ResponseWriter, r *http.Request) {
