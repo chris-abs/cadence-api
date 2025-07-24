@@ -69,23 +69,22 @@ var (
 		"Music", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller",
 		"War", "Western",
 	}
-)
-
-// possible static list of sources.
-// DefaultSources = []Source{
-// 	{ID: 1, Name: "Netflix", LogoURL: "/logos/netflix.png", Category: "streaming"},
-// 	{ID: 2, Name: "Disney+", LogoURL: "/logos/disney.png", Category: "streaming"},
-// 	{ID: 3, Name: "Prime Video", LogoURL: "/logos/prime.png", Category: "streaming"},
-// 	{ID: 4, Name: "HBO Max", LogoURL: "/logos/hbo.png", Category: "streaming"},
-// 	{ID: 5, Name: "Apple TV+", LogoURL: "/logos/apple.png", Category: "streaming"},
-// 	{ID: 6, Name: "Hulu", LogoURL: "/logos/hulu.png", Category: "streaming"},
-// 	{ID: 7, Name: "Paramount+", LogoURL: "/logos/paramount.png", Category: "streaming"},
-// 	{ID: 8, Name: "Peacock", LogoURL: "/logos/peacock.png", Category: "streaming"},
-// 	{ID: 9, Name: "BBC iPlayer", LogoURL: "/logos/bbc.png", Category: "streaming"},
-// 	{ID: 10, Name: "ITV Hub", LogoURL: "/logos/itv.png", Category: "streaming"},
-// 	{ID: 11, Name: "All 4", LogoURL: "/logos/all4.png", Category: "streaming"},
-// 	{ID: 12, Name: "Now TV", LogoURL: "/logos/now.png", Category: "streaming"},
-// 	{ID: 13, Name: "Cinema", LogoURL: "/logos/cinema.png", Category: "cinema"},
-// 	{ID: 14, Name: "DVD/Blu-ray", LogoURL: "/logos/disc.png", Category: "physical"},
-// 	{ID: 15, Name: "Other", LogoURL: "/logos/other.png", Category: "other"},
-// }
+	
+	DefaultSources = []Source{
+			{ID: 1, Name: "Netflix", LogoURL: "/logos/netflix.png", Category: "streaming"},
+			{ID: 2, Name: "Disney+", LogoURL: "/logos/disney.png", Category: "streaming"},
+			{ID: 3, Name: "Prime Video", LogoURL: "/logos/prime.png", Category: "streaming"},
+			{ID: 4, Name: "HBO Max", LogoURL: "/logos/hbo.png", Category: "streaming"},
+			{ID: 5, Name: "Apple TV+", LogoURL: "/logos/apple.png", Category: "streaming"},
+			{ID: 6, Name: "Hulu", LogoURL: "/logos/hulu.png", Category: "streaming"},
+			{ID: 7, Name: "Paramount+", LogoURL: "/logos/paramount.png", Category: "streaming"},
+			{ID: 8, Name: "Peacock", LogoURL: "/logos/peacock.png", Category: "streaming"},
+			{ID: 9, Name: "BBC iPlayer", LogoURL: "/logos/bbc.png", Category: "streaming"},
+			{ID: 10, Name: "ITV Hub", LogoURL: "/logos/itv.png", Category: "streaming"},
+			{ID: 11, Name: "All 4", LogoURL: "/logos/all4.png", Category: "streaming"},
+			{ID: 12, Name: "Now TV", LogoURL: "/logos/now.png", Category: "streaming"},
+			{ID: 13, Name: "Cinema", LogoURL: "/logos/cinema.png", Category: "cinema"},
+			{ID: 14, Name: "DVD/Blu-ray", LogoURL: "/logos/disc.png", Category: "physical"},
+			{ID: 15, Name: "Other", LogoURL: "/logos/other.png", Category: "other"},
+		}
+	)

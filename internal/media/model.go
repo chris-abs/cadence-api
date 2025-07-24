@@ -2,7 +2,6 @@ package media
 
 import "github.com/chrisabs/cadence/internal/media/entities"
 
-
 type CreateMediaRequest struct {
 	Name        string                `json:"name"`
 	Type        entities.MediaType    `json:"type"`
