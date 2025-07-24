@@ -21,6 +21,12 @@ var SystemModules = map[models.ModuleID]models.ModuleDefinition{
         Description: "Plan meals, create shopping lists, and track ingredients",
         IsAvailable: true,
     },
+     models.ModuleMedia: {
+        ID:          models.ModuleMedia,
+        Name:        "Media",
+        Description: "Categorise your shows and movies",
+        IsAvailable: true,
+    },
     models.ModuleServices: {
         ID:          models.ModuleServices,
         Name:        "Services",

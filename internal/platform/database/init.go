@@ -64,6 +64,10 @@ func (db *PostgresDB) initializeSchema() error {
 	if err := schema.InitMealsSchema(db.DB); err != nil {
 		return fmt.Errorf("meals module schema initialization failed: %v", err)
 	}
+
+	if err := schema.InitMediaSchema(db.DB); err != nil {
+		return fmt.Errorf("media module schema initialization failed: %v", err)
+	}
 	
 	if err := schema.InitServicesSchema(db.DB); err != nil {
 		return fmt.Errorf("services module schema initialization failed: %v", err)

@@ -71,6 +71,7 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
             {ID: models.ModuleStorage, IsEnabled: true},
             {ID: models.ModuleChores, IsEnabled: false},
             {ID: models.ModuleMeals, IsEnabled: false},
+            {ID: models.ModuleMedia, IsEnabled: true},
             {ID: models.ModuleServices, IsEnabled: false},
         },
         Status:    models.FamilyStatusActive,
