@@ -363,7 +363,7 @@ func (r *Repository) loadMediaSources(media *entities.Media) error {
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, name, logo_url, category
+		SELECT id, name, color, category
 		FROM media_source
 		WHERE id IN (%s) AND is_deleted = false
 		ORDER BY name`, strings.Join(placeholders, ","))
@@ -377,7 +377,7 @@ func (r *Repository) loadMediaSources(media *entities.Media) error {
 	media.Sources = make([]entities.Source, 0)
 	for rows.Next() {
 		var source entities.Source
-		err := rows.Scan(&source.ID, &source.Name, &source.LogoURL, &source.Category)
+		err := rows.Scan(&source.ID, &source.Name, &source.Color, &source.Category)
 		if err != nil {
 			return err
 		}
@@ -389,7 +389,7 @@ func (r *Repository) loadMediaSources(media *entities.Media) error {
 
 func (r *Repository) GetAllSources() ([]entities.Source, error) {
 	query := `
-		SELECT id, name, logo_url, category
+		SELECT id, name, color, category
 		FROM media_source
 		WHERE is_deleted = false
 		ORDER BY category, name`
@@ -403,7 +403,7 @@ func (r *Repository) GetAllSources() ([]entities.Source, error) {
 	var sources []entities.Source
 	for rows.Next() {
 		var source entities.Source
-		err := rows.Scan(&source.ID, &source.Name, &source.LogoURL, &source.Category)
+		err := rows.Scan(&source.ID, &source.Name, &source.Color, &source.Category)
 		if err != nil {
 			return nil, err
 		}
@@ -421,16 +421,16 @@ func (r *Repository) SeedSources() error {
 	}
 
 	if count > 0 {
-		return nil 
+		return nil
 	}
 
 	query := `
-		INSERT INTO media_source (name, logo_url, category, created_at, updated_at)
+		INSERT INTO media_source (name, color, category, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)`
 
 	now := time.Now().UTC()
 	for _, source := range entities.DefaultSources {
-		_, err := r.db.Exec(query, source.Name, source.LogoURL, source.Category, now, now)
+		_, err := r.db.Exec(query, source.Name, source.Color, source.Category, now, now)
 		if err != nil {
 			return fmt.Errorf("error seeding source %s: %v", source.Name, err)
 		}
