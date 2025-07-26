@@ -8,6 +8,7 @@ import (
 	"github.com/chrisabs/cadence/internal/chores"
 	"github.com/chrisabs/cadence/internal/config"
 	"github.com/chrisabs/cadence/internal/family"
+	"github.com/chrisabs/cadence/internal/media"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/platform/database"
 	"github.com/chrisabs/cadence/internal/profile"
@@ -59,6 +60,7 @@ func (s *Server) Run() {
 	recentRepo := recent.NewRepository(s.db.DB)
 	choreRepo := chores.NewRepository(s.db.DB)  
 	calendarRepo := calendar.NewRepository(s.db.DB)
+	mediaRepo := media.NewRepository(s.db.DB)
 
 	// Initialise core services
 	familyService := family.NewService(
@@ -91,6 +93,7 @@ func (s *Server) Run() {
 	recentService := recent.NewService(recentRepo)
 	choreService := chores.NewService(choreRepo) 
 	calendarService := calendar.NewService(calendarRepo, profileRepo)
+	mediaService := media.NewService(mediaRepo) 
 
 	// Initialise handlers
 	familyHandler := family.NewHandler(
@@ -111,6 +114,7 @@ func (s *Server) Run() {
 	recentHandler := recent.NewHandler(recentService, authMiddleware)
 	choreHandler := chores.NewHandler(choreService, authMiddleware)  
 	calendarHandler := calendar.NewHandler(calendarService, authMiddleware)
+	mediaHandler := media.NewHandler(mediaService, authMiddleware)
 
 	// Register routes
 	familyHandler.RegisterRoutes(router)
@@ -123,6 +127,7 @@ func (s *Server) Run() {
 	recentHandler.RegisterRoutes(router)
 	choreHandler.RegisterRoutes(router)  
 	calendarHandler.RegisterRoutes(router)
+	mediaHandler.RegisterRoutes(router)
 
 	handler := c.Handler(router)
 
