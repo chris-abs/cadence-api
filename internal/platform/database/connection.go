@@ -8,11 +8,14 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/chrisabs/cadence/internal/platform/database/migrations"
+	"github.com/chrisabs/cadence/internal/platform/database/seeds"
 )
 
 type PostgresDB struct {
     *sql.DB
     migrationsManager *migrations.Manager
+    seedsManager      *seeds.Manager  
+
 }
 
 func NewPostgresDB() (*PostgresDB, error) {

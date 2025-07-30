@@ -78,11 +78,14 @@ func createFamilySettingsTable(db *sql.DB) error {
             "storage": {
                 "isEnabled": true
             },
+            "chores": {
+                "isEnabled": false
+            },
             "meals": {
                 "isEnabled": false
             },
-            "chores": {
-                "isEnabled": false
+            "media": {
+                "isEnabled": true
             },
             "services": {
                 "isEnabled": false
