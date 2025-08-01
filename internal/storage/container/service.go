@@ -18,7 +18,8 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) CreateContainer(profileId int, familyID int, req *CreateContainerRequest) (*entities.Container, error) {
-    containerID := rand.Intn(10000)
+    containerID := rand.Intn(900000000) + 100000000 
+    
     qrString, qrImage, err := utils.GenerateQRCode(containerID)
     if err != nil {
         qrString = fmt.Sprintf("STORAGE-CONTAINER-%d", containerID)
