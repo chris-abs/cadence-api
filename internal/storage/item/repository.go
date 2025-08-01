@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/storage/entities"
@@ -24,15 +25,17 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
     }
     defer tx.Rollback()
 
+    item.ID = rand.Intn(900000000) + 100000000
+
     itemQuery := `
         INSERT INTO item (
-            name, description, quantity, container_id, 
+            id, name, description, quantity, container_id, 
             profile_id, family_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, created_at, updated_at`
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`  
 
-    err = tx.QueryRow(
+    _, err = tx.Exec(  
         itemQuery,
+        item.ID,  
         item.Name,
         item.Description,
         item.Quantity,
@@ -41,7 +44,7 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         item.FamilyID,
         time.Now().UTC(),
         time.Now().UTC(),
-    ).Scan(&item.ID, &item.CreatedAt, &item.UpdatedAt)
+    )
 
     if err != nil {
         return nil, fmt.Errorf("error creating item: %v", err)
@@ -56,15 +59,18 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         ).Scan(&tagID)
 
         if err == sql.ErrNoRows {
-            err = tx.QueryRow(`
-                INSERT INTO tag (name, family_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4)
-                RETURNING id`,
+            tagID = rand.Intn(900000000) + 100000000
+            
+            _, err = tx.Exec(`
+                INSERT INTO tag (id, name, family_id, profile_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6)`, 
+                tagID,
                 tagName,
                 item.FamilyID,
+                item.ProfileID,  
                 time.Now().UTC(),
                 time.Now().UTC(),
-            ).Scan(&tagID)
+            )
 
             if err != nil {
                 return nil, fmt.Errorf("error creating tag: %v", err)
