@@ -39,14 +39,14 @@ func NewS3Handler() (*S3Handler, error) {
     }, nil
 }
 
-func (h *S3Handler) UploadFile(file *multipart.FileHeader, prefix string) (string, error) {
+func (h *S3Handler) UploadFile(file *multipart.FileHeader, familyID int, prefix string) (string, error) {
     src, err := file.Open()
     if err != nil {
         return "", fmt.Errorf("error opening file: %v", err)
     }
     defer src.Close()
 
-    filename := generateFilename(prefix, file.Filename)
+    filename := generateFilename(familyID, prefix, file.Filename)
 
     contentType := file.Header.Get("Content-Type")
     _, err = h.client.PutObject(context.Background(), &s3.PutObjectInput{
@@ -63,8 +63,8 @@ func (h *S3Handler) UploadFile(file *multipart.FileHeader, prefix string) (strin
     return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", h.bucket, h.region, filename), nil
 }
 
-func generateFilename(prefix, originalName string) string {
+func generateFilename(familyID int, prefix, originalName string) string {
     ext := filepath.Ext(originalName)
     timestamp := time.Now().UnixNano()
-    return fmt.Sprintf("%s/%d%s", prefix, timestamp, ext)
+    return fmt.Sprintf("%d/%s/%d%s", familyID, prefix, timestamp, ext)
 }

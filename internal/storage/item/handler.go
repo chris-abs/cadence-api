@@ -138,7 +138,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
             }
 
             for _, fileHeader := range files {
-                url, err := s3Handler.UploadFile(fileHeader, fmt.Sprintf("items/%d", itemID))
+                url, err := s3Handler.UploadFile(fileHeader, profileCtx.FamilyID, fmt.Sprintf("items/%d", itemID))
                 if err != nil {
                     writeError(w, http.StatusInternalServerError, err.Error())
                     return
