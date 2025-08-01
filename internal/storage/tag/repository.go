@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/storage/entities"
@@ -19,13 +20,16 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(tag *entities.Tag) error {
+    tag.ID = rand.Intn(900000000) + 100000000
+
+
     query := `
         INSERT INTO tag (name, description, colour, profile_id, family_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-    err := r.db.QueryRow(
+    _, err := r.db.Exec(
         query,
+        tag.ID,
         tag.Name,
         tag.Description,
         tag.Colour,
@@ -33,7 +37,7 @@ func (r *Repository) Create(tag *entities.Tag) error {
         tag.FamilyID,
         tag.CreatedAt,
         tag.UpdatedAt,
-    ).Scan(&tag.ID)
+    )
 
     if err != nil {
         return fmt.Errorf("error creating tag: %v", err)
