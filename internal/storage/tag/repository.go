@@ -24,7 +24,7 @@ func (r *Repository) Create(tag *entities.Tag) error {
 
 
     query := `
-        INSERT INTO tag (name, description, colour, profile_id, family_id, created_at, updated_at)
+        INSERT INTO tag (id, name, description, colour, profile_id, family_id, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
     _, err := r.db.Exec(
@@ -35,8 +35,8 @@ func (r *Repository) Create(tag *entities.Tag) error {
         tag.Colour,
         tag.ProfileID,
         tag.FamilyID,
-        tag.CreatedAt,
-        tag.UpdatedAt,
+        time.Now().UTC(),
+        time.Now().UTC(),
     )
 
     if err != nil {

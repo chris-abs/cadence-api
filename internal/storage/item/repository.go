@@ -63,9 +63,11 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
             
             _, err = tx.Exec(`
                 INSERT INTO tag (id, name, family_id, profile_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6)`, 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 tagID,
                 tagName,
+                "",
+                "",
                 item.FamilyID,
                 item.ProfileID,  
                 time.Now().UTC(),
