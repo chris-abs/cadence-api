@@ -3,6 +3,7 @@ package workspace
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/storage/entities"
@@ -17,21 +18,22 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(workspace *entities.Workspace) error {
+    workspace.ID = rand.Intn(900000000) + 100000000
+    
     query := `
         INSERT INTO workspace (id, name, description, profile_id, family_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id`
+        VALUES ($1, $2, $3, $4, $5, $6, $7)` 
 
-    err := r.db.QueryRow(
+    _, err := r.db.Exec(  
         query,
         workspace.ID,
         workspace.Name,
         workspace.Description,
         workspace.ProfileID,
         workspace.FamilyID,
-        workspace.CreatedAt,
-        workspace.UpdatedAt,
-    ).Scan(&workspace.ID)
+        time.Now().UTC(),
+        time.Now().UTC(),
+    )
 
     if err != nil {
         return fmt.Errorf("error creating workspace: %v", err)
@@ -39,7 +41,6 @@ func (r *Repository) Create(workspace *entities.Workspace) error {
 
     return nil
 }
-
 func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) {
     workspaceQuery := `
         SELECT w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at

@@ -2,7 +2,6 @@ package workspace
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/storage/entities"
@@ -18,13 +17,10 @@ func NewService(repo *Repository) *Service {
 
 func (s *Service) CreateWorkspace(familyID int, profileID int, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
     workspace := &entities.Workspace{
-        ID:          rand.Intn(10000),
         Name:        req.Name,
         Description: req.Description,
         ProfileID:   profileID,
         FamilyID:    familyID,
-        CreatedAt:   time.Now().UTC(),
-        UpdatedAt:   time.Now().UTC(),
         Containers:  make([]entities.Container, 0),
     }
 
