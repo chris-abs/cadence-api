@@ -3,6 +3,7 @@ package calendar
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/calendar/entities"
@@ -19,19 +20,21 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(event *entities.Event) error {
+    event.ID = rand.Intn(900000000) + 100000000
+    event.CreatedAt = time.Now().UTC()
+    event.UpdatedAt = time.Now().UTC()
+
     query := `
         INSERT INTO calendar_event (
-            title, description, location, start_time, end_time, all_day,
+            id, title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
             is_recurring, recurrence_type, recurrence_end_time, instance_date,
             created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
-        RETURNING id, created_at, updated_at`
-
-    now := time.Now().UTC()
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
     
-    err := r.db.QueryRow(
+    _, err := r.db.Exec(
         query,
+        event.ID,
         event.Title,
         event.Description,
         event.Location,
@@ -47,8 +50,9 @@ func (r *Repository) Create(event *entities.Event) error {
         event.RecurrenceType,
         event.RecurrenceEndTime,
         event.InstanceDate,
-        now,
-    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
+        event.CreatedAt,
+        event.UpdatedAt,
+    )
 
     if err != nil {
         return fmt.Errorf("error creating event: %v", err)
