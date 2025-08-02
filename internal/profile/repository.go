@@ -3,6 +3,7 @@ package profile
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
@@ -17,14 +18,18 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(profile *models.Profile) error {
+    profile.ID = rand.Intn(900000000) + 100000000
+    profile.CreatedAt = time.Now().UTC()
+    profile.UpdatedAt = time.Now().UTC()
+
     query := `
         INSERT INTO profile (
-            family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id, created_at, updated_at`
+            id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
-    err := r.db.QueryRow(
+    _, err := r.db.Exec(
         query,
+        profile.ID,
         profile.FamilyID,
         profile.Name,
         profile.Role,
@@ -33,9 +38,9 @@ func (r *Repository) Create(profile *models.Profile) error {
         profile.Colour,
         profile.TimezoneName,
         profile.IsOwner,
-        time.Now().UTC(),
-        time.Now().UTC(),
-    ).Scan(&profile.ID, &profile.CreatedAt, &profile.UpdatedAt)
+        profile.CreatedAt,
+        profile.UpdatedAt,
+    )
 
     if err != nil {
         return fmt.Errorf("error creating profile: %v", err)
