@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
@@ -18,25 +19,29 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(family *FamilyAccount) error {
-	query := `
-		INSERT INTO family_account (email, password, family_name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at, updated_at`
+    family.ID = rand.Intn(900000000) + 100000000
+    family.CreatedAt = time.Now().UTC()
+    family.UpdatedAt = time.Now().UTC()
 
-	err := r.db.QueryRow(
-		query,
-		family.Email,
-		family.Password,
-		family.FamilyName,
-		time.Now().UTC(),
-		time.Now().UTC(),
-	).Scan(&family.ID, &family.CreatedAt, &family.UpdatedAt)
+    query := `
+        INSERT INTO family_account (id, email, password, family_name, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)`
 
-	if err != nil {
-		return fmt.Errorf("error creating family account: %v", err)
-	}
+    _, err := r.db.Exec(
+        query,
+        family.ID,
+        family.Email,
+        family.Password,
+        family.FamilyName,
+        family.CreatedAt,
+        family.UpdatedAt,
+    )
 
-	return nil
+    if err != nil {
+        return fmt.Errorf("error creating family account: %v", err)
+    }
+
+    return nil
 }
 
 func (r *Repository) CreateSettings(settings *FamilySettings) error {
