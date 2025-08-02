@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -19,33 +20,45 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(profileID int, familyID int, req *CreateMediaRequest) (*entities.Media, error) {
-	query := `
-		INSERT INTO media (
-			name, type, genre, release_year, runtime, poster_url, source_ids,
-			watch_with, status, priority, notes, profile_id, family_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		RETURNING id`
+    mediaID := rand.Intn(900000000) + 100000000
+    now := time.Now().UTC()
 
-	sourceIDsJSON, err := json.Marshal(req.SourceIDs)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling source IDs: %v", err)
-	}
+    sourceIDsJSON, err := json.Marshal(req.SourceIDs)
+    if err != nil {
+        return nil, fmt.Errorf("error marshaling source IDs: %v", err)
+    }
 
-	now := time.Now().UTC()
-	var mediaID int
+    query := `
+        INSERT INTO media (
+            id, name, type, genre, release_year, runtime, poster_url, source_ids,
+            watch_with, status, priority, notes, profile_id, family_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`
 
-	err = r.db.QueryRow(
-		query,
-		req.Name, req.Type, req.Genre, req.ReleaseYear, req.Runtime, req.PosterURL,
-		sourceIDsJSON, req.WatchWith, req.Status, req.Priority, req.Notes,
-		profileID, familyID, now, now,
-	).Scan(&mediaID)
+    _, err = r.db.Exec(
+        query,
+        mediaID,
+        req.Name,
+        req.Type,
+        req.Genre,
+        req.ReleaseYear,
+        req.Runtime,
+        req.PosterURL,
+        sourceIDsJSON,
+        req.WatchWith,
+        req.Status,
+        req.Priority,
+        req.Notes,
+        profileID,
+        familyID,
+        now,
+        now,
+    )
 
-	if err != nil {
-		return nil, fmt.Errorf("error creating media: %v", err)
-	}
+    if err != nil {
+        return nil, fmt.Errorf("error creating media: %v", err)
+    }
 
-	return r.GetByID(mediaID, familyID)
+    return r.GetByID(mediaID, familyID)
 }
 
 func (r *Repository) GetByID(id int, familyID int) (*entities.Media, error) {
