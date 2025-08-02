@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/chores/entities"
@@ -19,37 +20,39 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) CreateChore(chore *entities.Chore) error {
-	occurrenceData, err := json.Marshal(chore.OccurrenceData)
-	if err != nil {
-		return fmt.Errorf("error marshaling occurrence data: %v", err)
-	}
+    chore.ID = rand.Intn(900000000) + 100000000
 
-	query := `
-		INSERT INTO chore (
-			name, description, creator_id, assignee_id, family_id,
-			points, occurrence_type, occurrence_data, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id`
+    occurrenceData, err := json.Marshal(chore.OccurrenceData)
+    if err != nil {
+        return fmt.Errorf("error marshaling occurrence data: %v", err)
+    }
 
-	err = r.db.QueryRow(
-		query,
-		chore.Name,
-		chore.Description,
-		chore.CreatorID,
-		chore.AssigneeID,
-		chore.FamilyID,
-		chore.Points,
-		chore.OccurrenceType,
-		occurrenceData,
-		time.Now().UTC(),
-		time.Now().UTC(),
-	).Scan(&chore.ID)
+    query := `
+        INSERT INTO chore (
+            id, name, description, creator_id, assignee_id, family_id,
+            points, occurrence_type, occurrence_data, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
-	if err != nil {
-		return fmt.Errorf("error creating chore: %v", err)
-	}
+    _, err = r.db.Exec(
+        query,
+        chore.ID,
+        chore.Name,
+        chore.Description,
+        chore.CreatorID,
+        chore.AssigneeID,
+        chore.FamilyID,
+        chore.Points,
+        chore.OccurrenceType,
+        occurrenceData,
+        time.Now().UTC(),
+        time.Now().UTC(),
+    )
 
-	return nil
+    if err != nil {
+        return fmt.Errorf("error creating chore: %v", err)
+    }
+
+    return nil
 }
 
 func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error) {
@@ -302,30 +305,34 @@ func (r *Repository) RestoreChore(id int, familyID int) error {
 }
 
 func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error {
-	query := `
-		INSERT INTO chore_instance (
-			chore_id, assignee_id, family_id, due_date, status, 
-			notes, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, created_at, updated_at`
+    instance.ID = rand.Intn(900000000) + 100000000
+    instance.CreatedAt = time.Now().UTC()
+    instance.UpdatedAt = time.Now().UTC()
 
-	err := r.db.QueryRow(
-		query,
-		instance.ChoreID,
-		instance.AssigneeID,
-		instance.FamilyID,
-		instance.DueDate,
-		instance.Status,
-		instance.Notes,
-		time.Now().UTC(),
-		time.Now().UTC(),
-	).Scan(&instance.ID, &instance.CreatedAt, &instance.UpdatedAt)
+    query := `
+        INSERT INTO chore_instance (
+            id, chore_id, assignee_id, family_id, due_date, status, 
+            notes, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	if err != nil {
-		return fmt.Errorf("error creating chore instance: %v", err)
-	}
+    _, err := r.db.Exec(
+        query,
+        instance.ID,
+        instance.ChoreID,
+        instance.AssigneeID,
+        instance.FamilyID,
+        instance.DueDate,
+        instance.Status,
+        instance.Notes,
+        instance.CreatedAt,
+        instance.UpdatedAt,
+    )
 
-	return nil
+    if err != nil {
+        return fmt.Errorf("error creating chore instance: %v", err)
+    }
+
+    return nil
 }
 
 func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
