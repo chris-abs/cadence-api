@@ -80,7 +80,7 @@ func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
                 return
             }
             
-            imageURL, err := s3Handler.UploadFile(header, "profiles")
+            imageURL, err := s3Handler.UploadFile(header, familyCtx.FamilyID, "profiles")
             if err != nil {
                 writeError(w, http.StatusInternalServerError, "failed to upload image")
                 return

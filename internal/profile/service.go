@@ -163,7 +163,7 @@ func (s *Service) UpdateProfile(id models.ProfileID, familyID models.FamilyID, r
             return nil, fmt.Errorf("failed to initialize storage: %v", err)
         }
 
-        imageURL, err := s3Handler.UploadFile(imageFile, fmt.Sprintf("profiles/%s", profile.ID))
+        imageURL, err := s3Handler.UploadFile(imageFile, profile.FamilyID, fmt.Sprintf("profiles/%s", profile.ID))
         if err != nil {
             return nil, fmt.Errorf("failed to upload image: %v", err)
         }
