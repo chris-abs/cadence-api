@@ -2,8 +2,8 @@ package media
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/chrisabs/cadence/internal/media/entities"
@@ -50,8 +50,8 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
-		profileID, err := strconv.Atoi(profileIDStr)
-		if err != nil {
+		profileID := models.ProfileID(profileIDStr)
+		if !profileID.IsValid() {
 			writeError(w, http.StatusBadRequest, "invalid profileId")
 			return
 		}
@@ -59,17 +59,14 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sourceIDStr := r.URL.Query().Get("sourceId"); sourceIDStr != "" {
-		sourceID, err := strconv.Atoi(sourceIDStr)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "invalid sourceId")
-			return
-		}
+		sourceID := models.SourceID(sourceIDStr)
+		// TODO: should we add validation for sourceID? would be beneficial when we allow users to create their own sources.
 		req.SourceID = sourceID
 	}
 
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		limit, err := strconv.Atoi(limitStr)
-		if err != nil || limit < 0 {
+		var limit int
+		if _, err := fmt.Sscanf(limitStr, "%d", &limit); err != nil || limit < 0 {
 			writeError(w, http.StatusBadRequest, "invalid limit")
 			return
 		}
@@ -77,8 +74,8 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		offset, err := strconv.Atoi(offsetStr)
-		if err != nil || offset < 0 {
+		var offset int
+		if _, err := fmt.Sscanf(offsetStr, "%d", &offset); err != nil || offset < 0 {
 			writeError(w, http.StatusBadRequest, "invalid offset")
 			return
 		}
@@ -184,7 +181,7 @@ func (h *Handler) handleDeleteMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"deleted": mediaID})
+	writeJSON(w, http.StatusOK, map[string]string{"deleted": string(mediaID)})
 }
 
 func (h *Handler) handleUpdateMediaStatus(w http.ResponseWriter, r *http.Request) {
@@ -223,8 +220,8 @@ func (h *Handler) handleGetStatusSummary(w http.ResponseWriter, r *http.Request)
 
 	profileID := profileCtx.ProfileID
 	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
-		requestedProfileID, err := strconv.Atoi(profileIDStr)
-		if err != nil {
+		requestedProfileID := models.ProfileID(profileIDStr)
+		if !requestedProfileID.IsValid() {
 			writeError(w, http.StatusBadRequest, "invalid profileId")
 			return
 		}
@@ -260,9 +257,16 @@ func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string][]entities.Source{"sources": sources})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getIDFromRequest(r *http.Request) (models.MediaID, error) {
 	vars := mux.Vars(r)
-	return strconv.Atoi(vars["id"])
+	idStr := vars["id"]
+	
+	mediaID := models.MediaID(idStr)
+	if !mediaID.IsValid() {
+		return "", fmt.Errorf("invalid media ID format")
+	}
+	
+	return mediaID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
