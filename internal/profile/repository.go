@@ -3,7 +3,6 @@ package profile
 import (
 	"database/sql"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
@@ -18,16 +17,15 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(profile *models.Profile) error {
-    profile.ID = rand.Intn(900000000) + 100000000
-    profile.CreatedAt = time.Now().UTC()
-    profile.UpdatedAt = time.Now().UTC()
-
+    profile.ID = models.NewProfileID()
+    
     query := `
         INSERT INTO profile (
             id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING created_at, updated_at`
 
-    _, err := r.db.Exec(
+    err := r.db.QueryRow(
         query,
         profile.ID,
         profile.FamilyID,
@@ -38,9 +36,9 @@ func (r *Repository) Create(profile *models.Profile) error {
         profile.Colour,
         profile.TimezoneName,
         profile.IsOwner,
-        profile.CreatedAt,
-        profile.UpdatedAt,
-    )
+        time.Now().UTC(),
+        time.Now().UTC(),
+    ).Scan(&profile.CreatedAt, &profile.UpdatedAt)
 
     if err != nil {
         return fmt.Errorf("error creating profile: %v", err)
@@ -49,7 +47,7 @@ func (r *Repository) Create(profile *models.Profile) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int) (*models.Profile, error) {
+func (r *Repository) GetByID(id models.ProfileID) (*models.Profile, error) {
     query := `
         SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
@@ -82,7 +80,7 @@ func (r *Repository) GetByID(id int) (*models.Profile, error) {
     return profile, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
+func (r *Repository) GetByFamilyID(familyID models.FamilyID) ([]*models.Profile, error) {
     query := `
         SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
@@ -170,7 +168,7 @@ func (r *Repository) Update(profile *models.Profile) error {
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.ProfileID, familyID models.FamilyID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE profile 
 		SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
@@ -193,7 +191,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
 	return nil
 }
 
-func (r *Repository) Restore(id int, familyID int) error {
+func (r *Repository) Restore(id models.ProfileID, familyID models.FamilyID) error {
 	query := `
 		UPDATE profile
 		SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
@@ -216,7 +214,7 @@ func (r *Repository) Restore(id int, familyID int) error {
 	return nil
 }
 
-func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
+func (r *Repository) GetOwnerProfile(familyID models.FamilyID) (*models.Profile, error) {
 	query := `
 		SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
 		FROM profile
