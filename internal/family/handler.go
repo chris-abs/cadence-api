@@ -3,7 +3,6 @@ package family
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -102,7 +101,6 @@ func (h *Handler) handleGetAvailableModules(w http.ResponseWriter, r *http.Reque
     writeJSON(w, http.StatusOK, availableModules)
 }
 
-
 func (h *Handler) handleUpdateModule(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
@@ -170,11 +168,6 @@ func (h *Handler) handleRestoreFamily(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	writeJSON(w, http.StatusOK, map[string]string{"message": "family restored successfully"})
-}
-
-func getIDFromRequest(r *http.Request) (int, error) {
-	vars := mux.Vars(r)
-	return strconv.Atoi(vars["id"])
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
