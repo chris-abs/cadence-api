@@ -14,39 +14,39 @@ type WorkspaceID string
 type TagID string
 
 func NewFamilyID() FamilyID {
-    return FamilyID(uuid.New().String())
+    return FamilyID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewProfileID() ProfileID {
-    return ProfileID(uuid.New().String())
+    return ProfileID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewMediaID() MediaID {
-    return MediaID(uuid.New().String())
+    return MediaID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewChoreID() ChoreID {
-    return ChoreID(uuid.New().String())
+    return ChoreID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewEventID() EventID {
-    return EventID(uuid.New().String())
+    return EventID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewContainerID() ContainerID {
-    return ContainerID(uuid.New().String())
+    return ContainerID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewItemID() ItemID {
-    return ItemID(uuid.New().String())
+    return ItemID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewWorkspaceID() WorkspaceID {
-    return WorkspaceID(uuid.New().String())
+    return WorkspaceID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewTagID() TagID {
-    return TagID(uuid.New().String())
+    return TagID(uuid.Must(uuid.NewV7()).String())
 }
 
 func (id FamilyID) IsValid() bool {
