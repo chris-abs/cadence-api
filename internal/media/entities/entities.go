@@ -1,25 +1,29 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/chrisabs/cadence/internal/models"
+)
 
 type Media struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Type        MediaType `json:"type"`
-	Genre       string    `json:"genre"`
-	ReleaseYear int       `json:"releaseYear"`
-	Runtime     int       `json:"runtime"` 
-	PosterURL   string    `json:"posterUrl"`
-	SourceIDs   []int     `json:"sourceIds"`
-	Sources     []Source  `json:"sources,omitempty"` 
-	WatchWith   WatchWith `json:"watchWith"`
-	Status      Status    `json:"status"`
-	Priority    Priority  `json:"priority"`
-	Notes       string    `json:"notes"`
-	ProfileID   int       `json:"profileId"`
-	FamilyID    int       `json:"familyId"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID          models.MediaID    `json:"id"`
+	Name        string            `json:"name"`
+	Type        MediaType         `json:"type"`
+	Genre       string            `json:"genre"`
+	ReleaseYear int               `json:"releaseYear"`
+	Runtime     int               `json:"runtime"` 
+	PosterURL   string            `json:"posterUrl"`
+	SourceIDs   []models.SourceID `json:"sourceIds"`
+	Sources     []Source          `json:"sources,omitempty"` 
+	WatchWith   WatchWith         `json:"watchWith"`
+	Status      Status            `json:"status"`
+	Priority    Priority          `json:"priority"`
+	Notes       string            `json:"notes"`
+	ProfileID   models.ProfileID  `json:"profileId"`
+	FamilyID    models.FamilyID   `json:"familyId"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
 }
 
 type MediaType string
@@ -56,10 +60,10 @@ const (
 )
 
 type Source struct {
-    ID       int    `json:"id"`
-    Name     string `json:"name"`
-    Color    string `json:"color"`   
-    Category string `json:"category"`
+    ID       models.SourceID `json:"id"`
+    Name     string          `json:"name"`
+    Color    string          `json:"color"`   
+    Category string          `json:"category"`
 }
 
 var (
@@ -70,21 +74,22 @@ var (
 		"War", "Western",
 	}
 	
+// TODO: this is dogshit - we should provide a base set of soruces and allow the user to create any additional options.	
 DefaultSources = []Source{
-    {ID: 1, Name: "Netflix", Color: "red", Category: "streaming"},
-    {ID: 2, Name: "Disney+", Color: "blue", Category: "streaming"},
-    {ID: 3, Name: "Prime Video", Color: "cyan", Category: "streaming"},
-    {ID: 4, Name: "HBO Max", Color: "purple", Category: "streaming"},
-    {ID: 5, Name: "Apple TV+", Color: "slate", Category: "streaming"},
-    {ID: 6, Name: "Hulu", Color: "green", Category: "streaming"},
-    {ID: 7, Name: "Paramount+", Color: "indigo", Category: "streaming"},
-    {ID: 8, Name: "Peacock", Color: "violet", Category: "streaming"},
-    {ID: 9, Name: "BBC iPlayer", Color: "orange", Category: "streaming"},
-    {ID: 10, Name: "ITV Hub", Color: "yellow", Category: "streaming"},
-    {ID: 11, Name: "All 4", Color: "pink", Category: "streaming"},
-    {ID: 12, Name: "Now TV", Color: "sky", Category: "streaming"},
-    {ID: 13, Name: "Cinema", Color: "amber", Category: "cinema"},
-    {ID: 14, Name: "DVD/Blu-ray", Color: "zinc", Category: "physical"},
-    {ID: 15, Name: "Other", Color: "gray", Category: "other"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000001"), Name: "Netflix", Color: "red", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000002"), Name: "Disney+", Color: "blue", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000003"), Name: "Prime Video", Color: "cyan", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000004"), Name: "HBO Max", Color: "purple", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000005"), Name: "Apple TV+", Color: "slate", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000006"), Name: "Hulu", Color: "green", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000007"), Name: "Paramount+", Color: "indigo", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000008"), Name: "Peacock", Color: "violet", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000009"), Name: "BBC iPlayer", Color: "orange", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000010"), Name: "ITV Hub", Color: "yellow", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000011"), Name: "All 4", Color: "pink", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000012"), Name: "Now TV", Color: "sky", Category: "streaming"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000013"), Name: "Cinema", Color: "amber", Category: "cinema"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000014"), Name: "DVD/Blu-ray", Color: "zinc", Category: "physical"},
+    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000015"), Name: "Other", Color: "gray", Category: "other"},
 }
 )
