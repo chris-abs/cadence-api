@@ -2,9 +2,9 @@ package profile
 
 import (
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/chrisabs/cadence/internal/cloud"
@@ -80,7 +80,7 @@ func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
                 return
             }
             
-            imageURL, err := s3Handler.UploadFile(header, familyCtx.FamilyID, "profiles")
+            imageURL, err := s3Handler.UploadFile(header, "profiles")
             if err != nil {
                 writeError(w, http.StatusInternalServerError, "failed to upload image")
                 return
@@ -279,9 +279,16 @@ func (h *Handler) handleVerifyPin(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, http.StatusOK, profileResponse)
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getIDFromRequest(r *http.Request) (models.ProfileID, error) {
 	vars := mux.Vars(r)
-	return strconv.Atoi(vars["id"])
+	idStr := vars["id"]
+	
+	profileID := models.ProfileID(idStr)
+	if !profileID.IsValid() {
+		return "", fmt.Errorf("invalid profile ID format")
+	}
+	
+	return profileID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
