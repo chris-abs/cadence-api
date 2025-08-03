@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/models"
@@ -19,29 +18,28 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(family *FamilyAccount) error {
-    family.ID = rand.Intn(900000000) + 100000000
-    family.CreatedAt = time.Now().UTC()
-    family.UpdatedAt = time.Now().UTC()
+	family.ID = models.NewFamilyID()
+	
+	query := `
+		INSERT INTO family_account (id, email, password, family_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING created_at, updated_at`
 
-    query := `
-        INSERT INTO family_account (id, email, password, family_name, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)`
+	err := r.db.QueryRow(
+		query,
+		family.ID,
+		family.Email,
+		family.Password,
+		family.FamilyName,
+		time.Now().UTC(),
+		time.Now().UTC(),
+	).Scan(&family.CreatedAt, &family.UpdatedAt)
 
-    _, err := r.db.Exec(
-        query,
-        family.ID,
-        family.Email,
-        family.Password,
-        family.FamilyName,
-        family.CreatedAt,
-        family.UpdatedAt,
-    )
+	if err != nil {
+		return fmt.Errorf("error creating family account: %v", err)
+	}
 
-    if err != nil {
-        return fmt.Errorf("error creating family account: %v", err)
-    }
-
-    return nil
+	return nil
 }
 
 func (r *Repository) CreateSettings(settings *FamilySettings) error {
@@ -71,7 +69,7 @@ func (r *Repository) CreateSettings(settings *FamilySettings) error {
 	return nil
 }
 
-func (r *Repository) GetByID(id int) (*FamilyAccount, error) {
+func (r *Repository) GetByID(id models.FamilyID) (*FamilyAccount, error) {
 	query := `
 		SELECT id, email, password, family_name, created_at, updated_at
 		FROM family_account
@@ -123,7 +121,7 @@ func (r *Repository) GetByEmail(email string) (*FamilyAccount, error) {
 	return family, nil
 }
 
-func (r *Repository) GetSettings(familyID int) (*FamilySettings, error) {
+func (r *Repository) GetSettings(familyID models.FamilyID) (*FamilySettings, error) {
 	query := `
 		SELECT family_id, modules, status, created_at, updated_at
 		FROM family_settings
@@ -218,7 +216,7 @@ func (r *Repository) UpdateSettings(settings *FamilySettings) error {
 	return nil
 }
 
-func (r *Repository) UpdateModule(familyID int, moduleID models.ModuleID, isEnabled bool) error {
+func (r *Repository) UpdateModule(familyID models.FamilyID, moduleID models.ModuleID, isEnabled bool) error {
 	settings, err := r.GetSettings(familyID)
 	if err != nil {
 		return err
@@ -243,7 +241,7 @@ func (r *Repository) UpdateModule(familyID int, moduleID models.ModuleID, isEnab
 	return r.UpdateSettings(settings)
 }
 
-func (r *Repository) Delete(id int, deletedBy int) error {
+func (r *Repository) Delete(id models.FamilyID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE family_account
 		SET is_deleted = true, deleted_at = $2, deleted_by = $3, updated_at = $2
@@ -266,7 +264,7 @@ func (r *Repository) Delete(id int, deletedBy int) error {
 	return nil
 }
 
-func (r *Repository) Restore(id int) error {
+func (r *Repository) Restore(id models.FamilyID) error {
 	query := `
 		UPDATE family_account
 		SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $2
@@ -289,7 +287,7 @@ func (r *Repository) Restore(id int) error {
 	return nil
 }
 
-func (r *Repository) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
+func (r *Repository) IsModuleEnabled(familyID models.FamilyID, moduleID models.ModuleID) (bool, error) {
 	settings, err := r.GetSettings(familyID)
 	if err != nil {
 		return false, err
