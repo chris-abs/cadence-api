@@ -16,7 +16,7 @@ func InitMediaSchema(db *sql.DB) error {
 func createMediaTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS media_source (
-		id SERIAL PRIMARY KEY,
+		id VARCHAR(36) PRIMARY KEY,  
 		name VARCHAR(100) NOT NULL UNIQUE,
 		color VARCHAR(20) NOT NULL,
 		category VARCHAR(50) NOT NULL,
@@ -24,11 +24,11 @@ func createMediaTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)  
 	);
 
 	CREATE TABLE IF NOT EXISTS media (
-		id SERIAL PRIMARY KEY,
+		id VARCHAR(36) PRIMARY KEY,  
 		name VARCHAR(255) NOT NULL,
 		type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'show')),
 		genre VARCHAR(50) NOT NULL,
@@ -40,21 +40,21 @@ func createMediaTables(db *sql.DB) error {
 		status VARCHAR(30) NOT NULL CHECK (status IN ('to_watch', 'in_progress', 'watching', 'awaiting_release', 'watched')),
 		priority VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
 		notes TEXT NOT NULL DEFAULT '',
-		profile_id INTEGER REFERENCES profile(id) NOT NULL,
-		family_id INTEGER REFERENCES family_account(id) NOT NULL,
+		profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,  
+		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,  
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)  
 	);
 
-	-- Indexes for media_source table
+	
 	CREATE INDEX IF NOT EXISTS idx_media_source_name ON media_source(name);
 	CREATE INDEX IF NOT EXISTS idx_media_source_category ON media_source(category);
 	CREATE INDEX IF NOT EXISTS idx_media_source_is_deleted ON media_source(is_deleted);
 
-	-- Indexes for media table
+	
 	CREATE INDEX IF NOT EXISTS idx_media_profile_id ON media(profile_id);
 	CREATE INDEX IF NOT EXISTS idx_media_family_id ON media(family_id);
 	CREATE INDEX IF NOT EXISTS idx_media_type ON media(type);
