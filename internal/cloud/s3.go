@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	appconfig "github.com/chrisabs/cadence/internal/config"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type S3Handler struct {
@@ -39,7 +40,7 @@ func NewS3Handler() (*S3Handler, error) {
     }, nil
 }
 
-func (h *S3Handler) UploadFile(file *multipart.FileHeader, familyID int, prefix string) (string, error) {
+func (h *S3Handler) UploadFile(file *multipart.FileHeader, familyID models.FamilyID, prefix string) (string, error) {
     src, err := file.Open()
     if err != nil {
         return "", fmt.Errorf("error opening file: %v", err)
@@ -63,8 +64,8 @@ func (h *S3Handler) UploadFile(file *multipart.FileHeader, familyID int, prefix 
     return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", h.bucket, h.region, filename), nil
 }
 
-func generateFilename(familyID int, prefix, originalName string) string {
+func generateFilename(familyID models.FamilyID, prefix, originalName string) string {
     ext := filepath.Ext(originalName)
     timestamp := time.Now().UnixNano()
-    return fmt.Sprintf("%d/%s/%d%s", familyID, prefix, timestamp, ext)
+    return fmt.Sprintf("%s/%s/%d%s", familyID, prefix, timestamp, ext)
 }
