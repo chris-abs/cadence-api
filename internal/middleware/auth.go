@@ -15,11 +15,11 @@ type AuthMiddleware struct {
 	jwtSecret       string
 	db              *sql.DB
 	familyService   interface {
-		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		IsModuleEnabled(familyID models.FamilyID, moduleID models.ModuleID) (bool, error)
+		HasModulePermission(familyID models.FamilyID, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	}
 	profileService interface {
-		GetProfileByID(id int) (*models.Profile, error)
+		GetProfileByID(id models.ProfileID) (*models.Profile, error)
 	}
 }
 
@@ -27,11 +27,11 @@ func NewAuthMiddleware(
 	jwtSecret string,
 	db *sql.DB,
 	familyService interface {
-		IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error)
-		HasModulePermission(familyID int, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
+		IsModuleEnabled(familyID models.FamilyID, moduleID models.ModuleID) (bool, error)
+		HasModulePermission(familyID models.FamilyID, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error)
 	},
 	profileService interface {
-		GetProfileByID(id int) (*models.Profile, error)
+		GetProfileByID(id models.ProfileID) (*models.Profile, error)
 	},
 ) *AuthMiddleware {
 	return &AuthMiddleware{
@@ -43,23 +43,28 @@ func NewAuthMiddleware(
 }
 
 func (m *AuthMiddleware) buildFamilyContext(claims jwt.MapClaims) (*models.FamilyContext, error) {
-	familyID, ok := claims["familyId"].(float64)
+	familyIDStr, ok := claims["familyId"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid token: missing family ID")
 	}
 
+	familyID := models.FamilyID(familyIDStr)
+	if !familyID.IsValid() {
+		return nil, fmt.Errorf("invalid token: invalid family ID format")
+	}
+
 	return &models.FamilyContext{
-		FamilyID: int(familyID),
+		FamilyID: familyID,
 	}, nil
 }
 
 func (m *AuthMiddleware) buildProfileContext(claims jwt.MapClaims) (*models.ProfileContext, error) {
-	familyID, ok := claims["familyId"].(float64)
+	familyIDStr, ok := claims["familyId"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid token: missing family ID")
 	}
 
-	profileID, ok := claims["profileId"].(float64)
+	profileIDStr, ok := claims["profileId"].(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid token: missing profile ID")
 	}
@@ -71,9 +76,19 @@ func (m *AuthMiddleware) buildProfileContext(claims jwt.MapClaims) (*models.Prof
 
 	isOwner, _ := claims["isOwner"].(bool)
 
+	familyID := models.FamilyID(familyIDStr)
+	if !familyID.IsValid() {
+		return nil, fmt.Errorf("invalid token: invalid family ID format")
+	}
+
+	profileID := models.ProfileID(profileIDStr)
+	if !profileID.IsValid() {
+		return nil, fmt.Errorf("invalid token: invalid profile ID format")
+	}
+
 	return &models.ProfileContext{
-		FamilyID:  int(familyID),
-		ProfileID: int(profileID),
+		FamilyID:  familyID,
+		ProfileID: profileID,
 		Role:      models.ProfileRole(roleString),
 		IsOwner:   isOwner,
 	}, nil
