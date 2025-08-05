@@ -3,9 +3,9 @@ package workspace
 import (
 	"database/sql"
 	"fmt"
-	"math/rand"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -18,7 +18,7 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(workspace *entities.Workspace) error {
-    workspace.ID = rand.Intn(900000000) + 100000000
+    workspace.ID = models.NewWorkspaceID() 
     
     query := `
         INSERT INTO workspace (id, name, description, profile_id, family_id, created_at, updated_at)
@@ -41,7 +41,8 @@ func (r *Repository) Create(workspace *entities.Workspace) error {
 
     return nil
 }
-func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) {
+
+func (r *Repository) GetByID(id models.WorkspaceID, familyID models.FamilyID) (*entities.Workspace, error) {
     workspaceQuery := `
         SELECT w.id, w.name, w.description, w.profile_id, w.family_id, w.created_at, w.updated_at
         FROM workspace w
@@ -82,7 +83,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     workspace.Containers = make([]entities.Container, 0)
     for rows.Next() {
         var container entities.Container
-        var workspaceID sql.NullInt64
+        var workspaceID sql.NullString
         err := rows.Scan(
             &container.ID,
             &container.Name,
@@ -102,7 +103,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
         }
 
         if workspaceID.Valid {
-            wsID := int(workspaceID.Int64)
+            wsID := models.WorkspaceID(workspaceID.String)
             container.WorkspaceID = &wsID
         }
 
@@ -112,7 +113,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Workspace, error) 
     return workspace, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int, profileID int) ([]*entities.Workspace, error) {
+func (r *Repository) GetByFamilyID(familyID models.FamilyID, profileID models.ProfileID) ([]*entities.Workspace, error) {
     query := `
         SELECT id, name, description, profile_id, family_id, created_at, updated_at 
         FROM workspace
@@ -159,7 +160,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileID int) ([]*entities.Wor
             defer containerRows.Close()
             for containerRows.Next() {
                 var container entities.Container
-                var workspaceID sql.NullInt64
+                var workspaceID sql.NullString
                 err := containerRows.Scan(
                     &container.ID,
                     &container.Name,
@@ -179,7 +180,7 @@ func (r *Repository) GetByFamilyID(familyID int, profileID int) ([]*entities.Wor
                 }
 
                 if workspaceID.Valid {
-                    wsID := int(workspaceID.Int64)
+                    wsID := models.WorkspaceID(workspaceID.String)
                     container.WorkspaceID = &wsID
                 }
 
@@ -223,7 +224,7 @@ func (r *Repository) Update(workspace *entities.Workspace) error {
     return nil
 }
 
-func (r *Repository) UpdateContainers(workspaceID int, familyID int, containerIDs []int) error {
+func (r *Repository) UpdateContainers(workspaceID models.WorkspaceID, familyID models.FamilyID, containerIDs []models.ContainerID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -245,7 +246,7 @@ func (r *Repository) UpdateContainers(workspaceID int, familyID int, containerID
     return nil
 }
 
-func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int, familyID int) error {
+func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID models.WorkspaceID, familyID models.FamilyID) error {
     query := `
         UPDATE container 
         SET workspace_id = NULL, updated_at = $3
@@ -259,13 +260,22 @@ func (r *Repository) clearWorkspaceContainers(tx *sql.Tx, workspaceID int, famil
     return nil
 }
 
-func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, familyID int, containerIDs []int) error {
+func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID models.WorkspaceID, familyID models.FamilyID, containerIDs []models.ContainerID) error {
+    if len(containerIDs) == 0 {
+        return nil
+    }
+
+    args := make([]interface{}, len(containerIDs))
+    for i, id := range containerIDs {
+        args[i] = string(id)
+    }
+
     query := `
         UPDATE container 
-        SET workspace_id = $1, updated_at = $3
-        WHERE id = ANY($2) AND family_id = $4`
+        SET workspace_id = $1, updated_at = $2
+        WHERE id = ANY($3) AND family_id = $4`
 
-    _, err := tx.Exec(query, workspaceID, containerIDs, time.Now().UTC(), familyID)
+    _, err := tx.Exec(query, workspaceID, time.Now().UTC(), "{" + fmt.Sprintf(`"%s"`, containerIDs) + "}", familyID)
     if err != nil {
         return fmt.Errorf("error assigning containers to workspace: %v", err)
     }
@@ -273,7 +283,7 @@ func (r *Repository) assignContainersToWorkspace(tx *sql.Tx, workspaceID int, fa
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.WorkspaceID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -312,7 +322,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     return tx.Commit()
 }
 
-func (r *Repository) RestoreDeleted(id int, familyID int) error {
+func (r *Repository) RestoreDeleted(id models.WorkspaceID, familyID models.FamilyID) error {
     query := `
         UPDATE workspace
         SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
