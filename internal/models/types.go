@@ -7,12 +7,15 @@ type ProfileID string
 
 type MediaID string
 type SourceID string
+
 type ChoreID string
 type ChoreInstanceID string
+
 type EventID string
+
+type WorkspaceID string
 type ContainerID string
 type ItemID string
-type WorkspaceID string
 type TagID string
 
 func NewFamilyID() FamilyID {
@@ -43,16 +46,16 @@ func NewEventID() EventID {
     return EventID(uuid.Must(uuid.NewV7()).String())
 }
 
+func NewWorkspaceID() WorkspaceID {
+    return WorkspaceID(uuid.Must(uuid.NewV7()).String())
+}
+
 func NewContainerID() ContainerID {
     return ContainerID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewItemID() ItemID {
     return ItemID(uuid.Must(uuid.NewV7()).String())
-}
-
-func NewWorkspaceID() WorkspaceID {
-    return WorkspaceID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewTagID() TagID {
@@ -94,17 +97,17 @@ func (id EventID) IsValid() bool {
     return err == nil
 }
 
+func (id WorkspaceID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
 func (id ContainerID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
 }
 
 func (id ItemID) IsValid() bool {
-    _, err := uuid.Parse(string(id))
-    return err == nil
-}
-
-func (id WorkspaceID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
 }
@@ -142,15 +145,15 @@ func (id EventID) String() string {
     return string(id)
 }
 
+func (id WorkspaceID) String() string {
+    return string(id)
+}
+
 func (id ContainerID) String() string {
     return string(id)
 }
 
 func (id ItemID) String() string {
-    return string(id)
-}
-
-func (id WorkspaceID) String() string {
     return string(id)
 }
 
