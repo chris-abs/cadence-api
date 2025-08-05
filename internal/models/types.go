@@ -8,6 +8,7 @@ type ProfileID string
 type MediaID string
 type SourceID string
 type ChoreID string
+type ChoreInstanceID string
 type EventID string
 type ContainerID string
 type ItemID string
@@ -32,6 +33,10 @@ func NewSourceID() SourceID {
 
 func NewChoreID() ChoreID {
     return ChoreID(uuid.Must(uuid.NewV7()).String())
+}
+
+func NewChoreInstanceID() ChoreInstanceID {
+    return ChoreInstanceID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewEventID() EventID {
@@ -69,12 +74,42 @@ func (id MediaID) IsValid() bool {
     return err == nil
 }
 
+func (id SourceID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
+func (id ChoreID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
+func (id ChoreInstanceID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
 func (id EventID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
 }
 
-func (id SourceID) IsValid() bool {
+func (id ContainerID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
+func (id ItemID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
+func (id WorkspaceID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
+func (id TagID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
 }
@@ -84,5 +119,41 @@ func (id FamilyID) String() string {
 }
 
 func (id ProfileID) String() string {
+    return string(id)
+}
+
+func (id MediaID) String() string {
+    return string(id)
+}
+
+func (id SourceID) String() string {
+    return string(id)
+}
+
+func (id ChoreID) String() string {
+    return string(id)
+}
+
+func (id ChoreInstanceID) String() string {
+    return string(id)
+}
+
+func (id EventID) String() string {
+    return string(id)
+}
+
+func (id ContainerID) String() string {
+    return string(id)
+}
+
+func (id ItemID) String() string {
+    return string(id)
+}
+
+func (id WorkspaceID) String() string {
+    return string(id)
+}
+
+func (id TagID) String() string {
     return string(id)
 }

@@ -93,22 +93,6 @@ func (r *Repository) Search(familyID models.FamilyID, req *MediaSearchRequest) (
 		return nil, 0, fmt.Errorf("profile ID is required")
 	}
 
-	quickCheckQuery := `
-		SELECT EXISTS (
-			SELECT 1 FROM media 
-			WHERE family_id = $1 AND profile_id = $2 AND is_deleted = false
-		)`
-	
-	var hasResults bool
-	err := r.db.QueryRow(quickCheckQuery, familyID, *profileID).Scan(&hasResults)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if !hasResults {
-		return []entities.Media{}, 0, nil
-	}
-
 	conditions := []string{"m.family_id = $1", "m.profile_id = $2", "m.is_deleted = false"}
 	args := []interface{}{familyID, *profileID}
 	argIndex := 3
@@ -166,9 +150,13 @@ func (r *Repository) Search(familyID models.FamilyID, req *MediaSearchRequest) (
 
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media m WHERE %s", whereClause)
 	var total int
-	err = r.db.QueryRow(countQuery, args...).Scan(&total)
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if total == 0 {
+		return []entities.Media{}, 0, nil
 	}
 
 	limit := req.Limit
