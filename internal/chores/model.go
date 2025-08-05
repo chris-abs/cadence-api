@@ -4,12 +4,13 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/chores/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type CreateChoreRequest struct {
 	Name           string                  `json:"name"`
 	Description    string                  `json:"description"`
-	AssigneeID     int                     `json:"assigneeId"`
+	AssigneeID     models.ProfileID        `json:"assigneeId"`
 	Points         int                     `json:"points"`
 	OccurrenceType entities.OccurrenceType `json:"occurrenceType"`
 	OccurrenceData entities.OccurrenceData `json:"occurrenceData"`
@@ -18,7 +19,7 @@ type CreateChoreRequest struct {
 type UpdateChoreRequest struct {
 	Name           string                  `json:"name"`
 	Description    string                  `json:"description"`
-	AssigneeID     int                     `json:"assigneeId"`
+	AssigneeID     models.ProfileID        `json:"assigneeId"`
 	Points         int                     `json:"points"`
 	OccurrenceType entities.OccurrenceType `json:"occurrenceType"`
 	OccurrenceData entities.OccurrenceData `json:"occurrenceData"`
@@ -37,7 +38,7 @@ type ReviewChoreRequest struct {
 
 type VerifyDayRequest struct {
     Date            string               `json:"date"`
-    AssigneeID      int                  `json:"assigneeId"`
+    AssigneeID      models.ProfileID     `json:"assigneeId"`
     Status          entities.ChoreStatus `json:"status"`
     Notes           string               `json:"notes"`
     RejectionReason string               `json:"rejectionReason,omitempty"`
@@ -61,7 +62,7 @@ type ChoreStats struct {
 }
 
 type ChoreStatsRequest struct {
-	ProfileId    int        `json:"profileId"`
-	StartDate    time.Time  `json:"startDate"`
-	EndDate      time.Time  `json:"endDate"`
+	ProfileId    models.ProfileID `json:"profileId"`
+	StartDate    time.Time        `json:"startDate"`
+	EndDate      time.Time        `json:"endDate"`
 }
