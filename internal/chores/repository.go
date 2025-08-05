@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/chores/entities"
@@ -20,7 +19,7 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) CreateChore(chore *entities.Chore) error {
-    chore.ID = rand.Intn(900000000) + 100000000
+    chore.ID = models.NewChoreID()
 
     occurrenceData, err := json.Marshal(chore.OccurrenceData)
     if err != nil {
@@ -55,7 +54,7 @@ func (r *Repository) CreateChore(chore *entities.Chore) error {
     return nil
 }
 
-func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error) {
+func (r *Repository) GetChoreByID(id models.ChoreID, familyID models.FamilyID) (*entities.Chore, error) {
     query := `
         SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
                c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
@@ -101,7 +100,7 @@ func (r *Repository) GetChoreByID(id int, familyID int) (*entities.Chore, error)
     return chore, nil
 }
 
-func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error) {
+func (r *Repository) GetChoresByFamilyID(familyID models.FamilyID) ([]*entities.Chore, error) {
     query := `
         SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
                c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at,
@@ -148,7 +147,7 @@ func (r *Repository) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error
     return chores, nil
 }
 
-func (r *Repository) GetChoresByAssigneeID(assigneeID int, familyID int) ([]*entities.Chore, error) {
+func (r *Repository) GetChoresByAssigneeID(assigneeID models.ProfileID, familyID models.FamilyID) ([]*entities.Chore, error) {
     query := `
         SELECT c.id, c.name, c.description, c.creator_id, c.assignee_id, c.family_id,
                c.points, c.occurrence_type, c.occurrence_data, c.created_at, c.updated_at
@@ -226,7 +225,7 @@ func (r *Repository) UpdateChore(chore *entities.Chore) error {
 	return nil
 }
 
-func (r *Repository) DeleteChore(id int, familyID int, deletedBy int) error {
+func (r *Repository) DeleteChore(id models.ChoreID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -265,7 +264,7 @@ func (r *Repository) DeleteChore(id int, familyID int, deletedBy int) error {
     return tx.Commit()
 }
 
-func (r *Repository) RestoreChore(id int, familyID int) error {
+func (r *Repository) RestoreChore(id models.ChoreID, familyID models.FamilyID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -305,7 +304,7 @@ func (r *Repository) RestoreChore(id int, familyID int) error {
 }
 
 func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error {
-    instance.ID = rand.Intn(900000000) + 100000000
+    instance.ID = models.NewChoreInstanceID()
     instance.CreatedAt = time.Now().UTC()
     instance.UpdatedAt = time.Now().UTC()
 
@@ -335,7 +334,7 @@ func (r *Repository) CreateChoreInstance(instance *entities.ChoreInstance) error
     return nil
 }
 
-func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
+func (r *Repository) GetInstanceByID(id models.ChoreInstanceID, familyID models.FamilyID) (*entities.ChoreInstance, error) {
     query := `
         SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
                ci.status, ci.completed_at, ci.verified_by, ci.verified_at,
@@ -352,7 +351,7 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
     verifier := &models.Profile{}
     
     var completedAt, verifiedAt sql.NullTime
-    var verifiedBy sql.NullInt64
+    var verifiedBy sql.NullString
     var rejectionReason sql.NullString
 
     err := r.db.QueryRow(query, id, familyID).Scan(
@@ -377,7 +376,7 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
         instance.VerifiedAt = &verifiedAt.Time
     }
     if verifiedBy.Valid {
-        vID := int(verifiedBy.Int64)
+        vID := models.ProfileID(verifiedBy.String)
         instance.VerifiedBy = &vID
         instance.Verifier = verifier
     }
@@ -390,7 +389,7 @@ func (r *Repository) GetInstanceByID(id int, familyID int) (*entities.ChoreInsta
     return instance, nil
 }
 
-func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entities.ChoreInstance, error) {
+func (r *Repository) GetInstancesByChoreID(choreID models.ChoreID, familyID models.FamilyID) ([]entities.ChoreInstance, error) {
     query := `
         SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
                ci.status, ci.completed_at, ci.verified_by, ci.notes, 
@@ -408,7 +407,7 @@ func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entitie
 	var instances []entities.ChoreInstance
 	for rows.Next() {
 		instance := entities.ChoreInstance{}
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var completedAt sql.NullTime
 
 		err := rows.Scan(
@@ -425,7 +424,7 @@ func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entitie
 		}
 
 		if verifiedBy.Valid {
-			vID := int(verifiedBy.Int64)
+			vID := models.ProfileID(verifiedBy.String)
 			instance.VerifiedBy = &vID
 		}
 
@@ -435,7 +434,7 @@ func (r *Repository) GetInstancesByChoreID(choreID int, familyID int) ([]entitie
 	return instances, nil
 }
 
-func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*entities.ChoreInstance, error) {
+func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID models.FamilyID) ([]*entities.ChoreInstance, error) {
     startOfDay := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, dueDate.Location())
     endOfDay := startOfDay.Add(24 * time.Hour)
 
@@ -459,7 +458,7 @@ func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*
 	for rows.Next() {
 		instance := &entities.ChoreInstance{}
 		chore := &entities.Chore{}
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var completedAt sql.NullTime
 
 		err := rows.Scan(
@@ -477,7 +476,7 @@ func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*
 		}
 
 		if verifiedBy.Valid {
-			vID := int(verifiedBy.Int64)
+			vID := models.ProfileID(verifiedBy.String)
 			instance.VerifiedBy = &vID
 		}
 
@@ -489,7 +488,7 @@ func (r *Repository) GetInstancesByDueDate(dueDate time.Time, familyID int) ([]*
 	return instances, nil
 }
 
-func (r *Repository) GetInstancesByAssignee(assigneeID int, familyID int, startDate, endDate time.Time) ([]*entities.ChoreInstance, error) {
+func (r *Repository) GetInstancesByAssignee(assigneeID models.ProfileID, familyID models.FamilyID, startDate, endDate time.Time) ([]*entities.ChoreInstance, error) {
 	query := `
     SELECT ci.id, ci.chore_id, ci.assignee_id, ci.family_id, ci.due_date,
         ci.status, ci.completed_at, ci.verified_by, ci.notes, 
@@ -512,7 +511,7 @@ func (r *Repository) GetInstancesByAssignee(assigneeID int, familyID int, startD
 	for rows.Next() {
 		instance := &entities.ChoreInstance{}
 		chore := &entities.Chore{}
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var completedAt sql.NullTime
 
 		err := rows.Scan(
@@ -530,7 +529,7 @@ func (r *Repository) GetInstancesByAssignee(assigneeID int, familyID int, startD
 		}
 
 		if verifiedBy.Valid {
-			vID := int(verifiedBy.Int64)
+			vID := models.ProfileID(verifiedBy.String)
 			instance.VerifiedBy = &vID
 		}
 
@@ -542,7 +541,7 @@ func (r *Repository) GetInstancesByAssignee(assigneeID int, familyID int, startD
 	return instances, nil
 }
 
-func (r *Repository) GetInstancesByAssigneeAndDate(assigneeID int, familyID int, date time.Time) ([]*entities.ChoreInstance, error) {
+func (r *Repository) GetInstancesByAssigneeAndDate(assigneeID models.ProfileID, familyID models.FamilyID, date time.Time) ([]*entities.ChoreInstance, error) {
 	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)
 
@@ -567,7 +566,7 @@ func (r *Repository) GetInstancesByAssigneeAndDate(assigneeID int, familyID int,
 	for rows.Next() {
 		instance := &entities.ChoreInstance{}
 		chore := &entities.Chore{}
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var completedAt sql.NullTime
 
 		err := rows.Scan(
@@ -585,7 +584,7 @@ func (r *Repository) GetInstancesByAssigneeAndDate(assigneeID int, familyID int,
 		}
 
 		if verifiedBy.Valid {
-			vID := int(verifiedBy.Int64)
+			vID := models.ProfileID(verifiedBy.String)
 			instance.VerifiedBy = &vID
 		}
 
@@ -597,7 +596,7 @@ func (r *Repository) GetInstancesByAssigneeAndDate(assigneeID int, familyID int,
 	return instances, nil
 }
 
-func (r *Repository) CheckInstanceExists(choreID int, dueDate time.Time) (bool, error) {
+func (r *Repository) CheckInstanceExists(choreID models.ChoreID, dueDate time.Time) (bool, error) {
 	startOfDay := time.Date(dueDate.Year(), dueDate.Month(), dueDate.Day(), 0, 0, 0, 0, dueDate.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)
 
@@ -629,6 +628,7 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
         WHERE id = $1 AND family_id = $9 AND is_deleted = false`
 
     var completedAt, verifiedAt *time.Time
+    var verifiedBy *string
     
     if instance.Status == entities.StatusCompleted {
         if instance.CompletedAt == nil {
@@ -643,13 +643,18 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
         now := time.Now().UTC()
         verifiedAt = &now
     }
+    
+    if instance.VerifiedBy != nil {
+        vb := string(*instance.VerifiedBy)
+        verifiedBy = &vb
+    }
 
     result, err := r.db.Exec(
         query,
         instance.ID,
         instance.Status,
         completedAt,
-        instance.VerifiedBy,
+        verifiedBy,
         verifiedAt,
         instance.RejectionReason,
         instance.Notes,
@@ -673,7 +678,7 @@ func (r *Repository) UpdateChoreInstance(instance *entities.ChoreInstance) error
     return nil
 }
 
-func (r *Repository) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
+func (r *Repository) GetChoreStats(profileId models.ProfileID, familyID models.FamilyID, startDate, endDate time.Time) (*ChoreStats, error) {
 	query := `
     SELECT 
         COUNT(*) as total_assigned,
@@ -686,7 +691,6 @@ func (r *Repository) GetChoreStats(profileId int, familyID int, startDate, endDa
     WHERE ci.assignee_id = $1 AND ci.family_id = $2 
     AND ci.due_date >= $3 AND ci.due_date <= $4
     AND ci.is_deleted = false`
-
 
 	stats := &ChoreStats{}
 	var totalCompleted, totalVerified, totalMissed sql.NullInt64
@@ -743,11 +747,11 @@ func (r *Repository) SaveDailyVerification(verification *entities.DailyVerificat
 			SET is_verified = $4, verified_by = $5, verified_at = $6, notes = $7, updated_at = $8
 			WHERE date = $1 AND assignee_id = $2 AND family_id = $3`
 		
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var verifiedAt sql.NullTime
 		
 		if verification.VerifiedBy != nil {
-			verifiedBy = sql.NullInt64{Int64: int64(*verification.VerifiedBy), Valid: true}
+			verifiedBy = sql.NullString{String: string(*verification.VerifiedBy), Valid: true}
 		}
 		
 		if verification.VerifiedAt != nil {
@@ -775,11 +779,11 @@ func (r *Repository) SaveDailyVerification(verification *entities.DailyVerificat
 				date, assignee_id, family_id, is_verified, verified_by, verified_at, notes, created_at, updated_at
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`
 		
-		var verifiedBy sql.NullInt64
+		var verifiedBy sql.NullString
 		var verifiedAt sql.NullTime
 		
 		if verification.VerifiedBy != nil {
-			verifiedBy = sql.NullInt64{Int64: int64(*verification.VerifiedBy), Valid: true}
+			verifiedBy = sql.NullString{String: string(*verification.VerifiedBy), Valid: true}
 		}
 		
 		if verification.VerifiedAt != nil {
@@ -810,14 +814,14 @@ func (r *Repository) SaveDailyVerification(verification *entities.DailyVerificat
 	return nil
 }
 
-func (r *Repository) GetDailyVerification(date time.Time, assigneeID int, familyID int) (*entities.DailyVerification, error) {
+func (r *Repository) GetDailyVerification(date time.Time, assigneeID models.ProfileID, familyID models.FamilyID) (*entities.DailyVerification, error) {
 	query := `
 		SELECT date, assignee_id, family_id, is_verified, verified_by, verified_at, notes, created_at, updated_at
 		FROM daily_verification
 		WHERE date = $1 AND assignee_id = $2 AND family_id = $3`
 	
 	verification := &entities.DailyVerification{}
-	var verifiedBy sql.NullInt64
+	var verifiedBy sql.NullString
 	var verifiedAt sql.NullTime
 	
 	err := r.db.QueryRow(query, date, assigneeID, familyID).Scan(
@@ -845,7 +849,7 @@ func (r *Repository) GetDailyVerification(date time.Time, assigneeID int, family
 	}
 	
 	if verifiedBy.Valid {
-		vID := int(verifiedBy.Int64)
+		vID := models.ProfileID(verifiedBy.String)
 		verification.VerifiedBy = &vID
 	}
 	
