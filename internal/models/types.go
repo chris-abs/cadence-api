@@ -69,6 +69,11 @@ func (id MediaID) IsValid() bool {
     return err == nil
 }
 
+func (id EventID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
 func (id SourceID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
