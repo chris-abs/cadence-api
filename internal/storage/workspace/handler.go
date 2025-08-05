@@ -2,8 +2,8 @@ package workspace
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -63,7 +63,7 @@ func (h *Handler) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    workspaceID, err := getIDFromRequest(r)
+    workspaceID, err := getWorkspaceIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -81,7 +81,7 @@ func (h *Handler) handleGetWorkspaceByID(w http.ResponseWriter, r *http.Request)
 func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    workspaceID, err := getIDFromRequest(r)
+    workspaceID, err := getWorkspaceIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -104,7 +104,7 @@ func (h *Handler) handleUpdateWorkspace(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    workspaceID, err := getIDFromRequest(r)
+    workspaceID, err := getWorkspaceIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -115,13 +115,13 @@ func (h *Handler) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) 
         return
     }
     
-    writeJSON(w, http.StatusOK, map[string]int{"deleted": workspaceID})
+    writeJSON(w, http.StatusOK, map[string]string{"deleted": string(workspaceID)})
 }
 
 func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    workspaceID, err := getIDFromRequest(r)
+    workspaceID, err := getWorkspaceIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -132,12 +132,19 @@ func (h *Handler) handleRestoreWorkspace(w http.ResponseWriter, r *http.Request)
         return
     }
     
-    writeJSON(w, http.StatusOK, map[string]int{"restored": workspaceID})
+    writeJSON(w, http.StatusOK, map[string]string{"restored": string(workspaceID)})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getWorkspaceIDFromRequest(r *http.Request) (models.WorkspaceID, error) {
     vars := mux.Vars(r)
-    return strconv.Atoi(vars["id"])
+    idStr := vars["id"]
+    
+    workspaceID := models.WorkspaceID(idStr)
+    if !workspaceID.IsValid() {
+        return "", fmt.Errorf("invalid workspace ID format")
+    }
+    
+    return workspaceID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
