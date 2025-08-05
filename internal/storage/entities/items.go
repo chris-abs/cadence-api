@@ -7,11 +7,11 @@ import (
 )
 
 type ItemImage struct {
-    ID           int       `json:"id"`             
-    URL          string    `json:"url"`
-    DisplayOrder int       `json:"displayOrder"`
-    CreatedAt    time.Time `json:"createdAt"`
-    UpdatedAt    time.Time `json:"updatedAt"`
+    ID           models.ItemImageID `json:"id"`
+    URL          string             `json:"url"`
+    DisplayOrder int                `json:"displayOrder"`
+    CreatedAt    time.Time          `json:"createdAt"`
+    UpdatedAt    time.Time          `json:"updatedAt"`
 }
 
 type Item struct {

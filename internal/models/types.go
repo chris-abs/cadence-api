@@ -7,15 +7,14 @@ type ProfileID string
 
 type MediaID string
 type SourceID string
-
 type ChoreID string
 type ChoreInstanceID string
-
 type EventID string
 
 type WorkspaceID string
 type ContainerID string
 type ItemID string
+type ItemImageID string
 type TagID string
 
 func NewFamilyID() FamilyID {
@@ -56,6 +55,10 @@ func NewContainerID() ContainerID {
 
 func NewItemID() ItemID {
     return ItemID(uuid.Must(uuid.NewV7()).String())
+}
+
+func NewItemImageID() ItemImageID {
+    return ItemImageID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewTagID() TagID {
@@ -112,6 +115,11 @@ func (id ItemID) IsValid() bool {
     return err == nil
 }
 
+func (id ItemImageID) IsValid() bool {
+    _, err := uuid.Parse(string(id))
+    return err == nil
+}
+
 func (id TagID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
@@ -154,6 +162,10 @@ func (id ContainerID) String() string {
 }
 
 func (id ItemID) String() string {
+    return string(id)
+}
+
+func (id ItemImageID) String() string {
     return string(id)
 }
 
