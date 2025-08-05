@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -15,7 +16,7 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateWorkspace(familyID int, profileID int, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
+func (s *Service) CreateWorkspace(familyID models.FamilyID, profileID models.ProfileID, req *CreateWorkspaceRequest) (*entities.Workspace, error) {
     workspace := &entities.Workspace{
         Name:        req.Name,
         Description: req.Description,
@@ -31,7 +32,7 @@ func (s *Service) CreateWorkspace(familyID int, profileID int, req *CreateWorksp
     return s.repo.GetByID(workspace.ID, familyID)
 }
 
-func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, error) {
+func (s *Service) GetWorkspaceByID(id models.WorkspaceID, familyID models.FamilyID) (*entities.Workspace, error) {
     workspace, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("error getting workspace: %v", err)
@@ -39,11 +40,11 @@ func (s *Service) GetWorkspaceByID(id int, familyID int) (*entities.Workspace, e
     return workspace, nil
 }
 
-func (s *Service) GetWorkspacesByFamilyID(familyID int, profileID int) ([]*entities.Workspace, error) {
+func (s *Service) GetWorkspacesByFamilyID(familyID models.FamilyID, profileID models.ProfileID) ([]*entities.Workspace, error) {
     return s.repo.GetByFamilyID(familyID, profileID)
 }
 
-func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequest) (*entities.Workspace, error) {
+func (s *Service) UpdateWorkspace(id models.WorkspaceID, familyID models.FamilyID, req *UpdateWorkspaceRequest) (*entities.Workspace, error) {
     workspace, err := s.repo.GetByID(id, familyID)
     if err != nil {
         return nil, fmt.Errorf("workspace not found: %v", err)
@@ -66,14 +67,14 @@ func (s *Service) UpdateWorkspace(id int, familyID int, req *UpdateWorkspaceRequ
     return s.repo.GetByID(workspace.ID, familyID)
 }
 
-func (s *Service) DeleteWorkspace(id int, familyID int, deletedBy int) error {
+func (s *Service) DeleteWorkspace(id models.WorkspaceID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     if err := s.repo.Delete(id, familyID, deletedBy); err != nil {
         return fmt.Errorf("failed to delete workspace: %v", err)
     }
     return nil
 }
 
-func (s *Service) RestoreWorkspace(id int, familyID int) error {
+func (s *Service) RestoreWorkspace(id models.WorkspaceID, familyID models.FamilyID) error {
     if err := s.repo.RestoreDeleted(id, familyID); err != nil {
         return fmt.Errorf("failed to restore workspace: %v", err)
     }
