@@ -24,16 +24,16 @@ func InitStorageSchema(db *sql.DB) error {
 func createWorkspaceTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS workspace (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         description TEXT,
-        profile_id INTEGER REFERENCES profile(id) ON DELETE CASCADE,
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
+        profile_id VARCHAR(36) REFERENCES profile(id) ON DELETE CASCADE,
+        family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_workspace_profile ON workspace(profile_id);
@@ -51,21 +51,21 @@ func createWorkspaceTable(db *sql.DB) error {
 func createContainerTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS container (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(50),
         description TEXT NOT NULL DEFAULT '',
         qr_code VARCHAR(100) UNIQUE,           
         qr_code_image TEXT,             
         number INTEGER,         
         location VARCHAR(50),
-        profile_id INTEGER REFERENCES profile(id) NOT NULL,
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
-        workspace_id INTEGER REFERENCES workspace(id),
+        profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,
+        family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+        workspace_id VARCHAR(36) REFERENCES workspace(id),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_container_qr_code ON container(qr_code);
@@ -86,17 +86,17 @@ func createContainerTable(db *sql.DB) error {
 func createItemTables(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS tag (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(50),
         description TEXT NOT NULL DEFAULT '',
         colour TEXT,
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
-        profile_id INTEGER REFERENCES profile(id) NOT NULL,
+        family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+        profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_tag_family ON tag(family_id);
@@ -108,39 +108,39 @@ func createItemTables(db *sql.DB) error {
     CREATE INDEX IF NOT EXISTS idx_tag_family_deleted ON tag(family_id, is_deleted);
 
     CREATE TABLE IF NOT EXISTS item (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         name VARCHAR(100),
         description TEXT,
         quantity INTEGER,
-        container_id INTEGER REFERENCES container(id) ON DELETE CASCADE NULL,
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
-        profile_id INTEGER REFERENCES profile(id) NOT NULL,
+        container_id VARCHAR(36) REFERENCES container(id) ON DELETE CASCADE NULL,
+        family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+        profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE TABLE IF NOT EXISTS item_image (
-        id SERIAL PRIMARY KEY,
-        item_id INTEGER NOT NULL REFERENCES item(id) ON DELETE CASCADE,
+        id VARCHAR(36) PRIMARY KEY,
+        item_id VARCHAR(36) NOT NULL REFERENCES item(id) ON DELETE CASCADE,
         url TEXT NOT NULL,
         display_order INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE TABLE IF NOT EXISTS item_tag (
-        item_id INTEGER REFERENCES item(id) ON DELETE CASCADE,
-        tag_id INTEGER REFERENCES tag(id) ON DELETE CASCADE,
+        item_id VARCHAR(36) REFERENCES item(id) ON DELETE CASCADE,
+        tag_id VARCHAR(36) REFERENCES tag(id) ON DELETE CASCADE,
         PRIMARY KEY (item_id, tag_id),
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)
     );
 
     CREATE INDEX IF NOT EXISTS idx_item_container ON item(container_id);
