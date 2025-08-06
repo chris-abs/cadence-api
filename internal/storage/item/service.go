@@ -23,7 +23,7 @@ func (s *Service) CreateItem(familyID models.FamilyID, profileID models.ProfileI
 
     item := &entities.Item{
         Name:        req.Name,
-        Description: req.Description,
+        Description: req.Description, 
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
         ProfileID:   profileID,
