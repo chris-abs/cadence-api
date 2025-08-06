@@ -31,7 +31,7 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
             location, profile_id, family_id, workspace_id, created_at, updated_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-    err = tx.QueryRow(
+    _, err = tx.Exec(
         containerQuery,
         container.ID,
         container.Name,
@@ -45,9 +45,9 @@ func (r *Repository) Create(container *entities.Container, itemRequests []Create
         container.WorkspaceID,
         container.CreatedAt,
         container.UpdatedAt,
-    ).Scan()
+    )
 
-    if err != nil && err != sql.ErrNoRows {
+    if err != nil {
         return fmt.Errorf("error creating container: %v", err)
     }
 
