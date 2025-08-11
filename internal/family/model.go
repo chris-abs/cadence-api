@@ -26,10 +26,11 @@ type FamilySettings struct {
 }
 
 type RegisterRequest struct {
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	FamilyName string `json:"familyName"`
-	OwnerName  string `json:"ownerName"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	FamilyName  string `json:"familyName"`
+	OwnerName   string `json:"ownerName"`
+	OwnerColour string `json:"ownerColour"`
 }
 
 type LoginRequest struct {

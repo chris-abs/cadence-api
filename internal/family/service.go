@@ -89,6 +89,7 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
             Name:  req.OwnerName,
             Role:  models.RoleParent, 
             Pin:   "",
+            Colour: req.OwnerColour,
         })
         if err != nil {
             return nil, fmt.Errorf("failed to create owner profile: %v", err)
