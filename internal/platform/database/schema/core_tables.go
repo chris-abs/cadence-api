@@ -36,7 +36,7 @@ func createFamilyAccountTable(db *sql.DB) error {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by VARCHAR(36) REFERENCES profile(id)
+        deleted_by VARCHAR(36) 
     );
     
     CREATE INDEX IF NOT EXISTS idx_family_account_email ON family_account(email);
@@ -48,7 +48,7 @@ func createFamilyAccountTable(db *sql.DB) error {
 func createProfileTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS profile (
-        id VARCHAR(36) PRIMARY KEY,  -- Changed from SERIAL to VARCHAR(36) for UUID
+        id VARCHAR(36) PRIMARY KEY,
         family_id VARCHAR(36) REFERENCES family_account(id) ON DELETE CASCADE, 
         name VARCHAR(100) NOT NULL,
         role profile_role NOT NULL,
@@ -61,7 +61,7 @@ func createProfileTable(db *sql.DB) error {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by VARCHAR(36) REFERENCES profile(id) 
+        deleted_by VARCHAR(36) 
     );
     
     CREATE INDEX IF NOT EXISTS idx_profile_family ON profile(family_id);

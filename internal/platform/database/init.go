@@ -72,17 +72,19 @@ func (db *PostgresDB) initializeSchema() error {
 		return fmt.Errorf("chores module schema initialization failed: %v", err)
 	}
 	
-	if err := schema.InitMealsSchema(db.DB); err != nil {
-		return fmt.Errorf("meals module schema initialization failed: %v", err)
-	}
+	//TODO: circular dependency - will need to adjust these schemas when it comes to creating module
+	// if err := schema.InitMealsSchema(db.DB); err != nil {
+	// 	return fmt.Errorf("meals module schema initialization failed: %v", err)
+	// }
 
 	if err := schema.InitMediaSchema(db.DB); err != nil {
 		return fmt.Errorf("media module schema initialization failed: %v", err)
 	}
 	
-	if err := schema.InitServicesSchema(db.DB); err != nil {
-		return fmt.Errorf("services module schema initialization failed: %v", err)
-	}
+	//TODO: circular dependency - will need to adjust these schemas when it comes to creating module
+	// if err := schema.InitServicesSchema(db.DB); err != nil {
+	// 	return fmt.Errorf("services module schema initialization failed: %v", err)
+	// }
 
 	return nil
 }
