@@ -85,12 +85,14 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
 
     var profiles []models.Profile
     if s.profileService != nil {
-        ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
+        createProfileReq := &profile.CreateProfileRequest{
             Name:  req.OwnerName,
             Role:  models.RoleParent, 
             Pin:   "",
             Colour: req.OwnerColour,
-        })
+        }
+        
+        ownerProfile, err := s.profileService.CreateProfile(family.ID, createProfileReq)
         if err != nil {
             return nil, fmt.Errorf("failed to create owner profile: %v", err)
         }
