@@ -385,24 +385,23 @@ func (r *Repository) Update(item *entities.Item) error {
 func (r *Repository) AddItemImage(itemID models.ItemID, familyID models.FamilyID, url string, displayOrder int) error {
     imageID := models.NewItemImageID()
     
-    query := `
-        INSERT INTO item_image (id, item_id, url, display_order, created_at, updated_at)
-        SELECT $1, $2, $3, $4, $5, $6
-        FROM item
-        WHERE id = $2 AND family_id = $7`
+    checkQuery := `SELECT 1 FROM item WHERE id = $1 AND family_id = $2`
+    var exists int
+    err := r.db.QueryRow(checkQuery, itemID, familyID).Scan(&exists)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return fmt.Errorf("item not found or access denied")
+        }
+        return fmt.Errorf("error checking item: %v", err)
+    }
     
-    result, err := r.db.Exec(query, imageID, itemID, url, displayOrder, time.Now().UTC(), time.Now().UTC(), familyID)
+    insertQuery := `
+        INSERT INTO item_image (id, item_id, url, display_order, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)`
+    
+    _, err = r.db.Exec(insertQuery, imageID, itemID, url, displayOrder, time.Now().UTC(), time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error adding item image: %v", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        return fmt.Errorf("error checking result: %v", err)
-    }
-
-    if rows == 0 {
-        return fmt.Errorf("item not found or access denied")
     }
     
     return nil
