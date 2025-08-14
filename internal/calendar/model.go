@@ -8,47 +8,47 @@ import (
 )
 
 type GetEventsParams struct {
-    StartTime     time.Time `schema:"startTime"`
-    EndTime       time.Time `schema:"endTime"`
-    AssigneeIDs   []int     `schema:"assigneeIds,omitempty"` 
-    SourceModules []string  `schema:"sourceModules,omitempty"`
-    SourceID      *int      `schema:"sourceId,omitempty"`
+    StartTime     time.Time          `schema:"startTime"`
+    EndTime       time.Time          `schema:"endTime"`
+    AssigneeIDs   []models.ProfileID `schema:"assigneeIds,omitempty"` 
+    SourceModules []string           `schema:"sourceModules,omitempty"`
+    SourceID      *string            `schema:"sourceId,omitempty"`
 }
 
 type CreateEventRequest struct {
-    Title       string        `json:"title" validate:"required"`
-    Description *string       `json:"description"`
-    Location    *string       `json:"location"`
-    StartTime   time.Time     `json:"startTime" validate:"required"`
-    EndTime     time.Time     `json:"endTime" validate:"required,gtfield=StartTime"`
-    AllDay      bool          `json:"allDay"`
-    AssigneeID  *int          `json:"assigneeId"`
-    RepeatType  *string       `json:"repeatType,omitempty"`
-    RepeatUntil  *time.Time   `json:"repeatUntil,omitempty"`
+    Title       string             `json:"title" validate:"required"`
+    Description *string            `json:"description"`
+    Location    *string            `json:"location"`
+    StartTime   time.Time          `json:"startTime" validate:"required"`
+    EndTime     time.Time          `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay      bool               `json:"allDay"`
+    AssigneeID  *models.ProfileID  `json:"assigneeId"`
+    RepeatType  *string            `json:"repeatType,omitempty"`
+    RepeatUntil  *time.Time        `json:"repeatUntil,omitempty"`
 }
 
 type UpdateEventRequest struct {
-    Title       string    `json:"title" validate:"required"`
-    Description *string   `json:"description"`
-    Location    *string   `json:"location"`
-    StartTime   time.Time `json:"startTime" validate:"required"`
-    EndTime     time.Time `json:"endTime" validate:"required,gtfield=StartTime"`
-    AllDay      bool      `json:"allDay"`
-    AssigneeID  *int      `json:"assigneeId"`
-    UpdatedBy   int       `json:"updatedBy" validate:"required"`
+    Title       string             `json:"title" validate:"required"`
+    Description *string            `json:"description"`
+    Location    *string            `json:"location"`
+    StartTime   time.Time          `json:"startTime" validate:"required"`
+    EndTime     time.Time          `json:"endTime" validate:"required,gtfield=StartTime"`
+    AllDay      bool               `json:"allDay"`
+    AssigneeID  *models.ProfileID  `json:"assigneeId"`
+    UpdatedBy   models.ProfileID   `json:"updatedBy" validate:"required"`
 }
 
 type UpdateRecurringInstanceRequest struct {
-    EventID     int        `json:"eventId" validate:"required"`
-    InstanceDate time.Time `json:"instanceDate" validate:"required"`
-    UpdatedBy   int        `json:"updatedBy" validate:"required"`
-    Title       *string    `json:"title,omitempty"`
-    Description *string    `json:"description,omitempty"`
-    Location    *string    `json:"location,omitempty"`
-    StartTime   *time.Time `json:"startTime,omitempty"`
-    EndTime     *time.Time `json:"endTime,omitempty"`
-    AllDay      *bool      `json:"allDay,omitempty"`
-    AssigneeID  *int       `json:"assigneeId,omitempty"`
+    EventID     models.EventID     `json:"eventId" validate:"required"`
+    InstanceDate time.Time         `json:"instanceDate" validate:"required"`
+    UpdatedBy   models.ProfileID   `json:"updatedBy" validate:"required"`
+    Title       *string            `json:"title,omitempty"`
+    Description *string            `json:"description,omitempty"`
+    Location    *string            `json:"location,omitempty"`
+    StartTime   *time.Time         `json:"startTime,omitempty"`
+    EndTime     *time.Time         `json:"endTime,omitempty"`
+    AllDay      *bool              `json:"allDay,omitempty"`
+    AssigneeID  *models.ProfileID  `json:"assigneeId,omitempty"`
 }
 
 type PaginatedEvents struct {
@@ -57,37 +57,37 @@ type PaginatedEvents struct {
 }
 
 type CalendarResponse struct {
-    Events   []*CalendarEventDTO    `json:"events"`
-    Profiles map[int]*models.Profile `json:"profiles"`
+    Events   []*CalendarEventDTO                  `json:"events"`
+    Profiles map[models.ProfileID]*models.Profile `json:"profiles"`
 }
 
 type CalendarEventDTO struct {
-    ID                int                       `json:"id"`
-    Title             string                    `json:"title"`
-    Description       *string                   `json:"description,omitempty"`
-    Location          *string                   `json:"location,omitempty"`
-    StartTime         time.Time                 `json:"startTime"`
-    EndTime           time.Time                 `json:"endTime"`
-    AllDay            bool                      `json:"allDay"`
-    AssigneeID        *int                      `json:"assigneeId,omitempty"`
-    SourceModule      string                    `json:"sourceModule"`
-    SourceID          *int                      `json:"sourceId,omitempty"`
-    FamilyID          int                       `json:"familyId"`
-    IsRecurring       bool                      `json:"isRecurring"`
-    RecurrenceType    *entities.RecurrenceType  `json:"recurrenceType,omitempty"`
-    RecurrenceEndTime *time.Time                `json:"recurrenceEndTime,omitempty"`
-    IsException       bool                      `json:"isException"`
-    ParentEventID     *int                      `json:"parentEventId,omitempty"`
-    InstanceDate      *time.Time                `json:"instanceDate,omitempty"`
-    CreatedAt         time.Time                 `json:"createdAt"`
-    UpdatedAt         time.Time                 `json:"updatedAt"`
-    IsDeleted         bool                      `json:"isDeleted"`
-    DeletedAt         *time.Time                `json:"deletedAt,omitempty"`
-    DeletedBy         *int                      `json:"deletedBy,omitempty"`
+    ID                models.EventID           `json:"id"`
+    Title             string                   `json:"title"`
+    Description       *string                  `json:"description,omitempty"`
+    Location          *string                  `json:"location,omitempty"`
+    StartTime         time.Time                `json:"startTime"`
+    EndTime           time.Time                `json:"endTime"`
+    AllDay            bool                     `json:"allDay"`
+    AssigneeID        *models.ProfileID        `json:"assigneeId,omitempty"`
+    SourceModule      string                   `json:"sourceModule"`
+    SourceID          *string                  `json:"sourceId,omitempty"`
+    FamilyID          models.FamilyID          `json:"familyId"`
+    IsRecurring       bool                     `json:"isRecurring"`
+    RecurrenceType    *entities.RecurrenceType `json:"recurrenceType,omitempty"`
+    RecurrenceEndTime *time.Time               `json:"recurrenceEndTime,omitempty"`
+    IsException       bool                     `json:"isException"`
+    ParentEventID     *models.EventID          `json:"parentEventId,omitempty"`
+    InstanceDate      *time.Time               `json:"instanceDate,omitempty"`
+    CreatedAt         time.Time                `json:"createdAt"`
+    UpdatedAt         time.Time                `json:"updatedAt"`
+    IsDeleted         bool                     `json:"isDeleted"`
+    DeletedAt         *time.Time               `json:"deletedAt,omitempty"`
+    DeletedBy         *models.ProfileID        `json:"deletedBy,omitempty"`
 }
 
 func NormalizeEventsResponse(events []*entities.Event) *CalendarResponse {
-    profiles := make(map[int]*models.Profile)
+    profiles := make(map[models.ProfileID]*models.Profile)
     eventDTOs := make([]*CalendarEventDTO, len(events))
     
     for i, event := range events {

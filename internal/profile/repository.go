@@ -17,14 +17,17 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(profile *models.Profile) error {
+    profile.ID = models.NewProfileID()
+    
     query := `
         INSERT INTO profile (
-            family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id, created_at, updated_at`
+            id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING created_at, updated_at`
 
     err := r.db.QueryRow(
         query,
+        profile.ID,
         profile.FamilyID,
         profile.Name,
         profile.Role,
@@ -35,7 +38,7 @@ func (r *Repository) Create(profile *models.Profile) error {
         profile.IsOwner,
         time.Now().UTC(),
         time.Now().UTC(),
-    ).Scan(&profile.ID, &profile.CreatedAt, &profile.UpdatedAt)
+    ).Scan(&profile.CreatedAt, &profile.UpdatedAt)
 
     if err != nil {
         return fmt.Errorf("error creating profile: %v", err)
@@ -44,7 +47,7 @@ func (r *Repository) Create(profile *models.Profile) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int) (*models.Profile, error) {
+func (r *Repository) GetByID(id models.ProfileID) (*models.Profile, error) {
     query := `
         SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
@@ -77,7 +80,7 @@ func (r *Repository) GetByID(id int) (*models.Profile, error) {
     return profile, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*models.Profile, error) {
+func (r *Repository) GetByFamilyID(familyID models.FamilyID) ([]*models.Profile, error) {
     query := `
         SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
         FROM profile
@@ -165,7 +168,7 @@ func (r *Repository) Update(profile *models.Profile) error {
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.ProfileID, familyID models.FamilyID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE profile 
 		SET is_deleted = true, deleted_at = $3, deleted_by = $4, updated_at = $3
@@ -188,7 +191,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
 	return nil
 }
 
-func (r *Repository) Restore(id int, familyID int) error {
+func (r *Repository) Restore(id models.ProfileID, familyID models.FamilyID) error {
 	query := `
 		UPDATE profile
 		SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3
@@ -211,7 +214,7 @@ func (r *Repository) Restore(id int, familyID int) error {
 	return nil
 }
 
-func (r *Repository) GetOwnerProfile(familyID int) (*models.Profile, error) {
+func (r *Repository) GetOwnerProfile(familyID models.FamilyID) (*models.Profile, error) {
 	query := `
 		SELECT id, family_id, name, role, pin, image_url, colour, timezone_name, is_owner, created_at, updated_at
 		FROM profile

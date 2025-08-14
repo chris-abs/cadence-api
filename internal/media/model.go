@@ -1,6 +1,9 @@
 package media
 
-import "github.com/chrisabs/cadence/internal/media/entities"
+import (
+	"github.com/chrisabs/cadence/internal/media/entities"
+	"github.com/chrisabs/cadence/internal/models"
+)
 
 type CreateMediaRequest struct {
 	Name        string                `json:"name"`
@@ -9,7 +12,7 @@ type CreateMediaRequest struct {
 	ReleaseYear int                   `json:"releaseYear"`
 	Runtime     int                   `json:"runtime"`
 	PosterURL   string                `json:"posterUrl"`
-	SourceIDs   []int                 `json:"sourceIds"`
+	SourceIDs   []models.SourceID     `json:"sourceIds"`
 	WatchWith   entities.WatchWith    `json:"watchWith"`
 	Status      entities.Status       `json:"status"`
 	Priority    entities.Priority     `json:"priority"`
@@ -23,7 +26,7 @@ type UpdateMediaRequest struct {
 	ReleaseYear int                   `json:"releaseYear"`
 	Runtime     int                   `json:"runtime"`
 	PosterURL   string                `json:"posterUrl"`
-	SourceIDs   []int                 `json:"sourceIds"`
+	SourceIDs   []models.SourceID     `json:"sourceIds"`
 	WatchWith   entities.WatchWith    `json:"watchWith"`
 	Status      entities.Status       `json:"status"`
 	Priority    entities.Priority     `json:"priority"`
@@ -36,17 +39,16 @@ type UpdateMediaStatusRequest struct {
 
 type MediaSearchRequest struct {
 	Query     string                `json:"query"`
-	ProfileID *int                  `json:"profileId,omitempty"` 
+	ProfileID *models.ProfileID     `json:"profileId,omitempty"` 
 	Type      entities.MediaType    `json:"type"`
 	Genre     string                `json:"genre"`
-	SourceID  int                   `json:"sourceId"`
+	SourceID  models.SourceID       `json:"sourceId"`
 	WatchWith entities.WatchWith    `json:"watchWith"`
 	Status    entities.Status       `json:"status"`
 	Priority  entities.Priority     `json:"priority"`
 	Limit     int                   `json:"limit"`
 	Offset    int                   `json:"offset"`
 }
-
 
 type MediaSearchResponse struct {
 	Media   []entities.Media `json:"media"`

@@ -1,12 +1,12 @@
 package models
 
 type FamilyContext struct {
-	FamilyID int `json:"familyId"`
+	FamilyID FamilyID `json:"familyId"`
 }
 
 type ProfileContext struct {
-	FamilyID  int         `json:"familyId"`
-	ProfileID int         `json:"profileId"`
+	FamilyID  FamilyID    `json:"familyId"`
+	ProfileID ProfileID   `json:"profileId"`
 	Role      ProfileRole `json:"role"`
 	IsOwner   bool        `json:"isOwner"`
 }

@@ -26,7 +26,7 @@ func InitMealsSchema(db *sql.DB) error {
 func createRecipeTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS recipe (
-        id SERIAL PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY, 
         name VARCHAR(255) NOT NULL,
         description TEXT,
         instructions TEXT,
@@ -34,14 +34,14 @@ func createRecipeTable(db *sql.DB) error {
         cook_time INTEGER,
         serving_size INTEGER,
         image_url TEXT,
-        creator_id INTEGER REFERENCES profile(id),
-        family_id INTEGER REFERENCES family_account(id) NOT NULL,
+        creator_id VARCHAR(36), 
+        family_id VARCHAR(36), 
         ingredients JSONB NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) 
     );
     
     CREATE INDEX IF NOT EXISTS idx_recipe_family ON recipe(family_id);

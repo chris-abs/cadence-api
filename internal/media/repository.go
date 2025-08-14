@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/media/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Repository struct {
@@ -18,13 +19,15 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(profileID int, familyID int, req *CreateMediaRequest) (*entities.Media, error) {
+func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID, req *CreateMediaRequest) (*entities.Media, error) {
+	mediaID := models.NewMediaID()
+	
 	query := `
 		INSERT INTO media (
-			name, type, genre, release_year, runtime, poster_url, source_ids,
+			id, name, type, genre, release_year, runtime, poster_url, source_ids,
 			watch_with, status, priority, notes, profile_id, family_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		RETURNING id`
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		RETURNING created_at, updated_at`
 
 	sourceIDsJSON, err := json.Marshal(req.SourceIDs)
 	if err != nil {
@@ -32,14 +35,14 @@ func (r *Repository) Create(profileID int, familyID int, req *CreateMediaRequest
 	}
 
 	now := time.Now().UTC()
-	var mediaID int
+	var createdAt, updatedAt time.Time
 
 	err = r.db.QueryRow(
 		query,
-		req.Name, req.Type, req.Genre, req.ReleaseYear, req.Runtime, req.PosterURL,
+		mediaID, req.Name, req.Type, req.Genre, req.ReleaseYear, req.Runtime, req.PosterURL,
 		sourceIDsJSON, req.WatchWith, req.Status, req.Priority, req.Notes,
 		profileID, familyID, now, now,
-	).Scan(&mediaID)
+	).Scan(&createdAt, &updatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating media: %v", err)
@@ -48,7 +51,7 @@ func (r *Repository) Create(profileID int, familyID int, req *CreateMediaRequest
 	return r.GetByID(mediaID, familyID)
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*entities.Media, error) {
+func (r *Repository) GetByID(id models.MediaID, familyID models.FamilyID) (*entities.Media, error) {
 	query := `
 		SELECT m.id, m.name, m.type, m.genre, m.release_year, m.runtime, m.poster_url,
 			   m.source_ids, m.watch_with, m.status, m.priority, m.notes,
@@ -84,26 +87,10 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Media, error) {
 	return media, nil
 }
 
-func (r *Repository) Search(familyID int, req *MediaSearchRequest) ([]entities.Media, int, error) {
+func (r *Repository) Search(familyID models.FamilyID, req *MediaSearchRequest) ([]entities.Media, int, error) {
 	profileID := req.ProfileID
 	if profileID == nil {
 		return nil, 0, fmt.Errorf("profile ID is required")
-	}
-
-	quickCheckQuery := `
-		SELECT EXISTS (
-			SELECT 1 FROM media 
-			WHERE family_id = $1 AND profile_id = $2 AND is_deleted = false
-		)`
-	
-	var hasResults bool
-	err := r.db.QueryRow(quickCheckQuery, familyID, *profileID).Scan(&hasResults)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if !hasResults {
-		return []entities.Media{}, 0, nil
 	}
 
 	conditions := []string{"m.family_id = $1", "m.profile_id = $2", "m.is_deleted = false"}
@@ -135,9 +122,9 @@ func (r *Repository) Search(familyID int, req *MediaSearchRequest) ([]entities.M
 		argIndex++
 	}
 
-	if req.SourceID > 0 {
+	if req.SourceID != "" {
 		conditions = append(conditions, fmt.Sprintf("m.source_ids ? $%d", argIndex))
-		args = append(args, fmt.Sprintf("%d", req.SourceID))
+		args = append(args, string(req.SourceID))
 		argIndex++
 	}
 
@@ -163,9 +150,13 @@ func (r *Repository) Search(familyID int, req *MediaSearchRequest) ([]entities.M
 
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media m WHERE %s", whereClause)
 	var total int
-	err = r.db.QueryRow(countQuery, args...).Scan(&total)
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, err
+	}
+
+	if total == 0 {
+		return []entities.Media{}, 0, nil
 	}
 
 	limit := req.Limit
@@ -243,7 +234,7 @@ func (r *Repository) Search(familyID int, req *MediaSearchRequest) ([]entities.M
 	return mediaList, total, nil
 }
 
-func (r *Repository) Update(id int, familyID int, profileID int, req *UpdateMediaRequest) (*entities.Media, error) {
+func (r *Repository) Update(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMediaRequest) (*entities.Media, error) {
 	sourceIDsJSON, err := json.Marshal(req.SourceIDs)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling source IDs: %v", err)
@@ -278,7 +269,7 @@ func (r *Repository) Update(id int, familyID int, profileID int, req *UpdateMedi
 	return r.GetByID(id, familyID)
 }
 
-func (r *Repository) UpdateStatus(id int, familyID int, profileID int, status entities.Status) error {
+func (r *Repository) UpdateStatus(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {
 	query := `
 		UPDATE media
 		SET status = $3, updated_at = $4
@@ -301,7 +292,7 @@ func (r *Repository) UpdateStatus(id int, familyID int, profileID int, status en
 	return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, profileID int, deletedBy int) error {
+func (r *Repository) Delete(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE media
 		SET is_deleted = true, deleted_at = $4, deleted_by = $5, updated_at = $4
@@ -324,7 +315,7 @@ func (r *Repository) Delete(id int, familyID int, profileID int, deletedBy int) 
 	return nil
 }
 
-func (r *Repository) GetStatusSummary(familyID int, profileID int) (*MediaStatusSummaryResponse, error) {
+func (r *Repository) GetStatusSummary(familyID models.FamilyID, profileID models.ProfileID) (*MediaStatusSummaryResponse, error) {
 	query := `
 		SELECT 
 			COUNT(CASE WHEN status = 'to_watch' THEN 1 END) as to_watch,
@@ -425,12 +416,12 @@ func (r *Repository) SeedSources() error {
 	}
 
 	query := `
-		INSERT INTO media_source (name, color, category, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)`
+		INSERT INTO media_source (id, name, color, category, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`
 
 	now := time.Now().UTC()
 	for _, source := range entities.DefaultSources {
-		_, err := r.db.Exec(query, source.Name, source.Color, source.Category, now, now)
+		_, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, now, now)
 		if err != nil {
 			return fmt.Errorf("error seeding source %s: %v", source.Name, err)
 		}

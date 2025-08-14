@@ -3,6 +3,8 @@ package recent
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Repository struct {
@@ -13,7 +15,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, error) {
+func (r *Repository) GetRecentEntities(familyID models.FamilyID, limit int) (*Response, error) {
     tx, err := r.db.Begin()
     if err != nil {
         return nil, fmt.Errorf("failed to begin transaction: %v", err)
@@ -25,6 +27,36 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
         Containers: EntityStats{Recent: make([]EntityPreview, 0)},
         Items:      EntityStats{Recent: make([]EntityPreview, 0)},
         Tags:       EntityStats{Recent: make([]EntityPreview, 0)},
+    }
+
+    workspaceCountQuery := `
+        SELECT COUNT(*) 
+        FROM workspace 
+        WHERE family_id = $1 AND is_deleted = false
+    `
+    if err := tx.QueryRow(workspaceCountQuery, familyID).Scan(&response.Workspaces.Total); err != nil {
+        return nil, fmt.Errorf("failed to get workspace count: %v", err)
+    }
+
+    workspaceQuery := `
+        SELECT id, name, created_at 
+        FROM workspace 
+        WHERE family_id = $1 AND is_deleted = false
+        ORDER BY created_at DESC 
+        LIMIT $2
+    `
+    workspaceRows, err := tx.Query(workspaceQuery, familyID, limit)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch recent workspaces: %v", err)
+    }
+    defer workspaceRows.Close()
+
+    for workspaceRows.Next() {
+        var preview EntityPreview
+        if err := workspaceRows.Scan(&preview.ID, &preview.Name, &preview.CreatedAt); err != nil {
+            return nil, fmt.Errorf("failed to scan workspace row: %v", err)
+        }
+        response.Workspaces.Recent = append(response.Workspaces.Recent, preview)
     }
 
     containerCountQuery := `
@@ -116,36 +148,6 @@ func (r *Repository) GetRecentEntities(familyID int, limit int) (*Response, erro
             return nil, fmt.Errorf("failed to scan tag row: %v", err)
         }
         response.Tags.Recent = append(response.Tags.Recent, preview)
-    }
-
-    workspaceCountQuery := `
-        SELECT COUNT(*) 
-        FROM workspace 
-        WHERE family_id = $1 AND is_deleted = false
-    `
-    if err := tx.QueryRow(workspaceCountQuery, familyID).Scan(&response.Workspaces.Total); err != nil {
-        return nil, fmt.Errorf("failed to get workspace count: %v", err)
-    }
-
-    workspaceQuery := `
-        SELECT id, name, created_at 
-        FROM workspace 
-        WHERE family_id = $1 AND is_deleted = false
-        ORDER BY created_at DESC 
-        LIMIT $2
-    `
-    workspaceRows, err := tx.Query(workspaceQuery, familyID, limit)
-    if err != nil {
-        return nil, fmt.Errorf("failed to fetch recent workspaces: %v", err)
-    }
-    defer workspaceRows.Close()
-
-    for workspaceRows.Next() {
-        var preview EntityPreview
-        if err := workspaceRows.Scan(&preview.ID, &preview.Name, &preview.CreatedAt); err != nil {
-            return nil, fmt.Errorf("failed to scan workspace row: %v", err)
-        }
-        response.Workspaces.Recent = append(response.Workspaces.Recent, preview)
     }
 
     if err := tx.Commit(); err != nil {

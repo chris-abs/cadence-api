@@ -3,13 +3,12 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
-	"time"
 
 	"github.com/skip2/go-qrcode"
 )
 
-func GenerateQRCode(containerID int) (string, string, error) {
-	qrString := fmt.Sprintf("STQRAGE-CONTAINER-%d-%d", containerID, time.Now().Unix())
+func GenerateQRCode(containerID string) (string, string, error) {
+	qrString := containerID
 
 	qr, err := qrcode.Encode(qrString, qrcode.Medium, 256)
 	if err != nil {

@@ -18,19 +18,22 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(family *FamilyAccount) error {
+	family.ID = models.NewFamilyID()
+	
 	query := `
-		INSERT INTO family_account (email, password, family_name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at, updated_at`
+		INSERT INTO family_account (id, email, password, family_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING created_at, updated_at`
 
 	err := r.db.QueryRow(
 		query,
+		family.ID,
 		family.Email,
 		family.Password,
 		family.FamilyName,
 		time.Now().UTC(),
 		time.Now().UTC(),
-	).Scan(&family.ID, &family.CreatedAt, &family.UpdatedAt)
+	).Scan(&family.CreatedAt, &family.UpdatedAt)
 
 	if err != nil {
 		return fmt.Errorf("error creating family account: %v", err)
@@ -66,7 +69,7 @@ func (r *Repository) CreateSettings(settings *FamilySettings) error {
 	return nil
 }
 
-func (r *Repository) GetByID(id int) (*FamilyAccount, error) {
+func (r *Repository) GetByID(id models.FamilyID) (*FamilyAccount, error) {
 	query := `
 		SELECT id, email, password, family_name, created_at, updated_at
 		FROM family_account
@@ -118,7 +121,7 @@ func (r *Repository) GetByEmail(email string) (*FamilyAccount, error) {
 	return family, nil
 }
 
-func (r *Repository) GetSettings(familyID int) (*FamilySettings, error) {
+func (r *Repository) GetSettings(familyID models.FamilyID) (*FamilySettings, error) {
 	query := `
 		SELECT family_id, modules, status, created_at, updated_at
 		FROM family_settings
@@ -213,7 +216,7 @@ func (r *Repository) UpdateSettings(settings *FamilySettings) error {
 	return nil
 }
 
-func (r *Repository) UpdateModule(familyID int, moduleID models.ModuleID, isEnabled bool) error {
+func (r *Repository) UpdateModule(familyID models.FamilyID, moduleID models.ModuleID, isEnabled bool) error {
 	settings, err := r.GetSettings(familyID)
 	if err != nil {
 		return err
@@ -238,7 +241,7 @@ func (r *Repository) UpdateModule(familyID int, moduleID models.ModuleID, isEnab
 	return r.UpdateSettings(settings)
 }
 
-func (r *Repository) Delete(id int, deletedBy int) error {
+func (r *Repository) Delete(id models.FamilyID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE family_account
 		SET is_deleted = true, deleted_at = $2, deleted_by = $3, updated_at = $2
@@ -261,7 +264,7 @@ func (r *Repository) Delete(id int, deletedBy int) error {
 	return nil
 }
 
-func (r *Repository) Restore(id int) error {
+func (r *Repository) Restore(id models.FamilyID) error {
 	query := `
 		UPDATE family_account
 		SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $2
@@ -284,7 +287,7 @@ func (r *Repository) Restore(id int) error {
 	return nil
 }
 
-func (r *Repository) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
+func (r *Repository) IsModuleEnabled(familyID models.FamilyID, moduleID models.ModuleID) (bool, error) {
 	settings, err := r.GetSettings(familyID)
 	if err != nil {
 		return false, err

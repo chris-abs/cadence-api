@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/chrisabs/cadence/internal/media/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Service struct {
@@ -14,7 +15,7 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateMedia(profileID int, familyID int, req *CreateMediaRequest) (*entities.Media, error) {
+func (s *Service) CreateMedia(profileID models.ProfileID, familyID models.FamilyID, req *CreateMediaRequest) (*entities.Media, error) {
 	if err := s.validateCreateMediaRequest(req); err != nil {
 		return nil, fmt.Errorf("validation failed: %v", err)
 	}
@@ -30,15 +31,15 @@ func (s *Service) CreateMedia(profileID int, familyID int, req *CreateMediaReque
 	return s.repo.Create(profileID, familyID, req)
 }
 
-func (s *Service) GetMediaByID(id int, familyID int) (*entities.Media, error) {
-	if id <= 0 {
+func (s *Service) GetMediaByID(id models.MediaID, familyID models.FamilyID) (*entities.Media, error) {
+	if id == "" {
 		return nil, fmt.Errorf("invalid media ID")
 	}
 
 	return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) SearchMedia(familyID int, currentProfileID int, req *MediaSearchRequest) (*MediaSearchResponse, error) {
+func (s *Service) SearchMedia(familyID models.FamilyID, currentProfileID models.ProfileID, req *MediaSearchRequest) (*MediaSearchResponse, error) {
 	if req.ProfileID == nil {
 		req.ProfileID = &currentProfileID
 	}
@@ -69,8 +70,8 @@ func (s *Service) SearchMedia(familyID int, currentProfileID int, req *MediaSear
 	}, nil
 }
 
-func (s *Service) UpdateMedia(id int, familyID int, profileID int, req *UpdateMediaRequest) (*entities.Media, error) {
-	if id <= 0 {
+func (s *Service) UpdateMedia(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMediaRequest) (*entities.Media, error) {
+	if id == "" {
 		return nil, fmt.Errorf("invalid media ID")
 	}
 
@@ -81,8 +82,8 @@ func (s *Service) UpdateMedia(id int, familyID int, profileID int, req *UpdateMe
 	return s.repo.Update(id, familyID, profileID, req)
 }
 
-func (s *Service) UpdateMediaStatus(id int, familyID int, profileID int, status entities.Status) error {
-	if id <= 0 {
+func (s *Service) UpdateMediaStatus(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {
+	if id == "" {
 		return fmt.Errorf("invalid media ID")
 	}
 
@@ -93,15 +94,15 @@ func (s *Service) UpdateMediaStatus(id int, familyID int, profileID int, status 
 	return s.repo.UpdateStatus(id, familyID, profileID, status)
 }
 
-func (s *Service) DeleteMedia(id int, familyID int, profileID int, deletedBy int) error {
-	if id <= 0 {
+func (s *Service) DeleteMedia(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
+	if id == "" {
 		return fmt.Errorf("invalid media ID")
 	}
 
 	return s.repo.Delete(id, familyID, profileID, deletedBy)
 }
 
-func (s *Service) GetStatusSummary(familyID int, profileID int) (*MediaStatusSummaryResponse, error) {
+func (s *Service) GetStatusSummary(familyID models.FamilyID, profileID models.ProfileID) (*MediaStatusSummaryResponse, error) {
 	return s.repo.GetStatusSummary(familyID, profileID)
 }
 

@@ -36,7 +36,6 @@ type OccurrenceData struct {
     IntervalUnit string         `json:"intervalUnit,omitempty"`
 }
 
-// TODO: change this shouldn't be needed? need to revisit.
 func (od *OccurrenceData) UnmarshalJSON(data []byte) error {
     type Alias OccurrenceData
     aux := &struct {
@@ -95,54 +94,54 @@ func (od *OccurrenceData) MarshalJSON() ([]byte, error) {
 }
 
 type Chore struct {
-    ID             int               `json:"id"`
-    Name           string            `json:"name"`
-    Description    string            `json:"description"`
-    CreatorID      int               `json:"creatorId"`
-    AssigneeID     int               `json:"assigneeId"`
-    FamilyID       int               `json:"familyId"`
-    Points         int               `json:"points"`
-    OccurrenceType OccurrenceType    `json:"occurrenceType"`
-    OccurrenceData OccurrenceData    `json:"occurrenceData"`
-    CreatedAt      time.Time         `json:"createdAt"`
-    UpdatedAt      time.Time         `json:"updatedAt"`
+    ID             models.ChoreID       `json:"id"`
+    Name           string               `json:"name"`
+    Description    string               `json:"description"`
+    CreatorID      models.ProfileID     `json:"creatorId"`
+    AssigneeID     models.ProfileID     `json:"assigneeId"`
+    FamilyID       models.FamilyID      `json:"familyId"`
+    Points         int                  `json:"points"`
+    OccurrenceType OccurrenceType       `json:"occurrenceType"`
+    OccurrenceData OccurrenceData       `json:"occurrenceData"`
+    CreatedAt      time.Time            `json:"createdAt"`
+    UpdatedAt      time.Time            `json:"updatedAt"`
     
-    Assignee      *models.Profile    `json:"assignee,omitempty"`
-    Creator       *models.Profile    `json:"creator,omitempty"`
-    Instances     []ChoreInstance    `json:"instances,omitempty"`
+    Assignee      *models.Profile       `json:"assignee,omitempty"`
+    Creator       *models.Profile       `json:"creator,omitempty"`
+    Instances     []ChoreInstance       `json:"instances,omitempty"`
 }
 
 type ChoreInstance struct {
-    ID              int            `json:"id"`
-    ChoreID         int            `json:"choreId"`
-    AssigneeID      int            `json:"assigneeId"`
-    FamilyID        int            `json:"familyId"`
-    DueDate         time.Time      `json:"dueDate"`
-    Status          ChoreStatus    `json:"status"`
-    CompletedAt     *time.Time     `json:"completedAt,omitempty"`
-    VerifiedBy      *int           `json:"verifiedBy,omitempty"`
-    VerifiedAt      *time.Time     `json:"verifiedAt,omitempty"`
-    RejectionReason string         `json:"rejectionReason,omitempty"`
-    Notes           string         `json:"notes"`
-    CreatedAt       time.Time      `json:"createdAt"`
-    UpdatedAt       time.Time      `json:"updatedAt"`
-    IsDeleted       bool           `json:"isDeleted"`
-    DeletedAt       *time.Time     `json:"deletedAt,omitempty"`
-    DeletedBy       *int           `json:"deletedBy,omitempty"`
+    ID              models.ChoreInstanceID `json:"id"`
+    ChoreID         models.ChoreID         `json:"choreId"`
+    AssigneeID      models.ProfileID       `json:"assigneeId"`
+    FamilyID        models.FamilyID        `json:"familyId"`
+    DueDate         time.Time              `json:"dueDate"`
+    Status          ChoreStatus            `json:"status"`
+    CompletedAt     *time.Time             `json:"completedAt,omitempty"`
+    VerifiedBy      *models.ProfileID      `json:"verifiedBy,omitempty"`
+    VerifiedAt      *time.Time             `json:"verifiedAt,omitempty"`
+    RejectionReason string                 `json:"rejectionReason,omitempty"`
+    Notes           string                 `json:"notes"`
+    CreatedAt       time.Time              `json:"createdAt"`
+    UpdatedAt       time.Time              `json:"updatedAt"`
+    IsDeleted       bool                   `json:"isDeleted"`
+    DeletedAt       *time.Time             `json:"deletedAt,omitempty"`
+    DeletedBy       *models.ProfileID      `json:"deletedBy,omitempty"`
     
-    Chore          *Chore          `json:"chore,omitempty"`
-    Assignee       *models.Profile `json:"assignee,omitempty"`
-    Verifier       *models.Profile `json:"verifier,omitempty"`
+    Chore          *Chore                  `json:"chore,omitempty"`
+    Assignee       *models.Profile         `json:"assignee,omitempty"`
+    Verifier       *models.Profile         `json:"verifier,omitempty"`
 }
 
 type DailyVerification struct {
-    Date          time.Time   `json:"date"`
-    AssigneeID    int         `json:"assigneeId"`
-    FamilyID      int         `json:"familyId"`
-    IsVerified    bool        `json:"isVerified"`
-    VerifiedBy    *int        `json:"verifiedBy,omitempty"`
-    VerifiedAt    *time.Time  `json:"verifiedAt,omitempty"`
-    Notes         string      `json:"notes"`
-    CreatedAt     time.Time   `json:"createdAt"`
-    UpdatedAt     time.Time   `json:"updatedAt"`
+    Date          time.Time            `json:"date"`
+    AssigneeID    models.ProfileID     `json:"assigneeId"`
+    FamilyID      models.FamilyID      `json:"familyId"`
+    IsVerified    bool                 `json:"isVerified"`
+    VerifiedBy    *models.ProfileID    `json:"verifiedBy,omitempty"`
+    VerifiedAt    *time.Time           `json:"verifiedAt,omitempty"`
+    Notes         string               `json:"notes"`
+    CreatedAt     time.Time            `json:"createdAt"`
+    UpdatedAt     time.Time            `json:"updatedAt"`
 }

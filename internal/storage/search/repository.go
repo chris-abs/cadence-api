@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -16,7 +17,7 @@ func NewRepository(db *sql.DB) *Repository {
     return &Repository{db: db}
 }
 
-func (r *Repository) Search(query string, familyID int) (*SearchResponse, error) {
+func (r *Repository) Search(query string, familyID models.FamilyID) (*SearchResponse, error) {
     sqlQuery := `
     WITH workspace_matches AS (
         SELECT 
@@ -224,7 +225,7 @@ func (r *Repository) Search(query string, familyID int) (*SearchResponse, error)
     return response, nil
 }
 
-func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSearchResults, error) {
+func (r *Repository) SearchWorkspaces(query string, familyID models.FamilyID) (WorkspaceSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
@@ -257,6 +258,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
                 w.id,
                 w.name,
                 w.description,
+                w.profile_id,
                 w.family_id,
                 w.created_at,
                 w.updated_at,
@@ -317,7 +319,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
             ) as containers
         FROM ranked_workspaces rw
         LEFT JOIN container c ON rw.id = c.workspace_id AND c.is_deleted = false
-        GROUP BY rw.id, rw.name, rw.description, rw.family_id, rw.created_at, rw.updated_at, rw.rank
+        GROUP BY rw.id, rw.name, rw.description, rw.profile_id, rw.family_id, rw.created_at, rw.updated_at, rw.rank
         ORDER BY rw.rank DESC
         LIMIT 50;`
 
@@ -336,6 +338,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
             &result.ID,
             &result.Name,
             &result.Description,
+            &result.ProfileID,
             &result.FamilyID,
             &result.CreatedAt,
             &result.UpdatedAt,
@@ -356,7 +359,7 @@ func (r *Repository) SearchWorkspaces(query string, familyID int) (WorkspaceSear
     return results, nil
 }
 
-func (r *Repository) SearchContainers(query string, familyID int) (ContainerSearchResults, error) {
+func (r *Repository) SearchContainers(query string, familyID models.FamilyID) (ContainerSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
@@ -394,6 +397,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
                 c.qr_code_image,
                 c.number,
                 c.location,
+                c.profile_id,
                 c.family_id,
                 c.workspace_id,
                 c.created_at,
@@ -478,6 +482,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
             &result.QRCodeImage,
             &result.Number,
             &result.Location,
+            &result.ProfileID,
             &result.FamilyID,
             &result.WorkspaceID,
             &result.CreatedAt,
@@ -501,7 +506,7 @@ func (r *Repository) SearchContainers(query string, familyID int) (ContainerSear
     return results, nil
 }
 
-func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults, error) {
+func (r *Repository) SearchItems(query string, familyID models.FamilyID) (ItemSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
@@ -540,6 +545,8 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
                 i.description,
                 i.quantity,
                 i.container_id,
+                i.profile_id,
+                i.family_id,
                 i.created_at,
                 i.updated_at,
                 (
@@ -578,10 +585,8 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
                     to_tsvector('english', i.name || ' ' || COALESCE(i.description, '')) @@ 
                     websearch_to_tsquery('english', $1)
                 )
-        )`
-
-    sqlQuery += `
-        , item_images AS (
+        ),
+        item_images AS (
             SELECT 
                 img.item_id,
                 jsonb_agg(
@@ -593,6 +598,7 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
                 ) as images
             FROM item_image img
             JOIN ranked_items ri ON img.item_id = ri.id
+            WHERE img.is_deleted = false
             GROUP BY img.item_id
         )
         SELECT 
@@ -601,14 +607,19 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
             i.description,
             i.quantity,
             i.container_id,
+            i.profile_id,
+            i.family_id,
             i.created_at,
             i.updated_at,
             i.rank,
-            jsonb_build_object(
-                'id', c.id,
-                'name', c.name,
-                'location', c.location,
-                'workspace_id', c.workspace_id
+            COALESCE(
+                jsonb_build_object(
+                    'id', c.id,
+                    'name', c.name,
+                    'location', c.location,
+                    'workspace_id', c.workspace_id
+                ),
+                NULL
             ) as container,
             COALESCE(
                 jsonb_agg(
@@ -627,7 +638,7 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
         LEFT JOIN tag t ON it.tag_id = t.id AND t.is_deleted = false
         LEFT JOIN item_images ii ON i.id = ii.item_id
         GROUP BY 
-            i.id, i.name, i.description, i.quantity, i.container_id, 
+            i.id, i.name, i.description, i.quantity, i.container_id, i.profile_id, i.family_id,
             i.created_at, i.updated_at, i.rank,
             c.id, c.name, c.location, c.workspace_id,
             ii.images
@@ -651,6 +662,8 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
             &result.Description,
             &result.Quantity,
             &result.ContainerID,
+            &result.ProfileID,
+            &result.FamilyID,
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
@@ -682,7 +695,7 @@ func (r *Repository) SearchItems(query string, familyID int) (ItemSearchResults,
     return results, nil
 }
 
-func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, error) {
+func (r *Repository) SearchTags(query string, familyID models.FamilyID) (TagSearchResults, error) {
     quickCheckQuery := `
         SELECT EXISTS (
             SELECT 1
@@ -715,6 +728,8 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
                 t.name,
                 t.colour,
                 t.description,
+                t.profile_id,
+                t.family_id,
                 t.created_at,
                 t.updated_at,
                 (
@@ -747,6 +762,8 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
             rt.name,
             rt.colour,
             rt.description,
+            rt.profile_id,
+            rt.family_id,
             rt.created_at,
             rt.updated_at,
             rt.rank,
@@ -768,7 +785,7 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
         FROM ranked_tags rt
         LEFT JOIN item_tag it ON rt.id = it.tag_id AND it.is_deleted = false
         LEFT JOIN item i ON it.item_id = i.id AND i.is_deleted = false
-        GROUP BY rt.id, rt.name, rt.colour, rt.description, rt.created_at, rt.updated_at, rt.rank
+        GROUP BY rt.id, rt.name, rt.colour, rt.description, rt.profile_id, rt.family_id, rt.created_at, rt.updated_at, rt.rank
         ORDER BY rt.rank DESC
         LIMIT 50;`
 
@@ -788,6 +805,8 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
             &result.Name,
             &result.Colour,
             &result.Description,
+            &result.ProfileID,
+            &result.FamilyID,
             &result.CreatedAt,
             &result.UpdatedAt,
             &result.Rank,
@@ -807,17 +826,22 @@ func (r *Repository) SearchTags(query string, familyID int) (TagSearchResults, e
     return results, nil
 }
 
-func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
+func (r *Repository) FindContainerByQR(qrCode string, familyID models.FamilyID) (*entities.Container, error) {
     query := `
         SELECT 
-            c.*,
-            jsonb_build_object(
-                'id', w.id,
-                'name', w.name,
-                'description', w.description,
-                'familyId', w.family_id,
-                'createdAt', w.created_at,
-                'updatedAt', w.updated_at
+            c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number,
+            c.location, c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
+            COALESCE(
+                jsonb_build_object(
+                    'id', w.id,
+                    'name', w.name,
+                    'description', w.description,
+                    'profileId', w.profile_id,
+                    'familyId', w.family_id,
+                    'createdAt', w.created_at,
+                    'updatedAt', w.updated_at
+                ),
+                NULL
             ) as workspace
         FROM container c
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.is_deleted = false
@@ -830,6 +854,7 @@ func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.C
    err := r.db.QueryRow(query, qrCode, familyID).Scan(
        &container.ID,
        &container.Name,
+       &container.Description,
        &container.QRCode,
        &container.QRCodeImage,
        &container.Number,
@@ -857,4 +882,3 @@ func (r *Repository) FindContainerByQR(qrCode string, familyID int) (*entities.C
 
    return container, nil
 }
-       

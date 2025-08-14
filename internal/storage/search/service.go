@@ -3,6 +3,7 @@ package search
 import (
 	"fmt"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -16,7 +17,7 @@ func NewService(repo *Repository) *Service {
     }
 }
 
-func (s *Service) Search(query string, familyID int) (*SearchResponse, error) {
+func (s *Service) Search(query string, familyID models.FamilyID) (*SearchResponse, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
@@ -29,7 +30,7 @@ func (s *Service) Search(query string, familyID int) (*SearchResponse, error) {
     return results, nil
 }
 
-func (s *Service) SearchWorkspaces(query string, familyID int) (WorkspaceSearchResults, error) {
+func (s *Service) SearchWorkspaces(query string, familyID models.FamilyID) (WorkspaceSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
@@ -42,7 +43,7 @@ func (s *Service) SearchWorkspaces(query string, familyID int) (WorkspaceSearchR
     return results, nil
 }
 
-func (s *Service) SearchContainers(query string, familyID int) (ContainerSearchResults, error) {
+func (s *Service) SearchContainers(query string, familyID models.FamilyID) (ContainerSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
@@ -55,7 +56,7 @@ func (s *Service) SearchContainers(query string, familyID int) (ContainerSearchR
     return results, nil
 }
 
-func (s *Service) SearchItems(query string, familyID int) (ItemSearchResults, error) {
+func (s *Service) SearchItems(query string, familyID models.FamilyID) (ItemSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
@@ -68,7 +69,7 @@ func (s *Service) SearchItems(query string, familyID int) (ItemSearchResults, er
     return results, nil
 }
 
-func (s *Service) SearchTags(query string, familyID int) (TagSearchResults, error) {
+func (s *Service) SearchTags(query string, familyID models.FamilyID) (TagSearchResults, error) {
     if query == "" {
         return nil, fmt.Errorf("search query cannot be empty")
     }
@@ -81,7 +82,7 @@ func (s *Service) SearchTags(query string, familyID int) (TagSearchResults, erro
     return results, nil
 }
 
-func (s *Service) FindContainerByQR(qrCode string, familyID int) (*entities.Container, error) {
+func (s *Service) FindContainerByQR(qrCode string, familyID models.FamilyID) (*entities.Container, error) {
     if qrCode == "" {
         return nil, fmt.Errorf("QR code cannot be empty")
     }
