@@ -8,7 +8,7 @@ import (
 	"github.com/chrisabs/cadence/internal/chores"
 	"github.com/chrisabs/cadence/internal/config"
 	"github.com/chrisabs/cadence/internal/family"
-	"github.com/chrisabs/cadence/internal/media"
+	"github.com/chrisabs/cadence/internal/media/material"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/platform/database"
 	"github.com/chrisabs/cadence/internal/profile"
