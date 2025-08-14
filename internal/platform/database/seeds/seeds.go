@@ -23,7 +23,7 @@ func NewManager(db *sql.DB) *Manager {
 			{
 				ID:      "001_media_sources",
 				Enabled: false, 
-				Run:     SeedMediaSources,
+				Run:     nil,
 			},
 		},
 	}
