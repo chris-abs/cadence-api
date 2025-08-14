@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/chores/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type CalendarService interface {
-	CreateEvent(sourceModule string, sourceID int, title, description string, startTime, endTime time.Time, assigneeID, familyID int) error
-	UpdateEvent(sourceModule string, sourceID int, title, description string, startTime, endTime time.Time, assigneeID, familyID int) error
-	DeleteEvent(sourceModule string, sourceID int) error
+	CreateEvent(sourceModule string, sourceID string, title, description string, startTime, endTime time.Time, assigneeID models.ProfileID, familyID models.FamilyID) error
+	UpdateEvent(sourceModule string, sourceID string, title, description string, startTime, endTime time.Time, assigneeID models.ProfileID, familyID models.FamilyID) error
+	DeleteEvent(sourceModule string, sourceID string) error
 }
 
 type Service struct {
@@ -28,12 +29,12 @@ func (s *Service) SetCalendarService(calendarService CalendarService) {
 	s.calendarService = calendarService
 }
 
-func (s *Service) CreateChore(profileId int, familyID int, req *CreateChoreRequest) (*entities.Chore, error) {
+func (s *Service) CreateChore(profileId models.ProfileID, familyID models.FamilyID, req *CreateChoreRequest) (*entities.Chore, error) {
 	if req.Name == "" {
 		return nil, fmt.Errorf("chore name is required")
 	}
 
-	if req.AssigneeID == 0 {
+	if req.AssigneeID == "" {
 		return nil, fmt.Errorf("assignee is required")
 	}
 
@@ -66,19 +67,19 @@ func (s *Service) CreateChore(profileId int, familyID int, req *CreateChoreReque
 	return fullChore, nil
 }
 
-func (s *Service) GetChoreByID(id int, familyID int) (*entities.Chore, error) {
+func (s *Service) GetChoreByID(id models.ChoreID, familyID models.FamilyID) (*entities.Chore, error) {
 	return s.repo.GetChoreByID(id, familyID)
 }
 
-func (s *Service) GetChoresByFamilyID(familyID int) ([]*entities.Chore, error) {
+func (s *Service) GetChoresByFamilyID(familyID models.FamilyID) ([]*entities.Chore, error) {
 	return s.repo.GetChoresByFamilyID(familyID)
 }
 
-func (s *Service) GetChoresByAssigneeID(assigneeID int, familyID int) ([]*entities.Chore, error) {
+func (s *Service) GetChoresByAssigneeID(assigneeID models.ProfileID, familyID models.FamilyID) ([]*entities.Chore, error) {
 	return s.repo.GetChoresByAssigneeID(assigneeID, familyID)
 }
 
-func (s *Service) UpdateChore(id int, familyID int, req *UpdateChoreRequest) (*entities.Chore, error) {
+func (s *Service) UpdateChore(id models.ChoreID, familyID models.FamilyID, req *UpdateChoreRequest) (*entities.Chore, error) {
 	chore, err := s.repo.GetChoreByID(id, familyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chore: %v", err)
@@ -107,7 +108,7 @@ func (s *Service) UpdateChore(id int, familyID int, req *UpdateChoreRequest) (*e
 	return updatedChore, nil
 }
 
-func (s *Service) DeleteChore(id int, familyID int, deletedBy int) error {
+func (s *Service) DeleteChore(id models.ChoreID, familyID models.FamilyID, deletedBy models.ProfileID) error {
 	chore, err := s.repo.GetChoreByID(id, familyID)
 	if err != nil {
 		return fmt.Errorf("failed to get chore: %v", err)
@@ -116,7 +117,7 @@ func (s *Service) DeleteChore(id int, familyID int, deletedBy int) error {
 	if s.calendarService != nil {
 		// Todo: update when we have calendar structure - this should be used to delete calendar events for all instances
 		for _, instance := range chore.Instances {
-			if err := s.calendarService.DeleteEvent("chores", instance.ID); err != nil {
+			if err := s.calendarService.DeleteEvent("chores", string(instance.ID)); err != nil {
 				fmt.Printf("Warning: failed to delete calendar event: %v\n", err)
 			}
 		}
@@ -126,29 +127,28 @@ func (s *Service) DeleteChore(id int, familyID int, deletedBy int) error {
         return fmt.Errorf("failed to delete chore: %v", err)
     }
     return nil
-
 }
 
-func (s *Service) RestoreChore(id int, familyID int) error {
+func (s *Service) RestoreChore(id models.ChoreID, familyID models.FamilyID) error {
     if err := s.repo.RestoreChore(id, familyID); err != nil {
         return fmt.Errorf("failed to restore chore: %v", err)
     }
     return nil
 }
 
-func (s *Service) GetInstanceByID(id int, familyID int) (*entities.ChoreInstance, error) {
+func (s *Service) GetInstanceByID(id models.ChoreInstanceID, familyID models.FamilyID) (*entities.ChoreInstance, error) {
 	return s.repo.GetInstanceByID(id, familyID)
 }
 
-func (s *Service) GetInstancesByDueDate(date time.Time, familyID int) ([]*entities.ChoreInstance, error) {
+func (s *Service) GetInstancesByDueDate(date time.Time, familyID models.FamilyID) ([]*entities.ChoreInstance, error) {
 	return s.repo.GetInstancesByDueDate(date, familyID)
 }
 
-func (s *Service) GetInstancesByAssignee(assigneeID int, familyID int, startDate, endDate time.Time) ([]*entities.ChoreInstance, error) {
+func (s *Service) GetInstancesByAssignee(assigneeID models.ProfileID, familyID models.FamilyID, startDate, endDate time.Time) ([]*entities.ChoreInstance, error) {
 	return s.repo.GetInstancesByAssignee(assigneeID, familyID, startDate, endDate)
 }
 
-func (s *Service) CompleteChoreInstance(id int, profileId int, familyID int, req *UpdateChoreInstanceRequest) (*entities.ChoreInstance, error) {
+func (s *Service) CompleteChoreInstance(id models.ChoreInstanceID, profileId models.ProfileID, familyID models.FamilyID, req *UpdateChoreInstanceRequest) (*entities.ChoreInstance, error) {
 	instance, err := s.repo.GetInstanceByID(id, familyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chore instance: %v", err)
@@ -174,7 +174,7 @@ func (s *Service) CompleteChoreInstance(id int, profileId int, familyID int, req
 	return s.repo.GetInstanceByID(id, familyID)
 }
 
-func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewChoreRequest) (*ChoreVerificationResponse, error) {
+func (s *Service) ReviewChore(id models.ChoreInstanceID, parentID models.ProfileID, familyID models.FamilyID, req *ReviewChoreRequest) (*ChoreVerificationResponse, error) {
     instance, err := s.repo.GetInstanceByID(id, familyID)
     if err != nil {
         return nil, err
@@ -213,7 +213,7 @@ func (s *Service) ReviewChore(id int, parentID int, familyID int, req *ReviewCho
     }, nil
 }
 
-func (s *Service) ReviewDailyChores(parentID int, familyID int, req *VerifyDayRequest) (*ChoreVerificationResponse, error) {
+func (s *Service) ReviewDailyChores(parentID models.ProfileID, familyID models.FamilyID, req *VerifyDayRequest) (*ChoreVerificationResponse, error) {
     date, err := time.Parse("2006-01-02", req.Date)
     if err != nil {
         return nil, fmt.Errorf("invalid date format: %v", err)
@@ -239,7 +239,7 @@ func (s *Service) ReviewDailyChores(parentID int, familyID int, req *VerifyDayRe
             
             result, err := s.ReviewChore(instance.ID, parentID, familyID, reviewReq)
             if err != nil {
-                return nil, fmt.Errorf("failed to review chore %d: %v", instance.ID, err)
+                return nil, fmt.Errorf("failed to review chore %s: %v", instance.ID, err)
             }
             
             if result.Instance.Status == entities.StatusVerified {
@@ -259,11 +259,11 @@ func (s *Service) ReviewDailyChores(parentID int, familyID int, req *VerifyDayRe
     return response, nil
 }
 
-func (s *Service) GetChoreStats(profileId int, familyID int, startDate, endDate time.Time) (*ChoreStats, error) {
+func (s *Service) GetChoreStats(profileId models.ProfileID, familyID models.FamilyID, startDate, endDate time.Time) (*ChoreStats, error) {
 	return s.repo.GetChoreStats(profileId, familyID, startDate, endDate)
 }
 
-func (s *Service) GenerateDailyChoreInstances(familyID int) error {
+func (s *Service) GenerateDailyChoreInstances(familyID models.FamilyID) error {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	
 	chores, err := s.repo.GetChoresByFamilyID(familyID)
@@ -296,7 +296,7 @@ func (s *Service) GenerateDailyChoreInstances(familyID int) error {
 				if s.calendarService != nil {
 					err := s.calendarService.CreateEvent(
 						"chores", 
-						instance.ID,
+						string(instance.ID),
 						chore.Name,
 						chore.Description,
 						today,
@@ -315,7 +315,7 @@ func (s *Service) GenerateDailyChoreInstances(familyID int) error {
 	return nil
 }
 
-func (s *Service) VerifyDay(parentID int, familyID int, req *VerifyDayRequest) error {
+func (s *Service) VerifyDay(parentID models.ProfileID, familyID models.FamilyID, req *VerifyDayRequest) error {
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return fmt.Errorf("invalid date format: %v", err)
@@ -327,17 +327,17 @@ func (s *Service) VerifyDay(parentID int, familyID int, req *VerifyDayRequest) e
 	}
 
 	for _, instance := range instances {
-    if instance.Status == entities.StatusCompleted {
-        instance.Status = entities.StatusVerified
-        instance.VerifiedBy = &parentID
-        now := time.Now().UTC()
-        instance.CompletedAt = &now
-        
-        if err := s.repo.UpdateChoreInstance(instance); err != nil {
-            return err
-        }
-    }
-}
+		if instance.Status == entities.StatusCompleted {
+			instance.Status = entities.StatusVerified
+			instance.VerifiedBy = &parentID
+			now := time.Now().UTC()
+			instance.CompletedAt = &now
+			
+			if err := s.repo.UpdateChoreInstance(instance); err != nil {
+				return err
+			}
+		}
+	}
 
 	verification := &entities.DailyVerification{
 		Date:       date,
@@ -352,7 +352,7 @@ func (s *Service) VerifyDay(parentID int, familyID int, req *VerifyDayRequest) e
 	return s.repo.SaveDailyVerification(verification)
 }
 
-func (s *Service) GetDailyVerification(date time.Time, assigneeID int, familyID int) (*entities.DailyVerification, error) {
+func (s *Service) GetDailyVerification(date time.Time, assigneeID models.ProfileID, familyID models.FamilyID) (*entities.DailyVerification, error) {
 	return s.repo.GetDailyVerification(date, assigneeID, familyID)
 }
 
@@ -388,7 +388,7 @@ func (s *Service) generateInitialInstances(chore *entities.Chore) error {
 				if s.calendarService != nil {
 					err := s.calendarService.CreateEvent(
 						"chores", 
-						instance.ID,
+						string(instance.ID),
 						chore.Name,
 						chore.Description,
 						date,

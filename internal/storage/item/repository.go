@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -24,15 +25,17 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
     }
     defer tx.Rollback()
 
+    item.ID = models.NewItemID()
+
     itemQuery := `
         INSERT INTO item (
-            name, description, quantity, container_id, 
+            id, name, description, quantity, container_id, 
             profile_id, family_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, created_at, updated_at`
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-    err = tx.QueryRow(
+    _, err = tx.Exec(
         itemQuery,
+        item.ID,
         item.Name,
         item.Description,
         item.Quantity,
@@ -41,14 +44,14 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         item.FamilyID,
         time.Now().UTC(),
         time.Now().UTC(),
-    ).Scan(&item.ID, &item.CreatedAt, &item.UpdatedAt)
+    )
 
     if err != nil {
         return nil, fmt.Errorf("error creating item: %v", err)
     }
 
     for _, tagName := range tagNames {
-        var tagID int
+        var tagID models.TagID
         err := tx.QueryRow(`
             SELECT id FROM tag 
             WHERE name = $1 AND family_id = $2 AND is_deleted = false`,
@@ -56,15 +59,20 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
         ).Scan(&tagID)
 
         if err == sql.ErrNoRows {
-            err = tx.QueryRow(`
-                INSERT INTO tag (name, family_id, created_at, updated_at)
-                VALUES ($1, $2, $3, $4)
-                RETURNING id`,
+            tagID = models.NewTagID()
+            
+            _, err = tx.Exec(`
+                INSERT INTO tag (id, name, description, colour, family_id, profile_id, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                tagID,
                 tagName,
+                "",  // description
+                "",  // colour
                 item.FamilyID,
+                item.ProfileID,
                 time.Now().UTC(),
                 time.Now().UTC(),
-            ).Scan(&tagID)
+            )
 
             if err != nil {
                 return nil, fmt.Errorf("error creating tag: %v", err)
@@ -89,12 +97,13 @@ func (r *Repository) Create(item *entities.Item, tagNames []string) (*entities.I
     return r.GetByID(item.ID, item.FamilyID)
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
+func (r *Repository) GetByID(id models.ItemID, familyID models.FamilyID) (*entities.Item, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
                    jsonb_agg(
                        jsonb_build_object(
+                           'id', id,
                            'url', url,
                            'displayOrder', display_order,
                            'createdAt', created_at,
@@ -155,11 +164,11 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
-        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN item_tag it ON i.id = it.item_id AND it.is_deleted = false
         LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id AND t.is_deleted = false
         WHERE i.id = $1 AND i.family_id = $2 AND i.is_deleted = false
         GROUP BY i.id, i.name, i.description, i.quantity, 
-                 i.container_id, i.family_id, i.created_at, i.updated_at,
+                 i.container_id, i.profile_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
                  c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
@@ -199,12 +208,13 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Item, error) {
     return item, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
+func (r *Repository) GetByFamilyID(familyID models.FamilyID) ([]*entities.Item, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
                    jsonb_agg(
                        jsonb_build_object(
+                           'id', id,
                            'url', url,
                            'displayOrder', display_order,
                            'createdAt', created_at,
@@ -265,11 +275,11 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Item, error) {
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = i.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = c.family_id AND w.is_deleted = false
-        LEFT JOIN item_tag it ON i.id = it.item_id
+        LEFT JOIN item_tag it ON i.id = it.item_id AND it.is_deleted = false
         LEFT JOIN tag t ON it.tag_id = t.id AND t.family_id = i.family_id AND t.is_deleted = false
         WHERE i.family_id = $1 AND i.is_deleted = false
         GROUP BY i.id, i.name, i.description, i.quantity, 
-                 i.container_id, i.family_id, i.created_at, i.updated_at,
+                 i.container_id, i.profile_id, i.family_id, i.created_at, i.updated_at,
                  img.images,
                  c.id, c.name, c.description, c.qr_code, c.qr_code_image, c.number, c.location,
                  c.profile_id, c.family_id, c.workspace_id, c.created_at, c.updated_at,
@@ -324,13 +334,13 @@ func (r *Repository) Update(item *entities.Item) error {
     }
     defer tx.Rollback()
 
-        query := `
+    query := `
         UPDATE item
         SET name = $2, description = $3,
         quantity = $4, container_id = $5, profile_id = $6, updated_at = $7
         WHERE id = $1 AND family_id = $8 AND is_deleted = false`
 
-        result, err := tx.Exec(
+    result, err := tx.Exec(
         query,
         item.ID,
         item.Name,
@@ -340,7 +350,7 @@ func (r *Repository) Update(item *entities.Item) error {
         item.ProfileID,
         time.Now().UTC(),
         item.FamilyID,
-        )
+    )
     if err != nil {
         return fmt.Errorf("error updating item: %v", err)
     }
@@ -372,31 +382,32 @@ func (r *Repository) Update(item *entities.Item) error {
     return tx.Commit()
 }
 
-func (r *Repository) AddItemImage(itemID int, familyID int, url string, displayOrder int) error {
-    query := `
-        INSERT INTO item_image (item_id, url, display_order)
-        SELECT $1, $2, $3
-        FROM item
-        WHERE id = $1 AND family_id = $4`
+func (r *Repository) AddItemImage(itemID models.ItemID, familyID models.FamilyID, url string, displayOrder int) error {
+    imageID := models.NewItemImageID()
     
-    result, err := r.db.Exec(query, itemID, url, displayOrder, familyID)
+    checkQuery := `SELECT 1 FROM item WHERE id = $1 AND family_id = $2`
+    var exists int
+    err := r.db.QueryRow(checkQuery, itemID, familyID).Scan(&exists)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return fmt.Errorf("item not found or access denied")
+        }
+        return fmt.Errorf("error checking item: %v", err)
+    }
+    
+    insertQuery := `
+        INSERT INTO item_image (id, item_id, url, display_order, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6)`
+    
+    _, err = r.db.Exec(insertQuery, imageID, itemID, url, displayOrder, time.Now().UTC(), time.Now().UTC())
     if err != nil {
         return fmt.Errorf("error adding item image: %v", err)
-    }
-
-    rows, err := result.RowsAffected()
-    if err != nil {
-        return fmt.Errorf("error checking result: %v", err)
-    }
-
-    if rows == 0 {
-        return fmt.Errorf("item not found or access denied")
     }
     
     return nil
 }
 
-func (r *Repository) DeleteItemImage(itemID int, familyID int, url string) error {
+func (r *Repository) DeleteItemImage(itemID models.ItemID, familyID models.FamilyID, url string) error {
     query := `
         DELETE FROM item_image
         WHERE item_id = $1 AND url = $2
@@ -422,7 +433,7 @@ func (r *Repository) DeleteItemImage(itemID int, familyID int, url string) error
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.ItemID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -430,16 +441,31 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     defer tx.Rollback()
 
     itemTagQuery := `
-        DELETE FROM item_tag
+        UPDATE item_tag
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4
         WHERE item_id = $1
         AND EXISTS (
             SELECT 1 FROM item
             WHERE id = $1 AND family_id = $2 AND is_deleted = false
         )`
     
-    _, err = tx.Exec(itemTagQuery, id, familyID)
+    _, err = tx.Exec(itemTagQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
-        return fmt.Errorf("error removing item-tag associations: %v", err)
+        return fmt.Errorf("error soft deleting item-tag associations: %v", err)
+    }
+
+    itemImageQuery := `
+        UPDATE item_image
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4
+        WHERE item_id = $1
+        AND EXISTS (
+            SELECT 1 FROM item
+            WHERE id = $1 AND family_id = $2 AND is_deleted = false
+        )`
+    
+    _, err = tx.Exec(itemImageQuery, id, familyID, time.Now().UTC(), deletedBy)
+    if err != nil {
+        return fmt.Errorf("error soft deleting item images: %v", err)
     }
 
     itemQuery := `
@@ -464,7 +490,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     return tx.Commit()
 }
 
-func (r *Repository) RestoreDeleted(id int, familyID int) error {
+func (r *Repository) RestoreDeleted(id models.ItemID, familyID models.FamilyID) error {
     query := `
         UPDATE item
         SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3

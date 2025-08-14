@@ -27,8 +27,8 @@ func InitCoreSchema(db *sql.DB) error {
 
 func createFamilyAccountTable(db *sql.DB) error {
     query := `
-    CREATE TABLE IF NOT EXISTS family_account (
-        id SERIAL PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS family_account (
+        id VARCHAR(36) PRIMARY KEY, 
         email VARCHAR(255) UNIQUE NOT NULL,
         password TEXT NOT NULL,
         family_name VARCHAR(100) NOT NULL,
@@ -36,7 +36,7 @@ func createFamilyAccountTable(db *sql.DB) error {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES family_account(id)
+        deleted_by VARCHAR(36) 
     );
     
     CREATE INDEX IF NOT EXISTS idx_family_account_email ON family_account(email);
@@ -48,19 +48,20 @@ func createFamilyAccountTable(db *sql.DB) error {
 func createProfileTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS profile (
-        id SERIAL PRIMARY KEY,
-        family_id INTEGER REFERENCES family_account(id) ON DELETE CASCADE,
+        id VARCHAR(36) PRIMARY KEY,
+        family_id VARCHAR(36) REFERENCES family_account(id) ON DELETE CASCADE, 
         name VARCHAR(100) NOT NULL,
         role profile_role NOT NULL,
         pin VARCHAR(6),
         image_url TEXT,
         is_owner BOOLEAN NOT NULL DEFAULT false,
         timezone_name VARCHAR(50) NOT NULL DEFAULT 'UTC',
+        colour VARCHAR(50) NOT NULL DEFAULT 'blue', 
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) 
     );
     
     CREATE INDEX IF NOT EXISTS idx_profile_family ON profile(family_id);
@@ -73,16 +74,19 @@ func createProfileTable(db *sql.DB) error {
 func createFamilySettingsTable(db *sql.DB) error {
     query := `
     CREATE TABLE IF NOT EXISTS family_settings (
-        family_id INTEGER PRIMARY KEY REFERENCES family_account(id) ON DELETE CASCADE,
+        family_id VARCHAR(36) PRIMARY KEY REFERENCES family_account(id) ON DELETE CASCADE,  
         modules JSONB NOT NULL DEFAULT '{
             "storage": {
                 "isEnabled": true
             },
+            "chores": {
+                "isEnabled": false
+            },
             "meals": {
                 "isEnabled": false
             },
-            "chores": {
-                "isEnabled": false
+            "media": {
+                "isEnabled": true
             },
             "services": {
                 "isEnabled": false
@@ -93,7 +97,7 @@ func createFamilySettingsTable(db *sql.DB) error {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id)  
     );
     `
     _, err := db.Exec(query)
@@ -102,21 +106,24 @@ func createFamilySettingsTable(db *sql.DB) error {
 
 func createNotificationTable(db *sql.DB) error {
     query := `
-    CREATE TABLE IF NOT EXISTS notification (
-        id SERIAL PRIMARY KEY,
-        profile_id INTEGER REFERENCES profile(id),
-        family_id INTEGER REFERENCES family_account(id),
+     CREATE TABLE IF NOT EXISTS notification (
+        id VARCHAR(36) PRIMARY KEY,
+        profile_id VARCHAR(36) REFERENCES profile(id), 
+        family_id VARCHAR(36) REFERENCES family_account(id), 
         title VARCHAR(255) NOT NULL,
         message TEXT NOT NULL,
         type VARCHAR(50) NOT NULL,
-        source_id INTEGER,
+        source_id VARCHAR(36), 
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         is_deleted BOOLEAN NOT NULL DEFAULT false,
         deleted_at TIMESTAMP WITH TIME ZONE,
-        deleted_by INTEGER REFERENCES profile(id)
+        deleted_by VARCHAR(36) REFERENCES profile(id) 
     );
     
+    CREATE INDEX IF NOT EXISTS idx_family_account_email ON family_account(email);
+    CREATE INDEX IF NOT EXISTS idx_profile_family ON profile(family_id);
+    CREATE INDEX IF NOT EXISTS idx_profile_owner ON profile(family_id, is_owner);
     CREATE INDEX IF NOT EXISTS idx_notification_profile ON notification(profile_id);
     CREATE INDEX IF NOT EXISTS idx_notification_family ON notification(family_id);
     CREATE INDEX IF NOT EXISTS idx_notification_read ON notification(is_read);

@@ -2,8 +2,8 @@ package tag
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -151,9 +151,13 @@ func (h *Handler) handleRestoreTag(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, http.StatusOK, map[string]string{"message": "tag restored successfully"})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getIDFromRequest(r *http.Request) (models.TagID, error) {
     vars := mux.Vars(r)
-    return strconv.Atoi(vars["id"])
+    id := models.TagID(vars["id"])
+    if !id.IsValid() {
+        return "", fmt.Errorf("invalid tag ID format")
+    }
+    return id, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

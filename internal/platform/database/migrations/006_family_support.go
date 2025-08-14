@@ -22,6 +22,7 @@ func MigrateFamilySupport(tx *sql.Tx) error {
             module_permissions JSONB NOT NULL DEFAULT '{
                 "storage": {"enabled": true, "actions": ["READ", "WRITE"]},
                 "meals": {"enabled": false, "actions": []},
+                "media": {"enabled": false, "actions": []},
                 "services": {"enabled": false, "actions": []},
                 "chores": {"enabled": false, "actions": []}
             }'::jsonb,

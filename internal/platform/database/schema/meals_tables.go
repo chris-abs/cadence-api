@@ -24,7 +24,7 @@ func InitMealsSchema(db *sql.DB) error {
 func createMealTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS meal (
-		id SERIAL PRIMARY KEY,
+		id VARCHAR(36) PRIMARY KEY,
 		name VARCHAR(100) NOT NULL,
 		description TEXT NOT NULL DEFAULT '',
 		image_url TEXT,
@@ -39,12 +39,12 @@ func createMealTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS meal_option (
-		id SERIAL PRIMARY KEY,
-		meal_id INTEGER REFERENCES meal(id) ON DELETE CASCADE,
+		id VARCHAR(36) PRIMARY KEY,
+		meal_id VARCHAR(36) REFERENCES meal(id) ON DELETE CASCADE,
 		name VARCHAR(100) NOT NULL,
 		description TEXT NOT NULL DEFAULT '',
 		is_default BOOLEAN NOT NULL DEFAULT false,
@@ -52,12 +52,12 @@ func createMealTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS meal_ingredient (
-		id SERIAL PRIMARY KEY,
-		meal_id INTEGER REFERENCES meal(id) ON DELETE CASCADE,
+		id VARCHAR(36) PRIMARY KEY,
+		meal_id VARCHAR(36) REFERENCES meal(id) ON DELETE CASCADE,
 		name VARCHAR(100) NOT NULL,
 		quantity DECIMAL(10,3) NOT NULL,
 		unit VARCHAR(20) NOT NULL,
@@ -67,7 +67,7 @@ func createMealTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	-- Indexes for meal tables
@@ -93,30 +93,30 @@ func createMealTables(db *sql.DB) error {
 func createMealPlanTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS meal_plan (
-		id SERIAL PRIMARY KEY,
-		family_id INTEGER REFERENCES family_account(id) NOT NULL,
+		id VARCHAR(36) PRIMARY KEY,
+		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
 		start_date DATE NOT NULL,
 		end_date DATE NOT NULL,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-		created_by INTEGER REFERENCES profile(id) NOT NULL,
+		created_by VARCHAR(36) REFERENCES profile(id) NOT NULL,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS meal_plan_day (
-		id SERIAL PRIMARY KEY,
-		meal_plan_id INTEGER REFERENCES meal_plan(id) ON DELETE CASCADE,
+		id VARCHAR(36) PRIMARY KEY,
+		meal_plan_id VARCHAR(36) REFERENCES meal_plan(id) ON DELETE CASCADE,
 		date DATE NOT NULL,
-		meal_id INTEGER REFERENCES meal(id),
+		meal_id VARCHAR(36) REFERENCES meal(id),
 		adult_count INTEGER NOT NULL DEFAULT 2,
 		child_count INTEGER NOT NULL DEFAULT 0,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	-- Indexes for meal plan tables
@@ -144,21 +144,21 @@ func createMealPlanTables(db *sql.DB) error {
 func createShoppingListTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS shopping_list (
-		id SERIAL PRIMARY KEY,
-		family_id INTEGER REFERENCES family_account(id) NOT NULL,
-		meal_plan_id INTEGER REFERENCES meal_plan(id) ON DELETE CASCADE,
+		id VARCHAR(36) PRIMARY KEY,
+		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+		meal_plan_id VARCHAR(36) REFERENCES meal_plan(id) ON DELETE CASCADE,
 		start_date DATE NOT NULL,
 		end_date DATE NOT NULL,
 		generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS shopping_list_item (
-		id SERIAL PRIMARY KEY,
-		shopping_list_id INTEGER REFERENCES shopping_list(id) ON DELETE CASCADE,
+		id VARCHAR(36) PRIMARY KEY,
+		shopping_list_id VARCHAR(36) REFERENCES shopping_list(id) ON DELETE CASCADE,
 		ingredient_name VARCHAR(100) NOT NULL,
 		total_quantity DECIMAL(10,3) NOT NULL,
 		unit VARCHAR(20) NOT NULL,
@@ -169,7 +169,7 @@ func createShoppingListTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by INTEGER REFERENCES profile(id)
+		deleted_by VARCHAR(36) REFERENCES profile(id)
 	);
 
 	-- Indexes for shopping list tables

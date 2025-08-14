@@ -2,8 +2,8 @@ package chores
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/chores/entities"
@@ -53,8 +53,8 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 	var err error
 	
 	if assigneeIDStr != "" {
-		assigneeID, err := strconv.Atoi(assigneeIDStr)
-		if err != nil {
+		assigneeID := models.ProfileID(assigneeIDStr)
+		if !assigneeID.IsValid() {
 			writeError(w, http.StatusBadRequest, "invalid assignee ID")
 			return
 		}
@@ -70,11 +70,6 @@ func (h *Handler) handleGetChores(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-	}
-	
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
 	}
 	
 	writeJSON(w, http.StatusOK, chores)
@@ -101,7 +96,7 @@ func (h *Handler) handleCreateChore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	id, err := getIDFromRequest(r)
+	id, err := getChoreIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -119,7 +114,7 @@ func (h *Handler) handleGetChore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	id, err := getIDFromRequest(r)
+	id, err := getChoreIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -143,7 +138,7 @@ func (h *Handler) handleUpdateChore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    id, err := getIDFromRequest(r)
+    id, err := getChoreIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -160,7 +155,7 @@ func (h *Handler) handleDeleteChore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleRestoreChore(w http.ResponseWriter, r *http.Request) {
     profileCtx := r.Context().Value("profile").(*models.ProfileContext)
     
-    id, err := getIDFromRequest(r)
+    id, err := getChoreIDFromRequest(r)
     if err != nil {
         writeError(w, http.StatusBadRequest, err.Error())
         return
@@ -200,8 +195,8 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 	}
 	
 	if assigneeIDStr != "" && startDateStr != "" && endDateStr != "" {
-		assigneeID, err := strconv.Atoi(assigneeIDStr)
-		if err != nil {
+		assigneeID := models.ProfileID(assigneeIDStr)
+		if !assigneeID.IsValid() {
 			writeError(w, http.StatusBadRequest, "invalid assignee ID")
 			return
 		}
@@ -241,7 +236,7 @@ func (h *Handler) handleGetChoreInstances(w http.ResponseWriter, r *http.Request
 func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	id, err := getIDFromRequest(r)
+	id, err := getChoreInstanceIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -259,7 +254,7 @@ func (h *Handler) handleGetChoreInstance(w http.ResponseWriter, r *http.Request)
 func (h *Handler) handleCompleteChoreInstance(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	id, err := getIDFromRequest(r)
+	id, err := getChoreInstanceIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -310,7 +305,7 @@ func (h *Handler) handleReviewChore(w http.ResponseWriter, r *http.Request) {
         return
     }
 	
-	id, err := getIDFromRequest(r)
+	id, err := getChoreInstanceIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -348,8 +343,8 @@ func (h *Handler) handleGetDailyVerification(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	assigneeID, err := strconv.Atoi(assigneeIDStr)
-	if err != nil {
+	assigneeID := models.ProfileID(assigneeIDStr)
+	if !assigneeID.IsValid() {
 		writeError(w, http.StatusBadRequest, "invalid assigneeId")
 		return
 	}
@@ -387,10 +382,10 @@ func (h *Handler) handleGetChoreStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var profileId int
+	var profileId models.ProfileID
 	if profileIdStr != "" {
-		profileId, err = strconv.Atoi(profileIdStr)
-		if err != nil {
+		profileId = models.ProfileID(profileIdStr)
+		if !profileId.IsValid() {
 			writeError(w, http.StatusBadRequest, "invalid profileId")
 			return
 		}
@@ -423,9 +418,28 @@ func (h *Handler) handleGenerateChoreInstances(w http.ResponseWriter, r *http.Re
 	writeJSON(w, http.StatusOK, map[string]string{"message": "chore instances generated successfully"})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getChoreIDFromRequest(r *http.Request) (models.ChoreID, error) {
 	vars := mux.Vars(r)
-	return strconv.Atoi(vars["id"])
+	idStr := vars["id"]
+	
+	choreID := models.ChoreID(idStr)
+	if !choreID.IsValid() {
+		return "", fmt.Errorf("invalid chore ID format")
+	}
+	
+	return choreID, nil
+}
+
+func getChoreInstanceIDFromRequest(r *http.Request) (models.ChoreInstanceID, error) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	
+	instanceID := models.ChoreInstanceID(idStr)
+	if !instanceID.IsValid() {
+		return "", fmt.Errorf("invalid chore instance ID format")
+	}
+	
+	return instanceID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

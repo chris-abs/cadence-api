@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/chrisabs/cadence/internal/cloud"
@@ -16,7 +15,7 @@ import (
 )
 
 type ContainerService interface {
-    GetContainerByID(id int, familyID int) (*entities.Container, error)
+    GetContainerByID(id models.ContainerID, familyID models.FamilyID) (*entities.Container, error)
 }
 
 type Handler struct {
@@ -138,7 +137,7 @@ func (h *Handler) handleUpdateItem(w http.ResponseWriter, r *http.Request) {
             }
 
             for _, fileHeader := range files {
-                url, err := s3Handler.UploadFile(fileHeader, fmt.Sprintf("items/%d", itemID))
+                url, err := s3Handler.UploadFile(fileHeader, profileCtx.FamilyID, fmt.Sprintf("items/%s", itemID))
                 if err != nil {
                     writeError(w, http.StatusInternalServerError, err.Error())
                     return
@@ -188,7 +187,7 @@ func (h *Handler) handleDeleteItem(w http.ResponseWriter, r *http.Request) {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
-    writeJSON(w, http.StatusOK, map[string]int{"deleted": itemID})
+    writeJSON(w, http.StatusOK, map[string]string{"deleted": itemID.String()})
 }
 
 func (h *Handler) handleRestoreItem(w http.ResponseWriter, r *http.Request) {
@@ -204,12 +203,16 @@ func (h *Handler) handleRestoreItem(w http.ResponseWriter, r *http.Request) {
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
-    writeJSON(w, http.StatusOK, map[string]int{"restored": itemID})
+    writeJSON(w, http.StatusOK, map[string]string{"restored": itemID.String()})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getIDFromRequest(r *http.Request) (models.ItemID, error) {
     vars := mux.Vars(r)
-    return strconv.Atoi(vars["id"])
+    id := models.ItemID(vars["id"])
+    if !id.IsValid() {
+        return "", fmt.Errorf("invalid item ID format")
+    }
+    return id, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

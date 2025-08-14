@@ -19,19 +19,21 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(event *entities.Event) error {
+    event.ID = models.NewEventID()
+    event.CreatedAt = time.Now().UTC()
+    event.UpdatedAt = time.Now().UTC()
+
     query := `
         INSERT INTO calendar_event (
-            title, description, location, start_time, end_time, all_day,
+            id, title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
             is_recurring, recurrence_type, recurrence_end_time, instance_date,
             created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
-        RETURNING id, created_at, updated_at`
-
-    now := time.Now().UTC()
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
     
-    err := r.db.QueryRow(
+    _, err := r.db.Exec(
         query,
+        event.ID,
         event.Title,
         event.Description,
         event.Location,
@@ -47,8 +49,9 @@ func (r *Repository) Create(event *entities.Event) error {
         event.RecurrenceType,
         event.RecurrenceEndTime,
         event.InstanceDate,
-        now,
-    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
+        event.CreatedAt,
+        event.UpdatedAt,
+    )
 
     if err != nil {
         return fmt.Errorf("error creating event: %v", err)
@@ -61,8 +64,8 @@ func (r *Repository) scanEventWithoutProfile(scanner interface {
     Scan(dest ...interface{}) error
 }) (*entities.Event, error) {
     event := new(entities.Event)
-    var description, location sql.NullString
-    var sourceID, parentEventID, assigneeID, deletedBy sql.NullInt64 
+    var description, location, sourceID sql.NullString
+    var parentEventID, assigneeID, deletedBy sql.NullString
     var deletedAt, recurrenceEndTime, instanceDate sql.NullTime
     var recurrenceType sql.NullString
 
@@ -99,7 +102,6 @@ func (r *Repository) scanEventWithoutProfile(scanner interface {
         return nil, err
     }
 
-    
     if description.Valid {
         event.Description = &description.String
     }
@@ -107,18 +109,17 @@ func (r *Repository) scanEventWithoutProfile(scanner interface {
         event.Location = &location.String
     }
     if sourceID.Valid {
-        id := int(sourceID.Int64)
-        event.SourceID = &id
+        event.SourceID = &sourceID.String
     }
     if assigneeID.Valid {
-        id := int(assigneeID.Int64)
+        id := models.ProfileID(assigneeID.String)
         event.AssigneeID = &id
     }
     if deletedAt.Valid {
         event.DeletedAt = &deletedAt.Time
     }
     if deletedBy.Valid {
-        id := int(deletedBy.Int64)
+        id := models.ProfileID(deletedBy.String)
         event.DeletedBy = &id
     }
     if recurrenceType.Valid && recurrenceType.String != "" {
@@ -129,7 +130,7 @@ func (r *Repository) scanEventWithoutProfile(scanner interface {
         event.RecurrenceEndTime = &recurrenceEndTime.Time
     }
     if parentEventID.Valid {
-        id := int(parentEventID.Int64)
+        id := models.EventID(parentEventID.String)
         event.ParentEventID = &id
     }
     if instanceDate.Valid {
@@ -139,19 +140,19 @@ func (r *Repository) scanEventWithoutProfile(scanner interface {
     return event, nil
 }
 
-func (r *Repository) batchLoadProfiles(assigneeIDs []int) (map[int]*models.Profile, error) {
+func (r *Repository) batchLoadProfiles(assigneeIDs []models.ProfileID) (map[models.ProfileID]*models.Profile, error) {
     if len(assigneeIDs) == 0 {
-        return make(map[int]*models.Profile), nil
+        return make(map[models.ProfileID]*models.Profile), nil
     }
 
-    uniqueIDs := make(map[int]bool)
+    uniqueIDs := make(map[models.ProfileID]bool)
     for _, id := range assigneeIDs {
         uniqueIDs[id] = true
     }
     
-    var ids []int
+    var ids []string
     for id := range uniqueIDs {
-        ids = append(ids, id)
+        ids = append(ids, string(id))
     }
 
     query := `
@@ -165,7 +166,7 @@ func (r *Repository) batchLoadProfiles(assigneeIDs []int) (map[int]*models.Profi
     }
     defer rows.Close()
 
-    profiles := make(map[int]*models.Profile)
+    profiles := make(map[models.ProfileID]*models.Profile)
     for rows.Next() {
         profile := &models.Profile{}
         err := rows.Scan(
@@ -184,7 +185,7 @@ func (r *Repository) batchLoadProfiles(assigneeIDs []int) (map[int]*models.Profi
     return profiles, nil
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
+func (r *Repository) GetByID(id models.EventID, familyID models.FamilyID) (*entities.Event, error) {
     query := `
         SELECT 
             e.id, e.title, e.description, e.location, e.start_time, e.end_time,
@@ -203,7 +204,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     }
 
     if event.AssigneeID != nil {
-        profiles, err := r.batchLoadProfiles([]int{*event.AssigneeID})
+        profiles, err := r.batchLoadProfiles([]models.ProfileID{*event.AssigneeID})
         if err != nil {
             return nil, fmt.Errorf("error loading profile: %v", err)
         }
@@ -215,7 +216,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Event, error) {
     return event, nil
 }
 
-func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*entities.Event, error) {
+func (r *Repository) GetByDateRange(familyID models.FamilyID, params GetEventsParams) ([]*entities.Event, error) {
     query := `
         SELECT 
             e.id, e.title, e.description, e.location, e.start_time, e.end_time,
@@ -241,8 +242,12 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
 
     if len(params.AssigneeIDs) > 0 {
         paramCount++
+        assigneeIDStrings := make([]string, len(params.AssigneeIDs))
+        for i, id := range params.AssigneeIDs {
+            assigneeIDStrings[i] = string(id)
+        }
         query += fmt.Sprintf(" AND e.assignee_id = ANY($%d)", paramCount)
-        args = append(args, pq.Array(params.AssigneeIDs))
+        args = append(args, pq.Array(assigneeIDStrings))
     }
 
     if len(params.SourceModules) > 0 {
@@ -266,7 +271,7 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     defer rows.Close()
 
     var events []*entities.Event
-    var assigneeIDs []int
+    var assigneeIDs []models.ProfileID
     
     for rows.Next() {
         event, err := r.scanEventWithoutProfile(rows)
@@ -275,19 +280,16 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
         }
         events = append(events, event)
         
-        
         if event.AssigneeID != nil {
             assigneeIDs = append(assigneeIDs, *event.AssigneeID)
         }
     }
 
-    
     if len(assigneeIDs) > 0 {
         profiles, err := r.batchLoadProfiles(assigneeIDs)
         if err != nil {
             return nil, fmt.Errorf("error batch loading profiles: %v", err)
         }
-        
         
         for _, event := range events {
             if event.AssigneeID != nil {
@@ -301,9 +303,14 @@ func (r *Repository) GetByDateRange(familyID int, params GetEventsParams) ([]*en
     return events, nil
 }
 
-func (r *Repository) GetExceptionsForEvents(eventIDs []int) (map[int][]time.Time, error) {
+func (r *Repository) GetExceptionsForEvents(eventIDs []models.EventID) (map[models.EventID][]time.Time, error) {
     if len(eventIDs) == 0 {
-        return make(map[int][]time.Time), nil
+        return make(map[models.EventID][]time.Time), nil
+    }
+
+    eventIDStrings := make([]string, len(eventIDs))
+    for i, id := range eventIDs {
+        eventIDStrings[i] = string(id)
     }
 
     query := `
@@ -312,30 +319,36 @@ func (r *Repository) GetExceptionsForEvents(eventIDs []int) (map[int][]time.Time
         WHERE event_id = ANY($1)
         ORDER BY event_id, exception_date`
 
-    rows, err := r.db.Query(query, pq.Array(eventIDs))
+    rows, err := r.db.Query(query, pq.Array(eventIDStrings))
     if err != nil {
         return nil, fmt.Errorf("error getting exceptions: %v", err)
     }
     defer rows.Close()
 
-    exceptions := make(map[int][]time.Time)
+    exceptions := make(map[models.EventID][]time.Time)
     for rows.Next() {
-        var eventID int
+        var eventIDStr string
         var exceptionDate time.Time
         
-        if err := rows.Scan(&eventID, &exceptionDate); err != nil {
+        if err := rows.Scan(&eventIDStr, &exceptionDate); err != nil {
             return nil, fmt.Errorf("error scanning exception: %v", err)
         }
         
+        eventID := models.EventID(eventIDStr)
         exceptions[eventID] = append(exceptions[eventID], exceptionDate)
     }
 
     return exceptions, nil
 }
 
-func (r *Repository) GetModifiedInstancesInDateRange(familyID int, startTime, endTime time.Time, parentEventIDs []int) ([]*entities.Event, error) {
+func (r *Repository) GetModifiedInstancesInDateRange(familyID models.FamilyID, startTime, endTime time.Time, parentEventIDs []models.EventID) ([]*entities.Event, error) {
     if len(parentEventIDs) == 0 {
         return []*entities.Event{}, nil
+    }
+
+    parentEventIDStrings := make([]string, len(parentEventIDs))
+    for i, id := range parentEventIDs {
+        parentEventIDStrings[i] = string(id)
     }
 
     query := `
@@ -356,7 +369,7 @@ func (r *Repository) GetModifiedInstancesInDateRange(familyID int, startTime, en
         AND e.is_deleted = false
         ORDER BY e.start_time ASC`
 
-    rows, err := r.db.Query(query, familyID, pq.Array(parentEventIDs), endTime, startTime)
+    rows, err := r.db.Query(query, familyID, pq.Array(parentEventIDStrings), endTime, startTime)
     if err != nil {
         return nil, fmt.Errorf("error getting modified instances: %v", err)
     }
@@ -375,19 +388,22 @@ func (r *Repository) GetModifiedInstancesInDateRange(familyID int, startTime, en
 }
 
 func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
+    event.ID = models.NewEventID()
+    
     query := `
         INSERT INTO calendar_event (
-            title, description, location, start_time, end_time, all_day,
+            id, title, description, location, start_time, end_time, all_day,
             source_module, source_id, created_by, assignee_id, family_id,
             is_recurring, is_exception, parent_event_id, instance_date,
             created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
-        RETURNING id, created_at, updated_at`
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        RETURNING created_at, updated_at`
 
     now := time.Now().UTC()
     
     err := r.db.QueryRow(
         query,
+        event.ID,
         event.Title,
         event.Description,
         event.Location,
@@ -404,7 +420,8 @@ func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
         event.ParentEventID,
         event.InstanceDate,
         now,
-    ).Scan(&event.ID, &event.CreatedAt, &event.UpdatedAt)
+        now,
+    ).Scan(&event.CreatedAt, &event.UpdatedAt)
 
     if err != nil {
         return fmt.Errorf("error creating modified instance: %v", err)
@@ -413,7 +430,7 @@ func (r *Repository) CreateModifiedInstance(event *entities.Event) error {
     return nil
 }
 
-func (r *Repository) GetModifiedInstanceByDate(parentEventID int, instanceDate time.Time) (*entities.Event, error) {
+func (r *Repository) GetModifiedInstanceByDate(parentEventID models.EventID, instanceDate time.Time) (*entities.Event, error) {
     query := `
         SELECT 
             e.id, e.title, e.description, e.location, e.start_time, e.end_time,
@@ -483,7 +500,7 @@ func (r *Repository) Update(event *entities.Event) error {
     return nil
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.EventID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     query := `
         UPDATE calendar_event
         SET is_deleted = true, 
@@ -511,7 +528,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     return nil
 }
 
-func (r *Repository) RestoreDeleted(id int, familyID int) error {
+func (r *Repository) RestoreDeleted(id models.EventID, familyID models.FamilyID) error {
     query := `
         UPDATE calendar_event
         SET is_deleted = false, 
@@ -539,7 +556,7 @@ func (r *Repository) RestoreDeleted(id int, familyID int) error {
     return nil
 }
 
-func (r *Repository) CreateRecurrenceException(eventID int, date time.Time) error {
+func (r *Repository) CreateRecurrenceException(eventID models.EventID, date time.Time) error {
     query := `
         INSERT INTO calendar_event_exception (event_id, exception_date)
         VALUES ($1, $2)
@@ -558,8 +575,8 @@ func (r *Repository) scanEvent(scanner interface {
 }) (*entities.Event, error) {
     event := new(entities.Event)
     assignee := new(models.Profile)
-    var description, location sql.NullString
-    var sourceID, parentEventID, assigneeID, deletedBy sql.NullInt64 
+    var description, location, sourceID sql.NullString
+    var parentEventID, assigneeID, deletedBy sql.NullString 
     var deletedAt, recurrenceEndTime, instanceDate sql.NullTime
     var recurrenceType sql.NullString
 
@@ -608,11 +625,10 @@ func (r *Repository) scanEvent(scanner interface {
         event.Location = &location.String
     }
     if sourceID.Valid {
-        id := int(sourceID.Int64)
-        event.SourceID = &id
+        event.SourceID = &sourceID.String
     }
     if assigneeID.Valid {
-        id := int(assigneeID.Int64)
+        id := models.ProfileID(assigneeID.String)
         event.AssigneeID = &id
         event.Assignee = assignee 
     }
@@ -620,7 +636,7 @@ func (r *Repository) scanEvent(scanner interface {
         event.DeletedAt = &deletedAt.Time
     }
     if deletedBy.Valid { 
-        id := int(deletedBy.Int64)
+        id := models.ProfileID(deletedBy.String)
         event.DeletedBy = &id
     }
     if recurrenceType.Valid && recurrenceType.String != "" {
@@ -631,7 +647,7 @@ func (r *Repository) scanEvent(scanner interface {
         event.RecurrenceEndTime = &recurrenceEndTime.Time
     }
     if parentEventID.Valid {
-        id := int(parentEventID.Int64)
+        id := models.EventID(parentEventID.String)
         event.ParentEventID = &id
     }
     if instanceDate.Valid {

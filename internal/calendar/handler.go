@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -63,14 +62,15 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     }
 
     if assigneeIDsStr := query.Get("assigneeIds"); assigneeIDsStr != "" {
-        assigneeIDs := []int{}
+        var assigneeIDs []models.ProfileID
         for _, idStr := range strings.Split(assigneeIDsStr, ",") {
-            id, err := strconv.Atoi(idStr)
-            if err != nil {
+            idStr = strings.TrimSpace(idStr)
+            profileID := models.ProfileID(idStr)
+            if !profileID.IsValid() {
                 writeError(w, http.StatusBadRequest, "invalid assigneeIds format")
                 return
             }
-            assigneeIDs = append(assigneeIDs, id)
+            assigneeIDs = append(assigneeIDs, profileID)
         }
         params.AssigneeIDs = assigneeIDs
     }
@@ -80,12 +80,7 @@ func (h *Handler) handleGetEvents(w http.ResponseWriter, r *http.Request) {
     }
 
     if sourceIDStr := query.Get("sourceId"); sourceIDStr != "" {
-        sourceID, err := strconv.Atoi(sourceIDStr)
-        if err != nil {
-            writeError(w, http.StatusBadRequest, "invalid sourceId format")
-            return
-        }
-        params.SourceID = &sourceID
+        params.SourceID = &sourceIDStr
     }
 
     events, err := h.service.GetByDateRange(profileCtx.FamilyID, params, profileCtx)
@@ -246,7 +241,7 @@ func (h *Handler) handleDeleteEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusOK, map[string]int{"deleted": eventID})
+    writeJSON(w, http.StatusOK, map[string]string{"deleted": string(eventID)})
 }
 
 func (h *Handler) handleRestoreEvent(w http.ResponseWriter, r *http.Request) {
@@ -263,7 +258,7 @@ func (h *Handler) handleRestoreEvent(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusOK, map[string]int{"restored": eventID})
+    writeJSON(w, http.StatusOK, map[string]string{"restored": string(eventID)})
 }
 
 func (h *Handler) validateCreateEventRequest(req *CreateEventRequest) error {
@@ -305,9 +300,16 @@ func (h *Handler) validateUpdateInstanceRequest(req *UpdateRecurringInstanceRequ
     return nil
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
+func getIDFromRequest(r *http.Request) (models.EventID, error) {
     vars := mux.Vars(r)
-    return strconv.Atoi(vars["id"])
+    idStr := vars["id"]
+    
+    eventID := models.EventID(idStr)
+    if !eventID.IsValid() {
+        return "", fmt.Errorf("invalid event ID format")
+    }
+    
+    return eventID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

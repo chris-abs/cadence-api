@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 	"github.com/lib/pq"
 )
@@ -19,21 +20,23 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 func (r *Repository) Create(tag *entities.Tag) error {
-    query := `
-        INSERT INTO tag (name, description, colour, profile_id, family_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id`
+    tag.ID = models.NewTagID()
 
-    err := r.db.QueryRow(
+    query := `
+        INSERT INTO tag (id, name, description, colour, profile_id, family_id, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+    _, err := r.db.Exec(
         query,
+        tag.ID,
         tag.Name,
         tag.Description,
         tag.Colour,
         tag.ProfileID,
         tag.FamilyID,
-        tag.CreatedAt,
-        tag.UpdatedAt,
-    ).Scan(&tag.ID)
+        time.Now().UTC(),
+        time.Now().UTC(),
+    )
 
     if err != nil {
         return fmt.Errorf("error creating tag: %v", err)
@@ -42,7 +45,7 @@ func (r *Repository) Create(tag *entities.Tag) error {
     return nil
 }
 
-func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
+func (r *Repository) GetByID(id models.TagID, familyID models.FamilyID) (*entities.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -69,6 +72,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
+                           'profileId', i.profile_id,
                            'familyId', i.family_id,
                            'container', CASE 
                                WHEN c.id IS NOT NULL THEN
@@ -79,6 +83,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                                        'qrCodeImage', c.qr_code_image,
                                        'number', c.number,
                                        'location', c.location,
+                                       'profileId', c.profile_id,
                                        'familyId', c.family_id,
                                        'workspaceId', c.workspace_id,
                                        'workspace', CASE 
@@ -87,6 +92,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                                                    'id', w.id,
                                                    'name', w.name,
                                                    'description', w.description,
+                                                   'profileId', w.profile_id,
                                                    'familyId', w.family_id,
                                                    'createdAt', w.created_at,
                                                    'updatedAt', w.updated_at
@@ -105,13 +111,13 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
                    '[]'
                ) as items
         FROM tag t
-        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item_tag it ON t.id = it.tag_id AND it.is_deleted = false
         LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
         WHERE t.id = $1 AND t.family_id = $2 AND t.is_deleted = false
-        GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at`
+        GROUP BY t.id, t.name, t.colour, t.description, t.profile_id, t.family_id, t.created_at, t.updated_at`
 
     tag := new(entities.Tag)
     var itemsJSON []byte
@@ -137,7 +143,7 @@ func (r *Repository) GetByID(id int, familyID int) (*entities.Tag, error) {
     return tag, nil
 }
 
-func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
+func (r *Repository) GetByFamilyID(familyID models.FamilyID) ([]*entities.Tag, error) {
     query := `
         WITH item_images AS (
             SELECT item_id,
@@ -165,6 +171,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                            'images', COALESCE(img.images, '[]'::jsonb),
                            'quantity', i.quantity,
                            'containerId', i.container_id,
+                           'profileId', i.profile_id,
                            'familyId', i.family_id,
                            'container', CASE 
                                WHEN c.id IS NOT NULL THEN
@@ -175,6 +182,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                                        'qrCodeImage', c.qr_code_image,
                                        'number', c.number,
                                        'location', c.location,
+                                       'profileId', c.profile_id,
                                        'familyId', c.family_id,
                                        'workspaceId', c.workspace_id,
                                        'workspace', CASE 
@@ -183,6 +191,7 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                                                    'id', w.id,
                                                    'name', w.name,
                                                    'description', w.description,
+                                                   'profileId', w.profile_id,
                                                    'familyId', w.family_id,
                                                    'createdAt', w.created_at,
                                                    'updatedAt', w.updated_at
@@ -201,13 +210,13 @@ func (r *Repository) GetByFamilyID(familyID int) ([]*entities.Tag, error) {
                    '[]'
                ) as items
         FROM tag t
-        LEFT JOIN item_tag it ON t.id = it.tag_id
+        LEFT JOIN item_tag it ON t.id = it.tag_id AND it.is_deleted = false
         LEFT JOIN item i ON it.item_id = i.id AND i.family_id = t.family_id AND i.is_deleted = false
         LEFT JOIN item_images img ON i.id = img.item_id
         LEFT JOIN container c ON i.container_id = c.id AND c.family_id = t.family_id AND c.is_deleted = false
         LEFT JOIN workspace w ON c.workspace_id = w.id AND w.family_id = t.family_id AND w.is_deleted = false
         WHERE t.family_id = $1 AND t.is_deleted = false
-        GROUP BY t.id, t.name, t.colour, t.family_id, t.created_at, t.updated_at
+        GROUP BY t.id, t.name, t.colour, t.description, t.profile_id, t.family_id, t.created_at, t.updated_at
         ORDER BY t.name ASC`
 
     rows, err := r.db.Query(query, familyID)
@@ -269,18 +278,28 @@ func (r *Repository) Update(tag *entities.Tag) error {
     return nil
 }
 
-func (r *Repository) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int) error {
+func (r *Repository) AssignTagsToItems(familyID models.FamilyID, tagIDs []models.TagID, itemIDs []models.ItemID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
     }
     defer tx.Rollback()
 
+    tagIDStrings := make([]string, len(tagIDs))
+    for i, id := range tagIDs {
+        tagIDStrings[i] = id.String()
+    }
+    
+    itemIDStrings := make([]string, len(itemIDs))
+    for i, id := range itemIDs {
+        itemIDStrings[i] = id.String()
+    }
+
     insertQuery := `
         INSERT INTO item_tag (tag_id, item_id)
         SELECT t.id, i.id
-        FROM unnest($1::int[]) AS t(id)
-        CROSS JOIN unnest($2::int[]) AS i(id)
+        FROM unnest($1::varchar[]) AS t(id)
+        CROSS JOIN unnest($2::varchar[]) AS i(id)
         WHERE EXISTS (
             SELECT 1 FROM tag WHERE id = t.id AND family_id = $3
         ) AND EXISTS (
@@ -289,7 +308,7 @@ func (r *Repository) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int
         ON CONFLICT (tag_id, item_id) DO NOTHING
     `
     
-    _, err = tx.Exec(insertQuery, pq.Array(tagIDs), pq.Array(itemIDs), familyID)
+    _, err = tx.Exec(insertQuery, pq.Array(tagIDStrings), pq.Array(itemIDStrings), familyID)
     if err != nil {
         return fmt.Errorf("error assigning tags: %v", err)
     }
@@ -297,7 +316,7 @@ func (r *Repository) AssignTagsToItems(familyID int, tagIDs []int, itemIDs []int
     return tx.Commit()
 }
 
-func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
+func (r *Repository) Delete(id models.TagID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     tx, err := r.db.Begin()
     if err != nil {
         return fmt.Errorf("error starting transaction: %v", err)
@@ -305,16 +324,17 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     defer tx.Rollback()
 
     itemTagQuery := `
-        DELETE FROM item_tag
+        UPDATE item_tag
+        SET is_deleted = true, deleted_at = $3, deleted_by = $4
         WHERE tag_id = $1 AND is_deleted = false
         AND EXISTS (
             SELECT 1 FROM tag
             WHERE id = $1 AND family_id = $2 AND is_deleted = false
         )`
     
-    _, err = tx.Exec(itemTagQuery, id, familyID)
+    _, err = tx.Exec(itemTagQuery, id, familyID, time.Now().UTC(), deletedBy)
     if err != nil {
-        return fmt.Errorf("error removing item-tag associations: %v", err)
+        return fmt.Errorf("error soft deleting item-tag associations: %v", err)
     }
 
     tagQuery := `
@@ -339,7 +359,7 @@ func (r *Repository) Delete(id int, familyID int, deletedBy int) error {
     return tx.Commit()
 }
 
-func (r *Repository) RestoreDeleted(id int, familyID int) error {
+func (r *Repository) RestoreDeleted(id models.TagID, familyID models.FamilyID) error {
     query := `
         UPDATE tag
         SET is_deleted = false, deleted_at = NULL, deleted_by = NULL, updated_at = $3

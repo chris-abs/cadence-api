@@ -7,7 +7,7 @@ import (
 )
 
 type FamilyAccount struct {
-    ID          int                 `json:"id"`
+    ID          models.FamilyID     `json:"id"`
     Email       string              `json:"email"`
     Password    string              `json:"-"` 
     FamilyName  string              `json:"familyName"`
@@ -18,7 +18,7 @@ type FamilyAccount struct {
 }
 
 type FamilySettings struct {
-	FamilyID  int                 `json:"familyId"`
+	FamilyID  models.FamilyID     `json:"familyId"`
 	Modules   []models.Module     `json:"modules"`
 	Status    models.FamilyStatus `json:"status"`
 	CreatedAt time.Time           `json:"createdAt"`
@@ -26,10 +26,11 @@ type FamilySettings struct {
 }
 
 type RegisterRequest struct {
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	FamilyName string `json:"familyName"`
-	OwnerName  string `json:"ownerName"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	FamilyName  string `json:"familyName"`
+	OwnerName   string `json:"ownerName"`
+	OwnerColour string `json:"ownerColour"`
 }
 
 type LoginRequest struct {

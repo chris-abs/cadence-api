@@ -6,6 +6,7 @@ const (
     ModuleStorage  ModuleID = "storage"
     ModuleChores   ModuleID = "chores"
     ModuleMeals    ModuleID = "meals"
+    ModuleMedia    ModuleID = "media"
     ModuleServices ModuleID = "services"
 )
 

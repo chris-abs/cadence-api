@@ -6,7 +6,7 @@ import (
 
 type SearchResult struct {
     Type          string  `json:"type"`
-    ID            int     `json:"id"`
+    ID            string  `json:"id"`  
     Name          string  `json:"name"`
     Description   string  `json:"description"`
     Rank          float64 `json:"rank"`

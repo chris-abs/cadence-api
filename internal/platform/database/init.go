@@ -7,6 +7,7 @@ import (
 	"github.com/chrisabs/cadence/internal/platform/database/development"
 	"github.com/chrisabs/cadence/internal/platform/database/migrations"
 	"github.com/chrisabs/cadence/internal/platform/database/schema"
+	"github.com/chrisabs/cadence/internal/platform/database/seeds"
 )
 
 func (db *PostgresDB) Init() error {
@@ -21,6 +22,16 @@ func (db *PostgresDB) Init() error {
 			return fmt.Errorf("migrations failed: %v", err)
 		}
 	}
+
+	if os.Getenv("RUN_SEED") == "true" {
+        fmt.Println("\n=== Running Data Seeds ===")
+        db.seedsManager = seeds.NewManager(db.DB)
+        db.seedsManager.EnableSeed("001_media_sources")
+        
+        if err := db.seedsManager.Run(); err != nil {
+            return fmt.Errorf("seeding failed: %v", err)
+        }
+    }
 
 	if os.Getenv("DROP_TABLES") == "true" {
 		fmt.Println("\n=== Dropping ALL Tables ===")
@@ -61,13 +72,19 @@ func (db *PostgresDB) initializeSchema() error {
 		return fmt.Errorf("chores module schema initialization failed: %v", err)
 	}
 	
-	if err := schema.InitMealsSchema(db.DB); err != nil {
-		return fmt.Errorf("meals module schema initialization failed: %v", err)
+	//TODO: circular dependency - will need to adjust these schemas when it comes to creating module
+	// if err := schema.InitMealsSchema(db.DB); err != nil {
+	// 	return fmt.Errorf("meals module schema initialization failed: %v", err)
+	// }
+
+	if err := schema.InitMediaSchema(db.DB); err != nil {
+		return fmt.Errorf("media module schema initialization failed: %v", err)
 	}
 	
-	if err := schema.InitServicesSchema(db.DB); err != nil {
-		return fmt.Errorf("services module schema initialization failed: %v", err)
-	}
+	//TODO: circular dependency - will need to adjust these schemas when it comes to creating module
+	// if err := schema.InitServicesSchema(db.DB); err != nil {
+	// 	return fmt.Errorf("services module schema initialization failed: %v", err)
+	// }
 
 	return nil
 }

@@ -2,8 +2,8 @@ package container
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/chrisabs/cadence/internal/middleware"
@@ -137,7 +137,7 @@ func (h *Handler) handleDeleteContainer(w http.ResponseWriter, r *http.Request) 
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
-    writeJSON(w, http.StatusOK, map[string]int{"deleted": containerID})
+    writeJSON(w, http.StatusOK, map[string]string{"deleted": containerID.String()})
 }
 
 func (h *Handler) handleRestoreContainer(w http.ResponseWriter, r *http.Request) {
@@ -153,20 +153,24 @@ func (h *Handler) handleRestoreContainer(w http.ResponseWriter, r *http.Request)
         writeError(w, http.StatusInternalServerError, err.Error())
         return
     }
-    writeJSON(w, http.StatusOK, map[string]int{"restored": containerID})
+    writeJSON(w, http.StatusOK, map[string]string{"restored": containerID.String()})
 }
 
-func getIDFromRequest(r *http.Request) (int, error) {
-	vars := mux.Vars(r)
-	return strconv.Atoi(vars["id"])
+func getIDFromRequest(r *http.Request) (models.ContainerID, error) {
+    vars := mux.Vars(r)
+    id := models.ContainerID(vars["id"])
+    if !id.IsValid() {
+        return "", fmt.Errorf("invalid container ID format")
+    }
+    return id, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(status)
+    json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+    writeJSON(w, status, map[string]string{"error": message})
 }

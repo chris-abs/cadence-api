@@ -14,8 +14,8 @@ type Service struct {
 	repo         *Repository
 	jwtSecret    string
 	profileService interface {
-		CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
-		GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
+		CreateProfile(familyID models.FamilyID, req *profile.CreateProfileRequest) (*models.Profile, error)
+		GetProfilesByFamilyID(familyID models.FamilyID) ([]*models.Profile, error)
 	}
 }
 
@@ -27,16 +27,16 @@ func NewService(repo *Repository, jwtSecret string) *Service {
 }
 
 func (s *Service) SetProfileService(profileService interface {
-	CreateProfile(familyID int, req *profile.CreateProfileRequest) (*models.Profile, error)
-	GetProfilesByFamilyID(familyID int) ([]*models.Profile, error)
+	CreateProfile(familyID models.FamilyID, req *profile.CreateProfileRequest) (*models.Profile, error)
+	GetProfilesByFamilyID(familyID models.FamilyID) ([]*models.Profile, error)
 }) {
 	s.profileService = profileService
 }
 
-func (s *Service) GenerateFamilyJWT(familyID int) (string, error) {
+func (s *Service) GenerateFamilyJWT(familyID models.FamilyID) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["familyId"] = familyID
+	claims["familyId"] = string(familyID)
 	claims["exp"] = time.Now().Add(time.Hour * 24 * 7).Unix() // 7 days
 
 	return token.SignedString([]byte(s.jwtSecret))
@@ -71,6 +71,7 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
             {ID: models.ModuleStorage, IsEnabled: true},
             {ID: models.ModuleChores, IsEnabled: false},
             {ID: models.ModuleMeals, IsEnabled: false},
+            {ID: models.ModuleMedia, IsEnabled: true},
             {ID: models.ModuleServices, IsEnabled: false},
         },
         Status:    models.FamilyStatusActive,
@@ -84,11 +85,14 @@ func (s *Service) Register(req *RegisterRequest) (*FamilyAuthResponse, error) {
 
     var profiles []models.Profile
     if s.profileService != nil {
-        ownerProfile, err := s.profileService.CreateProfile(family.ID, &profile.CreateProfileRequest{
+        createProfileReq := &profile.CreateProfileRequest{
             Name:  req.OwnerName,
             Role:  models.RoleParent, 
             Pin:   "",
-        })
+            Colour: req.OwnerColour,
+        }
+        
+        ownerProfile, err := s.profileService.CreateProfile(family.ID, createProfileReq)
         if err != nil {
             return nil, fmt.Errorf("failed to create owner profile: %v", err)
         }
@@ -140,7 +144,7 @@ func (s *Service) Login(req *LoginRequest) (*FamilyAuthResponse, error) {
 	}, nil
 }
 
-func (s *Service) GetFamilyByID(id int) (*FamilyAccount, error) {
+func (s *Service) GetFamilyByID(id models.FamilyID) (*FamilyAccount, error) {
     family, err := s.repo.GetByID(id)
     if err != nil {
         return nil, fmt.Errorf("family not found: %v", err)
@@ -157,7 +161,7 @@ func (s *Service) GetFamilyByID(id int) (*FamilyAccount, error) {
     return family, nil
 }
 
-func (s *Service) UpdateFamily(id int, req *UpdateFamilyRequest) (*FamilyAccount, error) {
+func (s *Service) UpdateFamily(id models.FamilyID, req *UpdateFamilyRequest) (*FamilyAccount, error) {
 	family, err := s.repo.GetByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("family not found: %v", err)
@@ -173,27 +177,27 @@ func (s *Service) UpdateFamily(id int, req *UpdateFamilyRequest) (*FamilyAccount
 	return family, nil
 }
 
-func (s *Service) GetFamilySettings(familyID int) (*FamilySettings, error) {
+func (s *Service) GetFamilySettings(familyID models.FamilyID) (*FamilySettings, error) {
 	return s.repo.GetSettings(familyID)
 }
 
-func (s *Service) UpdateModule(familyID int, req *UpdateModuleRequest) error {
+func (s *Service) UpdateModule(familyID models.FamilyID, req *UpdateModuleRequest) error {
 	return s.repo.UpdateModule(familyID, req.ModuleID, req.IsEnabled)
 }
 
-func (s *Service) DeleteFamily(id int, deletedBy int) error {
+func (s *Service) DeleteFamily(id models.FamilyID, deletedBy models.ProfileID) error {
 	return s.repo.Delete(id, deletedBy)
 }
 
-func (s *Service) RestoreFamily(id int) error {
+func (s *Service) RestoreFamily(id models.FamilyID) error {
 	return s.repo.Restore(id)
 }
 
-func (s *Service) IsModuleEnabled(familyID int, moduleID models.ModuleID) (bool, error) {
+func (s *Service) IsModuleEnabled(familyID models.FamilyID, moduleID models.ModuleID) (bool, error) {
 	return s.repo.IsModuleEnabled(familyID, moduleID)
 }
 
-func (s *Service) HasModulePermission(familyID int, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
+func (s *Service) HasModulePermission(familyID models.FamilyID, role models.ProfileRole, moduleID models.ModuleID, permission models.Permission) (bool, error) {
 	isEnabled, err := s.IsModuleEnabled(familyID, moduleID)
 	if err != nil {
 		return false, err

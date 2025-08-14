@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chrisabs/cadence/internal/models"
 	"github.com/chrisabs/cadence/internal/storage/entities"
 )
 
@@ -15,17 +16,17 @@ func NewService(repo *Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) CreateItem(familyID int, profileID int, req *CreateItemRequest) (*entities.Item, error) {
+func (s *Service) CreateItem(familyID models.FamilyID, profileID models.ProfileID, req *CreateItemRequest) (*entities.Item, error) {
     if req.Name == "" {
         return nil, fmt.Errorf("item name is required")
     }
 
     item := &entities.Item{
         Name:        req.Name,
-        Description: req.Description,
+        Description: req.Description, 
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
-        ProfileID:   profileID,  
+        ProfileID:   profileID,
         FamilyID:    familyID,
         Images:      []entities.ItemImage{},
         Tags:        make([]entities.Tag, 0),
@@ -41,22 +42,22 @@ func (s *Service) CreateItem(familyID int, profileID int, req *CreateItemRequest
     return createdItem, nil
 }
 
-func (s *Service) GetItemByID(id int, familyID int) (*entities.Item, error) {
+func (s *Service) GetItemByID(id models.ItemID, familyID models.FamilyID) (*entities.Item, error) {
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) GetItemsByFamilyID(familyID int) ([]*entities.Item, error) {
+func (s *Service) GetItemsByFamilyID(familyID models.FamilyID) ([]*entities.Item, error) {
     return s.repo.GetByFamilyID(familyID)
 }
 
-func (s *Service) UpdateItem(id int, familyID int, profileID int, req *UpdateItemRequest) (*entities.Item, error) {
+func (s *Service) UpdateItem(id models.ItemID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateItemRequest) (*entities.Item, error) {
     item := &entities.Item{
         ID:          id,
         Name:        req.Name,
         Description: req.Description,
         Quantity:    req.Quantity,
         ContainerID: req.ContainerID,
-        ProfileID:   profileID,  
+        ProfileID:   profileID,
         FamilyID:    familyID,
         UpdatedAt:   time.Now().UTC(),
     }
@@ -78,7 +79,7 @@ func (s *Service) UpdateItem(id int, familyID int, profileID int, req *UpdateIte
     return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) AddItemImage(itemID int, familyID int, url string) error {
+func (s *Service) AddItemImage(itemID models.ItemID, familyID models.FamilyID, url string) error {
     displayOrder := 0
     item, err := s.repo.GetByID(itemID, familyID)
     if err == nil {
@@ -88,15 +89,15 @@ func (s *Service) AddItemImage(itemID int, familyID int, url string) error {
     return s.repo.AddItemImage(itemID, familyID, url, displayOrder)
 }
 
-func (s *Service) DeleteItemImage(itemID int, familyID int, url string) error {
+func (s *Service) DeleteItemImage(itemID models.ItemID, familyID models.FamilyID, url string) error {
     return s.repo.DeleteItemImage(itemID, familyID, url)
 }
 
-func (s *Service) DeleteItem(id int, familyID int, deletedBy int) error {
+func (s *Service) DeleteItem(id models.ItemID, familyID models.FamilyID, deletedBy models.ProfileID) error {
     return s.repo.Delete(id, familyID, deletedBy)
 }
 
-func (s *Service) RestoreItem(id int, familyID int) error {
+func (s *Service) RestoreItem(id models.ItemID, familyID models.FamilyID) error {
     if err := s.repo.RestoreDeleted(id, familyID); err != nil {
         return fmt.Errorf("failed to restore item: %v", err)
     }
