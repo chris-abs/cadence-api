@@ -73,23 +73,4 @@ var (
 		"Music", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller",
 		"War", "Western",
 	}
-	
-// TODO: this is dogshit - we should provide a base set of soruces and allow the user to create any additional options.	
-DefaultSources = []Source{
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000001"), Name: "Netflix", Color: "red", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000002"), Name: "Disney+", Color: "blue", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000003"), Name: "Prime Video", Color: "cyan", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000004"), Name: "HBO Max", Color: "purple", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000005"), Name: "Apple TV+", Color: "slate", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000006"), Name: "Hulu", Color: "green", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000007"), Name: "Paramount+", Color: "indigo", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000008"), Name: "Peacock", Color: "violet", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000009"), Name: "BBC iPlayer", Color: "orange", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000010"), Name: "ITV Hub", Color: "yellow", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000011"), Name: "All 4", Color: "pink", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000012"), Name: "Now TV", Color: "sky", Category: "streaming"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000013"), Name: "Cinema", Color: "amber", Category: "cinema"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000014"), Name: "DVD/Blu-ray", Color: "zinc", Category: "physical"},
-    {ID: models.SourceID("018f-8e2e-1000-abcd-000000000015"), Name: "Other", Color: "gray", Category: "other"},
-}
 )
