@@ -5,7 +5,7 @@ import "github.com/google/uuid"
 type FamilyID string
 type ProfileID string
 
-type MediaID string
+type MaterialID string
 type SourceID string
 type ChoreID string
 type ChoreInstanceID string
@@ -25,8 +25,8 @@ func NewProfileID() ProfileID {
     return ProfileID(uuid.Must(uuid.NewV7()).String())
 }
 
-func NewMediaID() MediaID {
-    return MediaID(uuid.Must(uuid.NewV7()).String())
+func NewMaterialID() MaterialID {
+    return MaterialID(uuid.Must(uuid.NewV7()).String())
 }
 
 func NewSourceID() SourceID {
@@ -75,7 +75,7 @@ func (id ProfileID) IsValid() bool {
     return err == nil
 }
 
-func (id MediaID) IsValid() bool {
+func (id MaterialID) IsValid() bool {
     _, err := uuid.Parse(string(id))
     return err == nil
 }
@@ -133,7 +133,7 @@ func (id ProfileID) String() string {
     return string(id)
 }
 
-func (id MediaID) String() string {
+func (id MaterialID) String() string {
     return string(id)
 }
 

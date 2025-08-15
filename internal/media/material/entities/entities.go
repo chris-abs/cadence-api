@@ -6,10 +6,10 @@ import (
 	"github.com/chrisabs/cadence/internal/models"
 )
 
-type Media struct {
-	ID          models.MediaID    `json:"id"`
+type Material struct {
+	ID          models.MaterialID `json:"id"`
 	Name        string            `json:"name"`
-	Type        MediaType         `json:"type"`
+	Type        MaterialType      `json:"type"`
 	Genre       string            `json:"genre"`
 	ReleaseYear int               `json:"releaseYear"`
 	Runtime     int               `json:"runtime"` 
@@ -25,11 +25,11 @@ type Media struct {
 	UpdatedAt   time.Time         `json:"updatedAt"`
 }
 
-type MediaType string
+type MaterialType string
 
 const (
-	MediaTypeMovie MediaType = "movie"
-	MediaTypeShow  MediaType = "show"
+	MaterialTypeMovie MaterialType = "movie"
+	MaterialTypeShow  MaterialType = "show"
 )
 
 type WatchWith string
@@ -57,13 +57,6 @@ const (
 	PriorityMedium Priority = "medium"
 	PriorityHigh   Priority = "high"
 )
-
-type Source struct {
-    ID       models.SourceID `json:"id"`
-    Name     string          `json:"name"`
-    Color    string          `json:"color"`   
-    Category string          `json:"category"`
-}
 
 var (
 	ValidGenres = []string{

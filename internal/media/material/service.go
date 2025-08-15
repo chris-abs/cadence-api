@@ -1,9 +1,9 @@
-package media
+package material
 
 import (
 	"fmt"
 
-	"github.com/chrisabs/cadence/internal/media/entities"
+	"github.com/chrisabs/cadence/internal/media/material/entities"
 	"github.com/chrisabs/cadence/internal/models"
 )
 
@@ -15,8 +15,8 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateMedia(profileID models.ProfileID, familyID models.FamilyID, req *CreateMediaRequest) (*entities.Media, error) {
-	if err := s.validateCreateMediaRequest(req); err != nil {
+func (s *Service) CreateMaterial(profileID models.ProfileID, familyID models.FamilyID, req *CreateMaterialRequest) (*entities.Material, error) {
+	if err := s.validateCreateMaterialRequest(req); err != nil {
 		return nil, fmt.Errorf("validation failed: %v", err)
 	}
 
@@ -31,20 +31,20 @@ func (s *Service) CreateMedia(profileID models.ProfileID, familyID models.Family
 	return s.repo.Create(profileID, familyID, req)
 }
 
-func (s *Service) GetMediaByID(id models.MediaID, familyID models.FamilyID) (*entities.Media, error) {
+func (s *Service) GetMaterialByID(id models.MaterialID, familyID models.FamilyID) (*entities.Material, error) {
 	if id == "" {
-		return nil, fmt.Errorf("invalid media ID")
+		return nil, fmt.Errorf("invalid material ID")
 	}
 
 	return s.repo.GetByID(id, familyID)
 }
 
-func (s *Service) SearchMedia(familyID models.FamilyID, currentProfileID models.ProfileID, req *MediaSearchRequest) (*MediaSearchResponse, error) {
+func (s *Service) SearchMaterial(familyID models.FamilyID, currentProfileID models.ProfileID, req *MaterialSearchRequest) (*MaterialSearchResponse, error) {
 	if req.ProfileID == nil {
 		req.ProfileID = &currentProfileID
 	}
 
-	media, total, err := s.repo.Search(familyID, req)
+	material, total, err := s.repo.Search(familyID, req)
 	if err != nil {
 		return nil, fmt.Errorf("error searching media: %v", err)
 	}
@@ -59,10 +59,10 @@ func (s *Service) SearchMedia(familyID models.FamilyID, currentProfileID models.
 		offset = 0
 	}
 
-	hasMore := offset+len(media) < total
+	hasMore := offset+len(material) < total
 
-	return &MediaSearchResponse{
-		Media:   media,
+	return &MaterialSearchResponse{
+		Material:   material,
 		Total:   total,
 		Limit:   limit,
 		Offset:  offset,
@@ -70,9 +70,9 @@ func (s *Service) SearchMedia(familyID models.FamilyID, currentProfileID models.
 	}, nil
 }
 
-func (s *Service) UpdateMedia(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMediaRequest) (*entities.Media, error) {
+func (s *Service) UpdateMaterial(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMaterialRequest) (*entities.Material, error) {
 	if id == "" {
-		return nil, fmt.Errorf("invalid media ID")
+		return nil, fmt.Errorf("invalid material ID")
 	}
 
 	if err := s.validateUpdateMediaRequest(req); err != nil {
@@ -82,9 +82,9 @@ func (s *Service) UpdateMedia(id models.MediaID, familyID models.FamilyID, profi
 	return s.repo.Update(id, familyID, profileID, req)
 }
 
-func (s *Service) UpdateMediaStatus(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {
+func (s *Service) UpdateMaterialStatus(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {
 	if id == "" {
-		return fmt.Errorf("invalid media ID")
+		return fmt.Errorf("invalid material ID")
 	}
 
 	if !s.isValidStatus(status) {
@@ -94,15 +94,15 @@ func (s *Service) UpdateMediaStatus(id models.MediaID, familyID models.FamilyID,
 	return s.repo.UpdateStatus(id, familyID, profileID, status)
 }
 
-func (s *Service) DeleteMedia(id models.MediaID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
+func (s *Service) DeleteMaterial(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	if id == "" {
-		return fmt.Errorf("invalid media ID")
+		return fmt.Errorf("invalid material ID")
 	}
 
 	return s.repo.Delete(id, familyID, profileID, deletedBy)
 }
 
-func (s *Service) GetStatusSummary(familyID models.FamilyID, profileID models.ProfileID) (*MediaStatusSummaryResponse, error) {
+func (s *Service) GetStatusSummary(familyID models.FamilyID, profileID models.ProfileID) (*MaterialStatusSummaryResponse, error) {
 	return s.repo.GetStatusSummary(familyID, profileID)
 }
 
@@ -110,16 +110,16 @@ func (s *Service) GetAllSources() ([]entities.Source, error) {
 	return s.repo.GetAllSources()
 }
 
-func (s *Service) GetEnums() (*MediaEnumsResponse, error) {
+func (s *Service) GetEnums() (*MaterialEnumsResponse, error) {
 	sources, err := s.repo.GetAllSources()
 	if err != nil {
 		return nil, fmt.Errorf("error getting sources: %v", err)
 	}
 
-	return &MediaEnumsResponse{
-		Types: []entities.MediaType{
-			entities.MediaTypeMovie,
-			entities.MediaTypeShow,
+	return &MaterialEnumsResponse{
+		Types: []entities.MaterialType{
+			entities.MaterialTypeMovie,
+			entities.MaterialTypeShow,
 		},
 		Genres:     entities.ValidGenres,
 		Sources:    sources,
@@ -143,11 +143,7 @@ func (s *Service) GetEnums() (*MediaEnumsResponse, error) {
 	}, nil
 }
 
-func (s *Service) SeedSources() error {
-	return s.repo.SeedSources()
-}
-
-func (s *Service) validateCreateMediaRequest(req *CreateMediaRequest) error {
+func (s *Service) validateCreateMaterialRequest(req *CreateMaterialRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -195,7 +191,7 @@ func (s *Service) validateCreateMediaRequest(req *CreateMediaRequest) error {
 	return nil
 }
 
-func (s *Service) validateUpdateMediaRequest(req *UpdateMediaRequest) error {
+func (s *Service) validateUpdateMaterialRequest(req *UpdateMaterialRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -243,8 +239,8 @@ func (s *Service) validateUpdateMediaRequest(req *UpdateMediaRequest) error {
 	return nil
 }
 
-func (s *Service) isValidType(t entities.MediaType) bool {
-	return t == entities.MediaTypeMovie || t == entities.MediaTypeShow
+func (s *Service) isValidType(t entities.MaterialType) bool {
+	return t == entities.MaterialTypeMovie || t == entities.MaterialTypeShow
 }
 
 func (s *Service) isValidGenre(genre string) bool {

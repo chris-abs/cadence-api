@@ -1,4 +1,4 @@
-package media
+package material
 
 import (
 	"encoding/json"
@@ -40,9 +40,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	req := &MediaSearchRequest{
+	req := &MaterialSearchRequest{
 		Query:     strings.TrimSpace(r.URL.Query().Get("query")),
-		Type:      entities.MediaType(r.URL.Query().Get("type")),
+		Type:      entities.MaterialType(r.URL.Query().Get("type")),
 		Genre:     r.URL.Query().Get("genre"),
 		WatchWith: entities.WatchWith(r.URL.Query().Get("watchWith")),
 		Status:    entities.Status(r.URL.Query().Get("status")),
@@ -94,7 +94,7 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	var req CreateMediaRequest
+	var req CreateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -140,7 +140,7 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateMediaRequest
+	var req UpdateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -193,7 +193,7 @@ func (h *Handler) handleUpdateMediaStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var req UpdateMediaStatusRequest
+	var req UpdateMaterialStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -257,16 +257,16 @@ func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string][]entities.Source{"sources": sources})
 }
 
-func getIDFromRequest(r *http.Request) (models.MediaID, error) {
+func getIDFromRequest(r *http.Request) (models.MaterialID, error) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	
-	mediaID := models.MediaID(idStr)
-	if !mediaID.IsValid() {
-		return "", fmt.Errorf("invalid media ID format")
+	materialID := models.MaterialID(idStr)
+	if !materialID.IsValid() {
+		return "", fmt.Errorf("invalid material ID format")
 	}
 	
-	return mediaID, nil
+	return materialID, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

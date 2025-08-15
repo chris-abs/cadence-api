@@ -6,14 +6,14 @@ import (
 )
 
 func InitMediaSchema(db *sql.DB) error {
-	if err := createMediaTables(db); err != nil {
-		return fmt.Errorf("failed to create media tables: %v", err)
+	if err := createMaterialTables(db); err != nil {
+		return fmt.Errorf("failed to create material tables: %v", err)
 	}
 
 	return nil
 }
 
-func createMediaTables(db *sql.DB) error {
+func createMaterialTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS media_source (
 		id VARCHAR(36) PRIMARY KEY,  
@@ -27,7 +27,7 @@ func createMediaTables(db *sql.DB) error {
 		deleted_by VARCHAR(36) REFERENCES profile(id)  
 	);
 
-	CREATE TABLE IF NOT EXISTS media (
+	CREATE TABLE IF NOT EXISTS material (
 		id VARCHAR(36) PRIMARY KEY,  
 		name VARCHAR(255) NOT NULL,
 		type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'show')),
@@ -55,20 +55,20 @@ func createMediaTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_media_source_is_deleted ON media_source(is_deleted);
 
 	
-	CREATE INDEX IF NOT EXISTS idx_media_profile_id ON media(profile_id);
-	CREATE INDEX IF NOT EXISTS idx_media_family_id ON media(family_id);
-	CREATE INDEX IF NOT EXISTS idx_media_type ON media(type);
-	CREATE INDEX IF NOT EXISTS idx_media_genre ON media(genre);
-	CREATE INDEX IF NOT EXISTS idx_media_status ON media(status);
-	CREATE INDEX IF NOT EXISTS idx_media_priority ON media(priority);
-	CREATE INDEX IF NOT EXISTS idx_media_watch_with ON media(watch_with);
-	CREATE INDEX IF NOT EXISTS idx_media_source_ids ON media USING gin (source_ids);
-	CREATE INDEX IF NOT EXISTS idx_media_name_pattern ON media USING gin (name gin_trgm_ops);
-	CREATE INDEX IF NOT EXISTS idx_media_name_fts ON media USING gin (to_tsvector('english', name || ' ' || COALESCE(notes, '')));
-	CREATE INDEX IF NOT EXISTS idx_media_is_deleted ON media(is_deleted);
-	CREATE INDEX IF NOT EXISTS idx_media_profile_deleted ON media(profile_id, is_deleted);
-	CREATE INDEX IF NOT EXISTS idx_media_family_deleted ON media(family_id, is_deleted);
-	CREATE INDEX IF NOT EXISTS idx_media_profile_status ON media(profile_id, status, is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_material_profile_id ON material(profile_id);
+	CREATE INDEX IF NOT EXISTS idx_material_family_id ON material(family_id);
+	CREATE INDEX IF NOT EXISTS idx_material_type ON material(type);
+	CREATE INDEX IF NOT EXISTS idx_material_genre ON material(genre);
+	CREATE INDEX IF NOT EXISTS idx_material_status ON material(status);
+	CREATE INDEX IF NOT EXISTS idx_material_priority ON material(priority);
+	CREATE INDEX IF NOT EXISTS idx_material_watch_with ON material(watch_with);
+	CREATE INDEX IF NOT EXISTS idx_material_source_ids ON material USING gin (source_ids);
+	CREATE INDEX IF NOT EXISTS idx_material_name_pattern ON material USING gin (name gin_trgm_ops);
+	CREATE INDEX IF NOT EXISTS idx_material_name_fts ON material USING gin (to_tsvector('english', name || ' ' || COALESCE(notes, '')));
+	CREATE INDEX IF NOT EXISTS idx_material_is_deleted ON material(is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_material_profile_deleted ON material(profile_id, is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_material_family_deleted ON material(family_id, is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_material_profile_status ON material(profile_id, status, is_deleted);
 	`
 	_, err := db.Exec(query)
 	return err

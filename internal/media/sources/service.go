@@ -50,7 +50,6 @@ func (s *Service) UpdateSource(sourceID models.SourceID, req *entities.UpdateSou
 		return nil, err
 	}
 	
-	// Update fields
 	if req.Name != nil {
 		existingSource.Name = *req.Name
 	}
@@ -69,7 +68,6 @@ func (s *Service) UpdateSource(sourceID models.SourceID, req *entities.UpdateSou
 }
 
 func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.ProfileID) error {
-	// Check if source is being used by any media
 	count, err := s.repo.GetMediaCountBySource(sourceID)
 	if err != nil {
 		return fmt.Errorf("error checking source usage: %v", err)
