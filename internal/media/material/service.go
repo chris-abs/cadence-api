@@ -106,15 +106,8 @@ func (s *Service) GetStatusSummary(familyID models.FamilyID, profileID models.Pr
 	return s.repo.GetStatusSummary(familyID, profileID)
 }
 
-func (s *Service) GetAllSources() ([]entities.Source, error) {
-	return s.repo.GetAllSources()
-}
 
 func (s *Service) GetEnums() (*MaterialEnumsResponse, error) {
-	sources, err := s.repo.GetAllSources()
-	if err != nil {
-		return nil, fmt.Errorf("error getting sources: %v", err)
-	}
 
 	return &MaterialEnumsResponse{
 		Types: []entities.MaterialType{
@@ -122,7 +115,6 @@ func (s *Service) GetEnums() (*MaterialEnumsResponse, error) {
 			entities.MaterialTypeShow,
 		},
 		Genres:     entities.ValidGenres,
-		Sources:    sources,
 		WatchWith: []entities.WatchWith{
 			entities.WatchWithAlone,
 			entities.WatchWithPartner,

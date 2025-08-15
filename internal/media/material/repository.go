@@ -80,9 +80,6 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 		return nil, fmt.Errorf("error parsing source IDs: %v", err)
 	}
 
-	if err := r.loadMaterialSources(material); err != nil {
-		return nil, err
-	}
 
 	return material, nil
 }
@@ -224,9 +221,6 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 			return nil, 0, fmt.Errorf("error parsing source IDs: %v", err)
 		}
 
-		if err := r.loadMaterialSources(&material); err != nil {
-			return nil, 0, fmt.Errorf("error loading sources: %v", err)
-		}
 
 		materialList = append(materialList, material)
 	}
@@ -338,68 +332,4 @@ func (r *Repository) GetStatusSummary(familyID models.FamilyID, profileID models
 	}
 
 	return summary, nil
-}
-
-func (r *Repository) loadMaterialSources(material *entities.Material) error {
-	if len(material.SourceIDs) == 0 {
-		material.Sources = make([]entities.Source, 0)
-		return nil
-	}
-
-	placeholders := make([]string, len(material.SourceIDs))
-	args := make([]interface{}, len(material.SourceIDs))
-	for i, sourceID := range material.SourceIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = sourceID
-	}
-
-	query := fmt.Sprintf(`
-		SELECT id, name, color, category
-		FROM media_source
-		WHERE id IN (%s) AND is_deleted = false
-		ORDER BY name`, strings.Join(placeholders, ","))
-
-	rows, err := r.db.Query(query, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	material.Sources = make([]entities.Source, 0)
-	for rows.Next() {
-		var source entities.Source
-		err := rows.Scan(&source.ID, &source.Name, &source.Color, &source.Category)
-		if err != nil {
-			return err
-		}
-		material.Sources = append(material.Sources, source)
-	}
-
-	return nil
-}
-
-func (r *Repository) GetAllSources() ([]entities.Source, error) {
-	query := `
-		SELECT id, name, color, category
-		FROM media_source
-		WHERE is_deleted = false
-		ORDER BY category, name`
-
-	rows, err := r.db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var sources []entities.Source
-	for rows.Next() {
-		var source entities.Source
-		err := rows.Scan(&source.ID, &source.Name, &source.Color, &source.Category)
-		if err != nil {
-			return nil, err
-		}
-		sources = append(sources, source)
-	}
-
-	return sources, nil
 }

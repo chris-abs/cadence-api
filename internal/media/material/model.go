@@ -61,7 +61,6 @@ type MaterialSearchResponse struct {
 type MaterialEnumsResponse struct {
 	Types      []entities.MaterialType `json:"types"`
 	Genres     []string                `json:"genres"`
-	Sources    []entities.Source       `json:"sources"`
 	WatchWith  []entities.WatchWith    `json:"watchWith"`
 	Statuses   []entities.Status       `json:"statuses"`
 	Priorities []entities.Priority     `json:"priorities"`

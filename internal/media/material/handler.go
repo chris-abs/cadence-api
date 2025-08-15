@@ -27,7 +27,6 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/media/summary", h.authMiddleware.ProfileAuthHandler(h.handleGetStatusSummary)).Methods("GET")
 	router.HandleFunc("/media/enums", h.authMiddleware.ProfileAuthHandler(h.handleGetEnums)).Methods("GET")
-	router.HandleFunc("/media/sources", h.authMiddleware.ProfileAuthHandler(h.handleGetSources)).Methods("GET")
 	
 	router.HandleFunc("/media", h.authMiddleware.ProfileAuthHandler(h.handleGetMedia)).Methods("GET")
 	router.HandleFunc("/media", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
@@ -247,15 +246,6 @@ func (h *Handler) handleGetEnums(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, enums)
 }
 
-func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
-	sources, err := h.service.GetAllSources()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string][]entities.Source{"sources": sources})
-}
 
 func getIDFromRequest(r *http.Request) (models.MaterialID, error) {
 	vars := mux.Vars(r)
