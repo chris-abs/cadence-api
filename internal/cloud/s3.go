@@ -64,8 +64,26 @@ func (h *S3Handler) UploadFile(file *multipart.FileHeader, familyID models.Famil
     return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", h.bucket, h.region, filename), nil
 }
 
+// For family-shared data (storage items, etc.)
+func (h *S3Handler) UploadFamilySharedFile(file *multipart.FileHeader, familyID models.FamilyID, category string) (string, error) {
+    prefix := fmt.Sprintf("shared/%s", category)
+    return h.UploadFile(file, familyID, prefix)
+}
+
+// For profile-specific media (private to profile)
+func (h *S3Handler) UploadProfileMediaFile(file *multipart.FileHeader, familyID models.FamilyID, profileID models.ProfileID, mediaType string) (string, error) {
+    prefix := fmt.Sprintf("profiles/%s/media/%s", profileID, mediaType)
+    return h.UploadFile(file, familyID, prefix)
+}
+
+// For profile avatars (family-visible)
+func (h *S3Handler) UploadProfileAvatar(file *multipart.FileHeader, familyID models.FamilyID, profileID models.ProfileID) (string, error) {
+    prefix := fmt.Sprintf("profiles/%s/avatar", profileID)
+    return h.UploadFile(file, familyID, prefix)
+}
+
 func generateFilename(familyID models.FamilyID, prefix, originalName string) string {
     ext := filepath.Ext(originalName)
     timestamp := time.Now().UnixNano()
-    return fmt.Sprintf("%s/%s/%d%s", familyID, prefix, timestamp, ext)
+    return fmt.Sprintf("families/%s/%s/%d%s", familyID, prefix, timestamp, ext)
 }
