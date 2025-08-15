@@ -15,7 +15,6 @@ type Media struct {
 	Runtime     int               `json:"runtime"` 
 	PosterURL   string            `json:"posterUrl"`
 	SourceIDs   []models.SourceID `json:"sourceIds"`
-	Sources     []Source          `json:"sources,omitempty"` 
 	WatchWith   WatchWith         `json:"watchWith"`
 	Status      Status            `json:"status"`
 	Priority    Priority          `json:"priority"`
