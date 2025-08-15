@@ -3,6 +3,7 @@ package sources
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/chrisabs/cadence/internal/media/sources/entities"
@@ -107,36 +108,102 @@ func (r *Repository) DeleteSource(sourceID models.SourceID, deletedBy models.Pro
 	return nil
 }
 
-func (r *Repository) GetAllSources() ([]entities.Source, error) {
-	query := `
-		SELECT id, name, color, category
+func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
+	baseQuery := `
+		SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source
-		WHERE is_deleted = false
-		ORDER BY category, name`
-
-	rows, err := r.db.Query(query)
+		WHERE is_deleted = false`
+	
+	var conditions []string
+	var args []interface{}
+	argIndex := 1
+	
+	if params.Category != nil {
+		conditions = append(conditions, fmt.Sprintf("category = $%d", argIndex))
+		args = append(args, *params.Category)
+		argIndex++
+	}
+	
+	if len(conditions) > 0 {
+		baseQuery += " AND " + strings.Join(conditions, " AND ")
+	}
+	
+	baseQuery += " ORDER BY category, name"
+	
+	countQuery := strings.Replace(baseQuery, "SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by", "SELECT COUNT(*)", 1)
+	var total int
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("error getting total count: %v", err)
+	}
+	
+	if params.Limit != nil {
+		baseQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+		args = append(args, *params.Limit)
+		argIndex++
+		
+		if params.Offset != nil {
+			baseQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
+			args = append(args, *params.Offset)
+		}
+	}
+	
+	rows, err := r.db.Query(baseQuery, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
+	
 	var sources []entities.Source
 	for rows.Next() {
 		var source entities.Source
-		err := rows.Scan(&source.ID, &source.Name, &source.Color, &source.Category)
+		var deletedAt sql.NullTime
+		var deletedBy sql.NullString
+		
+		err := rows.Scan(
+			&source.ID, &source.Name, &source.Color, &source.Category,
+			&source.CreatedAt, &source.UpdatedAt, &source.IsDeleted,
+			&deletedAt, &deletedBy,
+		)
 		if err != nil {
 			return nil, err
 		}
+		
+		if deletedAt.Valid {
+			source.DeletedAt = &deletedAt.Time
+		}
+		if deletedBy.Valid {
+			source.DeletedBy = (*models.ProfileID)(&deletedBy.String)
+		}
+		
 		sources = append(sources, source)
 	}
-
-	return sources, nil
+	
+	limit := 100 
+	if params.Limit != nil {
+		limit = *params.Limit
+	}
+	
+	offset := 0
+	if params.Offset != nil {
+		offset = *params.Offset
+	}
+	
+	hasMore := (offset + limit) < total
+	
+	return &entities.SourceSearchResponse{
+		Sources: sources,
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+		HasMore: hasMore,
+	}, nil
 }
 
-func (r *Repository) GetMediaCountBySource(sourceID models.SourceID) (int, error) {
+func (r *Repository) GetMaterialCountBySource(sourceID models.SourceID) (int, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM media
+		FROM material
 		WHERE $1 = ANY(source_ids) AND is_deleted = false`
 	
 	var count int

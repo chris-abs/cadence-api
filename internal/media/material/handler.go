@@ -25,15 +25,15 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/media/summary", h.authMiddleware.ProfileAuthHandler(h.handleGetStatusSummary)).Methods("GET")
-	router.HandleFunc("/media/enums", h.authMiddleware.ProfileAuthHandler(h.handleGetEnums)).Methods("GET")
+	router.HandleFunc("/material/summary", h.authMiddleware.ProfileAuthHandler(h.handleGetStatusSummary)).Methods("GET")
+	router.HandleFunc("/material/enums", h.authMiddleware.ProfileAuthHandler(h.handleGetEnums)).Methods("GET")
 	
-	router.HandleFunc("/media", h.authMiddleware.ProfileAuthHandler(h.handleGetMedia)).Methods("GET")
-	router.HandleFunc("/media", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
-	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetMediaByID)).Methods("GET")
-	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
-	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
-	router.HandleFunc("/media/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
+	router.HandleFunc("/material", h.authMiddleware.ProfileAuthHandler(h.handleGetMedia)).Methods("GET")
+	router.HandleFunc("/material", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
+	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetMediaByID)).Methods("GET")
+	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
+	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
+	router.HandleFunc("/material/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
 }
 
 func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {

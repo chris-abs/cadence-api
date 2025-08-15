@@ -145,7 +145,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 
 	whereClause := strings.Join(conditions, " AND ")
 
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media m WHERE %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM material m WHERE %s", whereClause)
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
@@ -186,7 +186,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 						ELSE 0
 					END
 				) as rank
-			FROM media m
+			FROM material m
 			WHERE %s
 		)
 		SELECT * FROM ranked_media
@@ -235,7 +235,7 @@ func (r *Repository) Update(id models.MaterialID, familyID models.FamilyID, prof
 	}
 
 	query := `
-		UPDATE media
+		UPDATE material
 		SET name = $3, type = $4, genre = $5, release_year = $6, runtime = $7, 
 			poster_url = $8, source_ids = $9, watch_with = $10, status = $11, 
 			priority = $12, notes = $13, updated_at = $14
@@ -265,7 +265,7 @@ func (r *Repository) Update(id models.MaterialID, familyID models.FamilyID, prof
 
 func (r *Repository) UpdateStatus(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {
 	query := `
-		UPDATE media
+		UPDATE material
 		SET status = $3, updated_at = $4
 		WHERE id = $1 AND family_id = $2 AND profile_id = $5 AND is_deleted = false`
 
@@ -288,7 +288,7 @@ func (r *Repository) UpdateStatus(id models.MaterialID, familyID models.FamilyID
 
 func (r *Repository) Delete(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	query := `
-		UPDATE media
+		UPDATE material
 		SET is_deleted = true, deleted_at = $4, deleted_by = $5, updated_at = $4
 		WHERE id = $1 AND family_id = $2 AND profile_id = $3 AND is_deleted = false`
 
@@ -318,7 +318,7 @@ func (r *Repository) GetStatusSummary(familyID models.FamilyID, profileID models
 			COUNT(CASE WHEN status = 'awaiting_release' THEN 1 END) as awaiting_release,
 			COUNT(CASE WHEN status = 'watched' THEN 1 END) as watched,
 			COUNT(*) as total
-		FROM media
+		FROM material
 		WHERE family_id = $1 AND profile_id = $2 AND is_deleted = false`
 
 	summary := new(MaterialStatusSummaryResponse)

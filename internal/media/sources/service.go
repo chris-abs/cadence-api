@@ -66,21 +66,21 @@ func (s *Service) UpdateSource(sourceID models.SourceID, req *entities.UpdateSou
 	return existingSource, nil
 }
 
+func (s *Service) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
+	return s.repo.GetAllSources(params)
+}
+
 func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.ProfileID) error {
-	count, err := s.repo.GetMediaCountBySource(sourceID)
+	count, err := s.repo.GetMaterialCountBySource(sourceID)
 	if err != nil {
 		return fmt.Errorf("error checking source usage: %v", err)
 	}
 	
 	if count > 0 {
-		return fmt.Errorf("cannot delete source: it is being used by %d media items", count)
+		return fmt.Errorf("cannot delete source: it is being used by %d material items", count)
 	}
 	
 	return s.repo.DeleteSource(sourceID, deletedBy)
-}
-
-func (s *Service) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
-	return s.repo.GetAllSources(params)
 }
 
 func (s *Service) validateCreateSourceRequest(req *entities.CreateSourceRequest) error {
