@@ -3,6 +3,7 @@ package classification
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/chrisabs/cadence/internal/media/classification/entities"
 	"github.com/chrisabs/cadence/internal/models"
@@ -21,10 +22,14 @@ func (r *Repository) Create(classification *entities.Classification) error {
 		INSERT INTO classifications (
 			id, name, description, color, image_url, family_id, created_by, 
 			created_at, updated_at, is_deleted
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING created_at, updated_at`
 	
-	_, err := r.db.Exec(query,
+	now := time.Now().UTC()
+	var createdAt, updatedAt time.Time
+	
+	err := r.db.QueryRow(
+		query,
 		classification.ID,
 		classification.Name,
 		classification.Description,
@@ -32,14 +37,17 @@ func (r *Repository) Create(classification *entities.Classification) error {
 		classification.ImageURL,
 		classification.FamilyID,
 		classification.CreatedBy,
-		classification.CreatedAt,
-		classification.UpdatedAt,
+		now,
+		now,
 		classification.IsDeleted,
-	)
+	).Scan(&createdAt, &updatedAt)
 	
 	if err != nil {
 		return fmt.Errorf("error creating classification: %v", err)
 	}
+	
+	classification.CreatedAt = createdAt
+	classification.UpdatedAt = updatedAt
 	
 	return nil
 }
@@ -49,7 +57,7 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 		SELECT id, name, description, color, image_url, family_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM classifications 
-		WHERE id = ? AND is_deleted = false
+		WHERE id = $1 AND is_deleted = false
 	`
 	
 	var classification entities.Classification
@@ -81,31 +89,30 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 func (r *Repository) Update(classification *entities.Classification) error {
 	query := `
 		UPDATE classifications 
-		SET name = ?, description = ?, color = ?, image_url = ?, updated_at = ?
-		WHERE id = ? AND is_deleted = false
+		SET name = $2, description = $3, color = $4, image_url = $5, updated_at = $6
+		WHERE id = $1 AND is_deleted = false
+		RETURNING updated_at
 	`
 	
-	result, err := r.db.Exec(query,
+	var updatedAt time.Time
+	err := r.db.QueryRow(
+		query,
+		classification.ID,
 		classification.Name,
 		classification.Description,
 		classification.Color,
 		classification.ImageURL,
 		classification.UpdatedAt,
-		classification.ID,
-	)
+	).Scan(&updatedAt)
 	
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("classification not found or already deleted")
+		}
 		return fmt.Errorf("error updating classification: %v", err)
 	}
 	
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error getting rows affected: %v", err)
-	}
-	
-	if rowsAffected == 0 {
-		return fmt.Errorf("classification not found or already deleted")
-	}
+	classification.UpdatedAt = updatedAt
 	
 	return nil
 }
@@ -113,22 +120,18 @@ func (r *Repository) Update(classification *entities.Classification) error {
 func (r *Repository) Delete(id models.ClassificationID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE classifications 
-		SET is_deleted = true, deleted_at = NOW(), deleted_by = ?
-		WHERE id = ? AND is_deleted = false
+		SET is_deleted = true, deleted_at = $2, deleted_by = $3
+		WHERE id = $1 AND is_deleted = false
+		RETURNING id
 	`
 	
-	result, err := r.db.Exec(query, deletedBy, id)
+	var deletedID models.ClassificationID
+	err := r.db.QueryRow(query, id, time.Now().UTC(), deletedBy).Scan(&deletedID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("classification not found or already deleted")
+		}
 		return fmt.Errorf("error deleting classification: %v", err)
-	}
-	
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error getting rows affected: %v", err)
-	}
-	
-	if rowsAffected == 0 {
-		return fmt.Errorf("classification not found or already deleted")
 	}
 	
 	return nil
@@ -138,7 +141,7 @@ func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int)
 	countQuery := `
 		SELECT COUNT(*) 
 		FROM classifications 
-		WHERE family_id = ? AND is_deleted = false
+		WHERE family_id = $1 AND is_deleted = false
 	`
 	
 	var total int
@@ -151,9 +154,9 @@ func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int)
 		SELECT id, name, description, color, image_url, family_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM classifications 
-		WHERE family_id = ? AND is_deleted = false
+		WHERE family_id = $1 AND is_deleted = false
 		ORDER BY name ASC
-		LIMIT ? OFFSET ?
+		LIMIT $2 OFFSET $3
 	`
 	
 	rows, err := r.db.Query(query, familyID, limit, offset)
@@ -196,7 +199,7 @@ func (r *Repository) GetMaterialCountByClassification(classificationID models.Cl
 	query := `
 		SELECT COUNT(*) 
 		FROM material 
-		WHERE classification_id = ? AND is_deleted = false
+		WHERE classification_id = $1 AND is_deleted = false
 	`
 	
 	var count int

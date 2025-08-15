@@ -7,17 +7,15 @@ import (
 	"strconv"
 
 	"github.com/chrisabs/cadence/internal/cloud"
-	"github.com/chrisabs/cadence/internal/media/classification"
-	"github.com/chrisabs/cadence/internal/media/classification/service"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	service *service.Service
+	service *Service
 }
 
-func NewHandler(service *service.Service) *Handler {
+func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
@@ -33,7 +31,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 func (h *Handler) handleCreateClassification(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 	
-	var req classification.CreateClassificationRequest
+	var req CreateClassificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -66,7 +64,7 @@ func (h *Handler) handleGetAllClassifications(w http.ResponseWriter, r *http.Req
 		}
 	}
 	
-	params := classification.ClassificationSearchRequest{
+	params := ClassificationSearchRequest{
 		FamilyID: profileCtx.FamilyID,
 		Limit:    limit,
 		Offset:   offset,
@@ -124,7 +122,7 @@ func (h *Handler) handleUpdateClassification(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	var req classification.UpdateClassificationRequest
+	var req UpdateClassificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return

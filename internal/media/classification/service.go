@@ -4,21 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chrisabs/cadence/internal/media/classification"
 	"github.com/chrisabs/cadence/internal/media/classification/entities"
-	"github.com/chrisabs/cadence/internal/media/classification/repository"
 	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo *Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateClassification(req *classification.CreateClassificationRequest, familyID models.FamilyID, createdBy models.ProfileID) (*entities.Classification, error) {
+func (s *Service) CreateClassification(req *CreateClassificationRequest, familyID models.FamilyID, createdBy models.ProfileID) (*entities.Classification, error) {
 	if err := s.validateCreateClassificationRequest(req); err != nil {
 		return nil, err
 	}
@@ -53,7 +51,7 @@ func (s *Service) GetClassificationByID(classificationID models.ClassificationID
 	return classification, nil
 }
 
-func (s *Service) UpdateClassification(classificationID models.ClassificationID, req *classification.UpdateClassificationRequest) (*entities.Classification, error) {
+func (s *Service) UpdateClassification(classificationID models.ClassificationID, req *UpdateClassificationRequest) (*entities.Classification, error) {
 	if err := s.validateUpdateClassificationRequest(req); err != nil {
 		return nil, err
 	}
@@ -98,7 +96,7 @@ func (s *Service) UpdateClassificationImage(classificationID models.Classificati
 	return existingClassification, nil
 }
 
-func (s *Service) GetAllClassifications(familyID models.FamilyID, params classification.ClassificationSearchRequest) (*classification.ClassificationSearchResponse, error) {
+func (s *Service) GetAllClassifications(familyID models.FamilyID, params ClassificationSearchRequest) (*ClassificationSearchResponse, error) {
 	limit := 50 
 	if params.Limit != nil {
 		limit = *params.Limit
@@ -121,7 +119,7 @@ func (s *Service) GetAllClassifications(familyID models.FamilyID, params classif
 	
 	hasMore := (offset + limit) < total
 	
-	return &classification.ClassificationSearchResponse{
+	return &ClassificationSearchResponse{
 		Classifications: classificationEntities,
 		Total:          total,
 		Limit:          limit,
@@ -143,7 +141,7 @@ func (s *Service) DeleteClassification(classificationID models.ClassificationID,
 	return s.repo.Delete(classificationID, deletedBy)
 }
 
-func (s *Service) validateCreateClassificationRequest(req *classification.CreateClassificationRequest) error {
+func (s *Service) validateCreateClassificationRequest(req *CreateClassificationRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -163,13 +161,13 @@ func (s *Service) validateCreateClassificationRequest(req *classification.Create
 	return nil
 }
 
-func (s *Service) validateUpdateClassificationRequest(req *classification.UpdateClassificationRequest) error {
+func (s *Service) validateUpdateClassificationRequest(req *UpdateClassificationRequest) error {
 	if req.Name != nil && len(*req.Name) > 100 {
 		return fmt.Errorf("name must be 100 characters or less")
 	}
 	
-	if req.Description != nil && len(*req.Description) > 500 {
-		return fmt.Errorf("description must be 500 characters or less")
+	if req.Description != nil && len(*req.Description) > 100 {
+		return fmt.Errorf("description must be 100 characters or less")
 	}
 	
 	return nil
