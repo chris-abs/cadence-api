@@ -75,7 +75,7 @@ func (s *Service) UpdateMaterial(id models.MaterialID, familyID models.FamilyID,
 		return nil, fmt.Errorf("invalid material ID")
 	}
 
-	if err := s.validateUpdateMediaRequest(req); err != nil {
+	if err := s.validateUpdateMaterialRequest(req); err != nil {
 		return nil, fmt.Errorf("validation failed: %v", err)
 	}
 

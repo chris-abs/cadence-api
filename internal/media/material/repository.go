@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/media/material/entities"
-	"github.com/chrisabs/cadence/internal/media/sources/entities"
 	"github.com/chrisabs/cadence/internal/models"
 )
 

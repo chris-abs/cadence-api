@@ -4,16 +4,15 @@ import (
 	"fmt"
 
 	"github.com/chrisabs/cadence/internal/media/sources/entities"
-	"github.com/chrisabs/cadence/internal/media/sources/repository"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo *Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
@@ -82,10 +81,6 @@ func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.Profil
 
 func (s *Service) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
 	return s.repo.GetAllSources(params)
-}
-
-func (s *Service) SeedSources() error {
-	return s.repo.SeedSources()
 }
 
 func (s *Service) validateCreateSourceRequest(req *entities.CreateSourceRequest) error {

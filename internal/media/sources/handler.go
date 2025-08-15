@@ -7,18 +7,17 @@ import (
 	"strings"
 
 	"github.com/chrisabs/cadence/internal/media/sources/entities"
-	"github.com/chrisabs/cadence/internal/media/sources/service"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	service        *service.Service
+	service        *Service
 	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewHandler(service *service.Service, authMiddleware *middleware.AuthMiddleware) *Handler {
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
 	return &Handler{
 		service:        service,
 		authMiddleware: authMiddleware,

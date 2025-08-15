@@ -33,8 +33,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/media", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
 	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetMediaByID)).Methods("GET")
 	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
-	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMedia)).Methods("DELETE")
-	router.HandleFunc("/media/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMediaStatus)).Methods("PATCH")
+	router.HandleFunc("/media/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
+	router.HandleFunc("/media/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
 }
 
 func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +82,7 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 		req.Offset = offset
 	}
 
-	response, err := h.service.SearchMedia(profileCtx.FamilyID, profileCtx.ProfileID, req)
+	response, err := h.service.SearchMaterial(profileCtx.FamilyID, profileCtx.ProfileID, req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -100,7 +100,7 @@ func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	media, err := h.service.CreateMedia(profileCtx.ProfileID, profileCtx.FamilyID, &req)
+	material, err := h.service.CreateMaterial(profileCtx.ProfileID, profileCtx.FamilyID, &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation failed") {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -110,31 +110,31 @@ func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, media)
+	writeJSON(w, http.StatusCreated, material)
 }
 
 func (h *Handler) handleGetMediaByID(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	mediaID, err := getIDFromRequest(r)
+	materialID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	media, err := h.service.GetMediaByID(mediaID, profileCtx.FamilyID)
+	material, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, media)
+	writeJSON(w, http.StatusOK, material)
 }
 
 func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	mediaID, err := getIDFromRequest(r)
+	materialID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -146,7 +146,7 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	media, err := h.service.UpdateMedia(mediaID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
+	material, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "validation failed") {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -160,19 +160,19 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, media)
+	writeJSON(w, http.StatusOK, material)
 }
 
-func (h *Handler) handleDeleteMedia(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleDeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	mediaID, err := getIDFromRequest(r)
+	materialID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.service.DeleteMedia(mediaID, profileCtx.FamilyID, profileCtx.ProfileID, profileCtx.ProfileID); err != nil {
+	if err := h.service.DeleteMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, profileCtx.ProfileID); err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "not owned") {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
@@ -181,13 +181,13 @@ func (h *Handler) handleDeleteMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"deleted": string(mediaID)})
+	writeJSON(w, http.StatusOK, map[string]string{"deleted": string(materialID)})
 }
 
-func (h *Handler) handleUpdateMediaStatus(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleUpdateMaterialStatus(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
-	mediaID, err := getIDFromRequest(r)
+	materialID, err := getIDFromRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -199,7 +199,7 @@ func (h *Handler) handleUpdateMediaStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.service.UpdateMediaStatus(mediaID, profileCtx.FamilyID, profileCtx.ProfileID, req.Status); err != nil {
+	if err := h.service.UpdateMaterialStatus(materialID, profileCtx.FamilyID, profileCtx.ProfileID, req.Status); err != nil {
 		if strings.Contains(err.Error(), "invalid status") {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
