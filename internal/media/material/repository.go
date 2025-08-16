@@ -24,9 +24,9 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 	
 	query := `
 		INSERT INTO material (
-			id, name, type, genre, release_year, runtime, poster_url, source_ids,
+			id, name, type, genre, release_year, runtime, poster_url, source_ids, classification_id,
 			watch_with, status, priority, notes, profile_id, family_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING created_at, updated_at`
 
 	sourceIDsJSON, err := json.Marshal(req.SourceIDs)
@@ -40,7 +40,7 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 	err = r.db.QueryRow(
 		query,
 		materialID, req.Name, req.Type, req.Genre, req.ReleaseYear, req.Runtime, req.PosterURL,
-		sourceIDsJSON, req.WatchWith, req.Status, req.Priority, req.Notes,
+		sourceIDsJSON, req.ClassificationID, req.WatchWith, req.Status, req.Priority, req.Notes,
 		profileID, familyID, now, now,
 	).Scan(&createdAt, &updatedAt)
 
@@ -54,9 +54,9 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*entities.Material, error) {
 	query := `
 		SELECT m.id, m.name, m.type, m.genre, m.release_year, m.runtime, m.poster_url,
-			   m.source_ids, m.watch_with, m.status, m.priority, m.notes,
+			   m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes,
 			   m.profile_id, m.family_id, m.created_at, m.updated_at
-		FROM media m
+		FROM material m
 		WHERE m.id = $1 AND m.family_id = $2 AND m.is_deleted = false`
 
 	material := new(entities.Material)
@@ -64,7 +64,7 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 
 	err := r.db.QueryRow(query, id, familyID).Scan(
 		&material.ID, &material.Name, &material.Type, &material.Genre, &material.ReleaseYear,
-		&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.WatchWith,
+		&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
 		&material.Status, &material.Priority, &material.Notes, &material.ProfileID,
 		&material.FamilyID, &material.CreatedAt, &material.UpdatedAt,
 	)
@@ -125,6 +125,12 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		argIndex++
 	}
 
+	if req.ClassificationID != nil {
+		conditions = append(conditions, fmt.Sprintf("m.classification_id = $%d", argIndex))
+		args = append(args, *req.ClassificationID)
+		argIndex++
+	}
+
 	if req.WatchWith != "" {
 		conditions = append(conditions, fmt.Sprintf("m.watch_with = $%d", argIndex))
 		args = append(args, req.WatchWith)
@@ -169,7 +175,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		WITH ranked_media AS (
 			SELECT 
 				m.id, m.name, m.type, m.genre, m.release_year, m.runtime, m.poster_url,
-				m.source_ids, m.watch_with, m.status, m.priority, m.notes,
+				m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes,
 				m.profile_id, m.family_id, m.created_at, m.updated_at,
 				(
 					CASE
@@ -209,7 +215,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 
 		err := rows.Scan(
 			&material.ID, &material.Name, &material.Type, &material.Genre, &material.ReleaseYear,
-			&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.WatchWith,
+			&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
 			&material.Status, &material.Priority, &material.Notes, &material.ProfileID,
 			&material.FamilyID, &material.CreatedAt, &material.UpdatedAt, &rank,
 		)
@@ -237,13 +243,13 @@ func (r *Repository) Update(id models.MaterialID, familyID models.FamilyID, prof
 	query := `
 		UPDATE material
 		SET name = $3, type = $4, genre = $5, release_year = $6, runtime = $7, 
-			poster_url = $8, source_ids = $9, watch_with = $10, status = $11, 
-			priority = $12, notes = $13, updated_at = $14
-		WHERE id = $1 AND family_id = $2 AND profile_id = $15 AND is_deleted = false`
+			poster_url = $8, source_ids = $9, classification_id = $10, watch_with = $11, status = $12, 
+			priority = $13, notes = $14, updated_at = $15
+		WHERE id = $1 AND family_id = $2 AND profile_id = $16 AND is_deleted = false`
 
 	result, err := r.db.Exec(
 		query, id, familyID, req.Name, req.Type, req.Genre, req.ReleaseYear,
-		req.Runtime, req.PosterURL, sourceIDsJSON, req.WatchWith, req.Status,
+		req.Runtime, req.PosterURL, sourceIDsJSON, req.ClassificationID, req.WatchWith, req.Status,
 		req.Priority, req.Notes, time.Now().UTC(), profileID,
 	)
 

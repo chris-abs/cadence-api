@@ -6,31 +6,33 @@ import (
 )
 
 type CreateMaterialRequest struct {
-	Name        string                   `json:"name"`
-	Type        entities.MaterialType    `json:"type"`
-	Genre       string                   `json:"genre"`
-	ReleaseYear int                      `json:"releaseYear"`
-	Runtime     int                      `json:"runtime"`
-	PosterURL   string                   `json:"posterUrl"`
-	SourceIDs   []models.SourceID        `json:"sourceIds"`
-	WatchWith   entities.WatchWith       `json:"watchWith"`
-	Status      entities.Status          `json:"status"`
-	Priority    entities.Priority        `json:"priority"`
-	Notes       string                   `json:"notes"`
+	Name             string                        `json:"name"`
+	Type             entities.MaterialType         `json:"type"`
+	Genre            string                        `json:"genre"`
+	ReleaseYear      int                           `json:"releaseYear"`
+	Runtime          int                           `json:"runtime"`
+	PosterURL        string                        `json:"posterUrl"`
+	SourceIDs        []models.SourceID             `json:"sourceIds"`
+	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
+	WatchWith        entities.WatchWith            `json:"watchWith"`
+	Status           entities.Status               `json:"status"`
+	Priority         entities.Priority             `json:"priority"`
+	Notes            string                        `json:"notes"`
 }
 
 type UpdateMaterialRequest struct {
-	Name        string                  `json:"name"`
-	Type        entities.MaterialType   `json:"type"`
-	Genre       string                  `json:"genre"`
-	ReleaseYear int                     `json:"releaseYear"`
-	Runtime     int                     `json:"runtime"`
-	PosterURL   string                  `json:"posterUrl"`
-	SourceIDs   []models.SourceID       `json:"sourceIds"`
-	WatchWith   entities.WatchWith      `json:"watchWith"`
-	Status      entities.Status         `json:"status"`
-	Priority    entities.Priority       `json:"priority"`
-	Notes       string                  `json:"notes"`
+	Name             string                        `json:"name"`
+	Type             entities.MaterialType         `json:"type"`
+	Genre            string                        `json:"genre"`
+	ReleaseYear      int                           `json:"releaseYear"`
+	Runtime          int                           `json:"runtime"`
+	PosterURL        string                        `json:"posterUrl"`
+	SourceIDs        []models.SourceID             `json:"sourceIds"`
+	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
+	WatchWith        entities.WatchWith            `json:"watchWith"`
+	Status           entities.Status               `json:"status"`
+	Priority         entities.Priority             `json:"priority"`
+	Notes            string                        `json:"notes"`
 }
 
 type UpdateMaterialStatusRequest struct {
@@ -38,16 +40,17 @@ type UpdateMaterialStatusRequest struct {
 }
 
 type MaterialSearchRequest struct {
-	Query     string                   `json:"query"`
-	ProfileID *models.ProfileID        `json:"profileId,omitempty"` 
-	Type      entities.MaterialType    `json:"type"`
-	Genre     string                   `json:"genre"`
-	SourceID  models.SourceID          `json:"sourceId"`
-	WatchWith entities.WatchWith       `json:"watchWith"`
-	Status    entities.Status          `json:"status"`
-	Priority  entities.Priority        `json:"priority"`
-	Limit     int                      `json:"limit"`
-	Offset    int                      `json:"offset"`
+	Query            string                   `json:"query"`
+	ProfileID        *models.ProfileID        `json:"profileId,omitempty"` 
+	Type             entities.MaterialType    `json:"type"`
+	Genre            string                   `json:"genre"`
+	SourceID         models.SourceID          `json:"sourceId"`
+	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
+	WatchWith        entities.WatchWith       `json:"watchWith"`
+	Status           entities.Status          `json:"status"`
+	Priority         entities.Priority        `json:"priority"`
+	Limit            int                      `json:"limit"`
+	Offset           int                      `json:"offset"`
 }
 
 type MaterialSearchResponse struct {

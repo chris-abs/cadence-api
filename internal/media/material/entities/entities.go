@@ -7,22 +7,23 @@ import (
 )
 
 type Material struct {
-	ID          models.MaterialID `json:"id"`
-	Name        string            `json:"name"`
-	Type        MaterialType      `json:"type"`
-	Genre       string            `json:"genre"`
-	ReleaseYear int               `json:"releaseYear"`
-	Runtime     int               `json:"runtime"` 
-	PosterURL   string            `json:"posterUrl"`
-	SourceIDs   []models.SourceID `json:"sourceIds"`
-	WatchWith   WatchWith         `json:"watchWith"`
-	Status      Status            `json:"status"`
-	Priority    Priority          `json:"priority"`
-	Notes       string            `json:"notes"`
-	ProfileID   models.ProfileID  `json:"profileId"`
-	FamilyID    models.FamilyID   `json:"familyId"`
-	CreatedAt   time.Time         `json:"createdAt"`
-	UpdatedAt   time.Time         `json:"updatedAt"`
+	ID               models.MaterialID        `json:"id"`
+	Name             string                   `json:"name"`
+	Type             MaterialType             `json:"type"`
+	Genre            string                   `json:"genre"`
+	ReleaseYear      int                      `json:"releaseYear"`
+	Runtime          int                      `json:"runtime"` 
+	PosterURL        string                   `json:"posterUrl"`
+	SourceIDs        []models.SourceID        `json:"sourceIds"`
+	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
+	WatchWith        WatchWith                `json:"watchWith"`
+	Status           Status                   `json:"status"`
+	Priority         Priority                 `json:"priority"`
+	Notes            string                   `json:"notes"`
+	ProfileID        models.ProfileID         `json:"profileId"`
+	FamilyID         models.FamilyID          `json:"familyId"`
+	CreatedAt        time.Time                `json:"createdAt"`
+	UpdatedAt        time.Time                `json:"updatedAt"`
 }
 
 type MaterialType string

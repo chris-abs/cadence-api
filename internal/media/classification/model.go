@@ -25,8 +25,8 @@ type ClassificationSearchRequest struct {
 
 type ClassificationSearchResponse struct {
 	Classifications []entities.Classification `json:"classifications"`
-	Total          int                       `json:"total"`
-	Limit          int                       `json:"limit"`
-	Offset         int                       `json:"offset"`
-	HasMore        bool                      `json:"hasMore"`
+	Total          int                        `json:"total"`
+	Limit          int                        `json:"limit"`
+	Offset         int                        `json:"offset"`
+	HasMore        bool                       `json:"hasMore"`
 }
