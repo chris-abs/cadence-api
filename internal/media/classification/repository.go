@@ -19,7 +19,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) Create(classification *entities.Classification) error {
 	query := `
-		INSERT INTO classifications (
+		INSERT INTO media_classification (
 			id, name, description, color, image_url, family_id, created_by, 
 			created_at, updated_at, is_deleted
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -56,7 +56,7 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 	query := `
 		SELECT id, name, description, color, image_url, family_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
-		FROM classifications 
+		FROM media_classification 
 		WHERE id = $1 AND is_deleted = false
 	`
 	
@@ -88,7 +88,7 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 
 func (r *Repository) Update(classification *entities.Classification) error {
 	query := `
-		UPDATE classifications 
+		UPDATE media_classification 
 		SET name = $2, description = $3, color = $4, image_url = $5, updated_at = $6
 		WHERE id = $1 AND is_deleted = false
 		RETURNING updated_at
@@ -119,7 +119,7 @@ func (r *Repository) Update(classification *entities.Classification) error {
 
 func (r *Repository) Delete(id models.ClassificationID, deletedBy models.ProfileID) error {
 	query := `
-		UPDATE classifications 
+		UPDATE media_classification 
 		SET is_deleted = true, deleted_at = $2, deleted_by = $3
 		WHERE id = $1 AND is_deleted = false
 		RETURNING id
@@ -140,7 +140,7 @@ func (r *Repository) Delete(id models.ClassificationID, deletedBy models.Profile
 func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int) ([]*entities.Classification, int, error) {
 	countQuery := `
 		SELECT COUNT(*) 
-		FROM classifications 
+		FROM media_classification 
 		WHERE family_id = $1 AND is_deleted = false
 	`
 	
@@ -153,7 +153,7 @@ func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int)
 	query := `
 		SELECT id, name, description, color, image_url, family_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
-		FROM classifications 
+		FROM media_classification 
 		WHERE family_id = $1 AND is_deleted = false
 		ORDER BY name ASC
 		LIMIT $2 OFFSET $3

@@ -130,7 +130,12 @@ func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entitie
 	
 	baseQuery += " ORDER BY category, name"
 	
-	countQuery := strings.Replace(baseQuery, "SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by", "SELECT COUNT(*)", 1)
+	countQuery := baseQuery
+	countQuery = strings.Replace(countQuery, "SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by", "SELECT COUNT(*)", 1)
+	
+	if strings.Contains(countQuery, "ORDER BY") {
+		countQuery = countQuery[:strings.Index(countQuery, "ORDER BY")]
+	}
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
