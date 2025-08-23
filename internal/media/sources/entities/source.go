@@ -37,9 +37,9 @@ type SourceSearchParams struct {
 }
 
 type SourceSearchResponse struct {
-	Sources []Source `json:"sources"`
-	Total   int      `json:"total"`
-	Limit   int      `json:"limit"`
-	Offset  int      `json:"offset"`
-	HasMore bool     `json:"hasMore"`
+	Data   []Source `json:"data"`
+	Total  int      `json:"total"`
+	Limit  int      `json:"limit"`
+	Offset int      `json:"offset"`
+	HasMore bool    `json:"hasMore"`
 }

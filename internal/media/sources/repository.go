@@ -109,14 +109,11 @@ func (r *Repository) DeleteSource(sourceID models.SourceID, deletedBy models.Pro
 }
 
 func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
-	baseQuery := `
-		SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by
-		FROM media_source
-		WHERE is_deleted = false`
-	
 	var conditions []string
 	var args []interface{}
 	argIndex := 1
+	
+	conditions = append(conditions, "is_deleted = false")
 	
 	if params.Category != nil {
 		conditions = append(conditions, fmt.Sprintf("category = $%d", argIndex))
@@ -124,18 +121,16 @@ func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entitie
 		argIndex++
 	}
 	
-	if len(conditions) > 0 {
-		baseQuery += " AND " + strings.Join(conditions, " AND ")
-	}
+	whereClause := strings.Join(conditions, " AND ")
 	
-	baseQuery += " ORDER BY category, name"
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media_source WHERE %s", whereClause)
 	
-	countQuery := baseQuery
-	countQuery = strings.Replace(countQuery, "SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by", "SELECT COUNT(*)", 1)
-	
-	if strings.Contains(countQuery, "ORDER BY") {
-		countQuery = countQuery[:strings.Index(countQuery, "ORDER BY")]
-	}
+	mainQuery := fmt.Sprintf(`
+		SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by
+		FROM media_source 
+		WHERE %s 
+		ORDER BY category, name`, whereClause)
 	var total int
 	err := r.db.QueryRow(countQuery, args...).Scan(&total)
 	if err != nil {
@@ -143,17 +138,17 @@ func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entitie
 	}
 	
 	if params.Limit != nil {
-		baseQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
+		mainQuery += fmt.Sprintf(" LIMIT $%d", argIndex)
 		args = append(args, *params.Limit)
 		argIndex++
 		
 		if params.Offset != nil {
-			baseQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
+			mainQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
 			args = append(args, *params.Offset)
 		}
 	}
 	
-	rows, err := r.db.Query(baseQuery, args...)
+	rows, err := r.db.Query(mainQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -197,10 +192,10 @@ func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entitie
 	hasMore := (offset + limit) < total
 	
 	return &entities.SourceSearchResponse{
-		Sources: sources,
-		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
+		Data:   sources,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
 		HasMore: hasMore,
 	}, nil
 }

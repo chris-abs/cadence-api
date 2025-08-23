@@ -120,11 +120,11 @@ func (s *Service) GetAllClassifications(familyID models.FamilyID, params Classif
 	hasMore := (offset + limit) < total
 	
 	return &ClassificationSearchResponse{
-		Classifications: classificationEntities,
-		Total:          total,
-		Limit:          limit,
-		Offset:         offset,
-		HasMore:        hasMore,
+		Data:   classificationEntities,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+		HasMore: hasMore,
 	}, nil
 }
 
