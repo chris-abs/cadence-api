@@ -20,9 +20,9 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) Create(classification *entities.Classification) error {
 	query := `
 		INSERT INTO media_classification (
-			id, name, description, color, image_url, family_id, created_by, 
+			id, name, description, color, image_url, family_id, profile_id, created_by, 
 			created_at, updated_at, is_deleted
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING created_at, updated_at`
 	
 	now := time.Now().UTC()
@@ -36,6 +36,7 @@ func (r *Repository) Create(classification *entities.Classification) error {
 		classification.Color,
 		classification.ImageURL,
 		classification.FamilyID,
+		classification.ProfileID,
 		classification.CreatedBy,
 		now,
 		now,
@@ -54,7 +55,7 @@ func (r *Repository) Create(classification *entities.Classification) error {
 
 func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classification, error) {
 	query := `
-		SELECT id, name, description, color, image_url, family_id, created_by,
+		SELECT id, name, description, color, image_url, family_id, profile_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_classification 
 		WHERE id = $1 AND is_deleted = false
@@ -68,6 +69,7 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 		&classification.Color,
 		&classification.ImageURL,
 		&classification.FamilyID,
+		&classification.ProfileID,
 		&classification.CreatedBy,
 		&classification.CreatedAt,
 		&classification.UpdatedAt,

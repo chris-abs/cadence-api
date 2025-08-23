@@ -27,6 +27,7 @@ func (s *Service) CreateSource(req *CreateSourceRequest, familyID models.FamilyI
 		Color:    req.Color,
 		Category: req.Category,
 		FamilyID: familyID,
+		ProfileID: profileID,
 		CreatedBy: profileID,
 	}
 	

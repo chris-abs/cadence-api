@@ -20,17 +20,17 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) CreateSource(source *entities.Source) error {
 	query := `
-		INSERT INTO media_source (id, name, color, category, family_id, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+		INSERT INTO media_source (id, name, color, category, family_id, profile_id, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 	
 	now := time.Now().UTC()
-	_, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, source.FamilyID, source.CreatedBy, now, now)
+	_, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, source.FamilyID, source.ProfileID, source.CreatedBy, now, now)
 	return err
 }
 
 func (r *Repository) GetSourceByID(sourceID models.SourceID) (*entities.Source, error) {
 	query := `
-		SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by
+		SELECT id, name, color, category, family_id, profile_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source
 		WHERE id = $1 AND is_deleted = false`
 	
@@ -40,8 +40,8 @@ func (r *Repository) GetSourceByID(sourceID models.SourceID) (*entities.Source, 
 	
 	err := r.db.QueryRow(query, sourceID).Scan(
 		&source.ID, &source.Name, &source.Color, &source.Category,
-		&source.CreatedAt, &source.UpdatedAt, &source.IsDeleted,
-		&deletedAt, &deletedBy,
+		&source.FamilyID, &source.ProfileID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
+		&source.IsDeleted, &deletedAt, &deletedBy,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -133,7 +133,7 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media_source WHERE %s", whereClause)
 	
 	mainQuery := fmt.Sprintf(`
-		SELECT id, name, color, category, family_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
+		SELECT id, name, color, category, family_id, profile_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source 
 		WHERE %s 
 		ORDER BY category, name`, whereClause)
@@ -168,7 +168,7 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 		
 		err := rows.Scan(
 			&source.ID, &source.Name, &source.Color, &source.Category,
-			&source.FamilyID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
+			&source.FamilyID, &source.ProfileID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
 			&source.IsDeleted, &deletedAt, &deletedBy,
 		)
 		if err != nil {

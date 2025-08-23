@@ -29,6 +29,7 @@ func (s *Service) CreateClassification(req *CreateClassificationRequest, familyI
 		Color:       req.Color,
 		ImageURL:    "", 
 		FamilyID:    familyID,
+		ProfileID:   createdBy,
 		CreatedBy:   createdBy,
 		CreatedAt:   now,
 		UpdatedAt:   now,
