@@ -7,25 +7,30 @@ import (
 	"strconv"
 
 	"github.com/chrisabs/cadence/internal/cloud"
+	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	service *Service
+	service        *Service
+	authMiddleware *middleware.AuthMiddleware
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Handler {
+	return &Handler{
+		service:        service,
+		authMiddleware: authMiddleware,
+	}
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/classifications", h.handleCreateClassification).Methods("POST")
-	router.HandleFunc("/classifications", h.handleGetAllClassifications).Methods("GET")
-	router.HandleFunc("/classifications/{id}", h.handleGetClassification).Methods("GET")
-	router.HandleFunc("/classifications/{id}", h.handleUpdateClassification).Methods("PUT")
-	router.HandleFunc("/classifications/{id}/image", h.handleUploadClassificationImage).Methods("POST")
-	router.HandleFunc("/classifications/{id}", h.handleDeleteClassification).Methods("DELETE")
+	router.HandleFunc("/classifications", h.authMiddleware.ProfileAuthHandler(h.handleCreateClassification)).Methods("POST")
+	router.HandleFunc("/classifications", h.authMiddleware.ProfileAuthHandler(h.handleGetAllClassifications)).Methods("GET")
+	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetClassification)).Methods("GET")
+	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateClassification)).Methods("PUT")
+	router.HandleFunc("/classifications/{id}/image", h.authMiddleware.ProfileAuthHandler(h.handleUploadClassificationImage)).Methods("POST")
+	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteClassification)).Methods("DELETE")
 }
 
 func (h *Handler) handleCreateClassification(w http.ResponseWriter, r *http.Request) {
