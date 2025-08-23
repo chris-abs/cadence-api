@@ -108,7 +108,7 @@ func (r *Repository) DeleteSource(sourceID models.SourceID, deletedBy models.Pro
 	return nil
 }
 
-func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
+func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResponse, error) {
 	var conditions []string
 	var args []interface{}
 	argIndex := 1
@@ -191,7 +191,7 @@ func (r *Repository) GetAllSources(params entities.SourceSearchParams) (*entitie
 	
 	hasMore := (offset + limit) < total
 	
-	return &entities.SourceSearchResponse{
+	return &SourceSearchResponse{
 		Data:   sources,
 		Total:  total,
 		Limit:  limit,

@@ -16,7 +16,7 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateSource(req *entities.CreateSourceRequest) (*entities.Source, error) {
+func (s *Service) CreateSource(req *CreateSourceRequest) (*entities.Source, error) {
 	if err := s.validateCreateSourceRequest(req); err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *Service) GetSourceByID(sourceID models.SourceID) (*entities.Source, err
 	return s.repo.GetSourceByID(sourceID)
 }
 
-func (s *Service) UpdateSource(sourceID models.SourceID, req *entities.UpdateSourceRequest) (*entities.Source, error) {
+func (s *Service) UpdateSource(sourceID models.SourceID, req *UpdateSourceRequest) (*entities.Source, error) {
 	if err := s.validateUpdateSourceRequest(req); err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (s *Service) UpdateSource(sourceID models.SourceID, req *entities.UpdateSou
 	return existingSource, nil
 }
 
-func (s *Service) GetAllSources(params entities.SourceSearchParams) (*entities.SourceSearchResponse, error) {
+func (s *Service) GetAllSources(params SourceSearchParams) (*SourceSearchResponse, error) {
 	return s.repo.GetAllSources(params)
 }
 
@@ -83,7 +83,7 @@ func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.Profil
 	return s.repo.DeleteSource(sourceID, deletedBy)
 }
 
-func (s *Service) validateCreateSourceRequest(req *entities.CreateSourceRequest) error {
+func (s *Service) validateCreateSourceRequest(req *CreateSourceRequest) error {
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
@@ -107,7 +107,7 @@ func (s *Service) validateCreateSourceRequest(req *entities.CreateSourceRequest)
 	return nil
 }
 
-func (s *Service) validateUpdateSourceRequest(req *entities.UpdateSourceRequest) error {
+func (s *Service) validateUpdateSourceRequest(req *UpdateSourceRequest) error {
 	if req.Name != nil && len(*req.Name) > 100 {
 		return fmt.Errorf("name must be 100 characters or less")
 	}

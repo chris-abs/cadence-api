@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chrisabs/cadence/internal/media/sources/entities"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
 	"github.com/gorilla/mux"
@@ -34,7 +33,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
-	var params entities.SourceSearchParams
+	var params SourceSearchParams
 	
 	if category := r.URL.Query().Get("category"); category != "" {
 		params.Category = &category
@@ -84,7 +83,7 @@ func (h *Handler) handleGetSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateSource(w http.ResponseWriter, r *http.Request) {
-	var req entities.CreateSourceRequest
+	var req CreateSourceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -112,7 +111,7 @@ func (h *Handler) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var req entities.UpdateSourceRequest
+	var req UpdateSourceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
