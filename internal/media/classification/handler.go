@@ -25,12 +25,12 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/classifications", h.authMiddleware.ProfileAuthHandler(h.handleCreateClassification)).Methods("POST")
-	router.HandleFunc("/classifications", h.authMiddleware.ProfileAuthHandler(h.handleGetAllClassifications)).Methods("GET")
-	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetClassification)).Methods("GET")
-	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateClassification)).Methods("PUT")
-	router.HandleFunc("/classifications/{id}/image", h.authMiddleware.ProfileAuthHandler(h.handleUploadClassificationImage)).Methods("POST")
-	router.HandleFunc("/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteClassification)).Methods("DELETE")
+	router.HandleFunc("/media/classifications", h.authMiddleware.ProfileAuthHandler(h.handleCreateClassification)).Methods("POST")
+	router.HandleFunc("/media/classifications", h.authMiddleware.ProfileAuthHandler(h.handleGetAllClassifications)).Methods("GET")
+	router.HandleFunc("/media/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetClassification)).Methods("GET")
+	router.HandleFunc("/media/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateClassification)).Methods("PUT")
+	router.HandleFunc("/media/classifications/{id}/image", h.authMiddleware.ProfileAuthHandler(h.handleUploadClassificationImage)).Methods("POST")
+	router.HandleFunc("/media/classifications/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteClassification)).Methods("DELETE")
 }
 
 func (h *Handler) handleCreateClassification(w http.ResponseWriter, r *http.Request) {
@@ -203,9 +203,10 @@ func (h *Handler) handleDeleteClassification(w http.ResponseWriter, r *http.Requ
 
 func getIDFromRequest(r *http.Request) (models.ClassificationID, error) {
 	vars := mux.Vars(r)
-	id := models.ClassificationID(vars["id"])
+	idStr := vars["id"]
+	id := models.ClassificationID(idStr)
 	if !id.IsValid() {
-		return "", fmt.Errorf("invalid classification ID format")
+		return "", fmt.Errorf("invalid classification ID format: '%s' - must be a valid UUID", idStr)
 	}
 	return id, nil
 }

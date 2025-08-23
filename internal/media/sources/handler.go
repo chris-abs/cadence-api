@@ -2,6 +2,7 @@ package sources
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,11 +26,11 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/sources", h.authMiddleware.ProfileAuthHandler(h.handleGetSources)).Methods("GET")
-	router.HandleFunc("/sources", h.authMiddleware.ProfileAuthHandler(h.handleCreateSource)).Methods("POST")
-	router.HandleFunc("/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetSource)).Methods("GET")
-	router.HandleFunc("/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateSource)).Methods("PUT")
-	router.HandleFunc("/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteSource)).Methods("DELETE")
+	router.HandleFunc("/media/sources", h.authMiddleware.ProfileAuthHandler(h.handleGetSources)).Methods("GET")
+	router.HandleFunc("/media/sources", h.authMiddleware.ProfileAuthHandler(h.handleCreateSource)).Methods("POST")
+	router.HandleFunc("/media/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetSource)).Methods("GET")
+	router.HandleFunc("/media/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateSource)).Methods("PUT")
+	router.HandleFunc("/media/sources/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteSource)).Methods("DELETE")
 }
 
 func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +66,7 @@ func (h *Handler) handleGetSource(w http.ResponseWriter, r *http.Request) {
 	sourceID := models.SourceID(vars["id"])
 	
 	if !sourceID.IsValid() {
-		writeError(w, http.StatusBadRequest, "invalid source ID")
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid source ID format: '%s' - must be a valid UUID", sourceID))
 		return
 	}
 	
@@ -107,7 +108,7 @@ func (h *Handler) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	sourceID := models.SourceID(vars["id"])
 	
 	if !sourceID.IsValid() {
-		writeError(w, http.StatusBadRequest, "invalid source ID")
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid source ID format: '%s' - must be a valid UUID", sourceID))
 		return
 	}
 	
@@ -141,7 +142,7 @@ func (h *Handler) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 	sourceID := models.SourceID(vars["id"])
 	
 	if !sourceID.IsValid() {
-		writeError(w, http.StatusBadRequest, "invalid source ID")
+		writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid source ID format: '%s' - must be a valid UUID", sourceID))
 		return
 	}
 	

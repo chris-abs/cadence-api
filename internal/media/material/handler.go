@@ -25,15 +25,15 @@ func NewHandler(service *Service, authMiddleware *middleware.AuthMiddleware) *Ha
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	router.HandleFunc("/material/summary", h.authMiddleware.ProfileAuthHandler(h.handleGetStatusSummary)).Methods("GET")
-	router.HandleFunc("/material/enums", h.authMiddleware.ProfileAuthHandler(h.handleGetEnums)).Methods("GET")
+	router.HandleFunc("/media/material/summary", h.authMiddleware.ProfileAuthHandler(h.handleGetStatusSummary)).Methods("GET")
+	router.HandleFunc("/media/material/enums", h.authMiddleware.ProfileAuthHandler(h.handleGetEnums)).Methods("GET")
 	
-	router.HandleFunc("/material", h.authMiddleware.ProfileAuthHandler(h.handleGetMedia)).Methods("GET")
-	router.HandleFunc("/material", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
-	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetMediaByID)).Methods("GET")
-	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
-	router.HandleFunc("/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
-	router.HandleFunc("/material/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
+	router.HandleFunc("/media/material", h.authMiddleware.ProfileAuthHandler(h.handleGetMedia)).Methods("GET")
+	router.HandleFunc("/media/material", h.authMiddleware.ProfileAuthHandler(h.handleCreateMedia)).Methods("POST")
+	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleGetMediaByID)).Methods("GET")
+	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
+	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
+	router.HandleFunc("/media/material/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
 }
 
 func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +51,7 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
 		profileID := models.ProfileID(profileIDStr)
 		if !profileID.IsValid() {
-			writeError(w, http.StatusBadRequest, "invalid profileId")
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid profileId format: '%s' - must be a valid UUID", profileIDStr))
 			return
 		}
 		req.ProfileID = &profileID
@@ -253,7 +253,7 @@ func getIDFromRequest(r *http.Request) (models.MaterialID, error) {
 	
 	materialID := models.MaterialID(idStr)
 	if !materialID.IsValid() {
-		return "", fmt.Errorf("invalid material ID format")
+		return "", fmt.Errorf("invalid material ID format: '%s' - must be a valid UUID", idStr)
 	}
 	
 	return materialID, nil
