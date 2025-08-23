@@ -61,9 +61,6 @@ func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Debug: Log what we're returning
-	fmt.Printf("Handler: returning sources: %+v\n", sources)
-	
 	writeJSON(w, http.StatusOK, sources)
 }
 

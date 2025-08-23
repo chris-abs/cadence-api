@@ -81,9 +81,6 @@ func (h *Handler) handleGetAllClassifications(w http.ResponseWriter, r *http.Req
 		return
 	}
 	
-	// Debug: Log what we're returning
-	fmt.Printf("Handler: returning classifications: %+v\n", classifications)
-	
 	writeJSON(w, http.StatusOK, classifications)
 }
 
