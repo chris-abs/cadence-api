@@ -16,7 +16,7 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateSource(req *CreateSourceRequest) (*entities.Source, error) {
+func (s *Service) CreateSource(req *CreateSourceRequest, familyID models.FamilyID, profileID models.ProfileID) (*entities.Source, error) {
 	if err := s.validateCreateSourceRequest(req); err != nil {
 		return nil, err
 	}
@@ -26,6 +26,8 @@ func (s *Service) CreateSource(req *CreateSourceRequest) (*entities.Source, erro
 		Name:     req.Name,
 		Color:    req.Color,
 		Category: req.Category,
+		FamilyID: familyID,
+		CreatedBy: profileID,
 	}
 	
 	if err := s.repo.CreateSource(source); err != nil {

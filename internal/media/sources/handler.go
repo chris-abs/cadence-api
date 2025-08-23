@@ -33,6 +33,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+	
 	var params SourceSearchParams
 	
 	if category := r.URL.Query().Get("category"); category != "" {
@@ -50,6 +52,8 @@ func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
 			params.Offset = &offset
 		}
 	}
+	
+	params.ProfileID = &profileCtx.ProfileID
 	
 	sources, err := h.service.GetAllSources(params)
 	if err != nil {
@@ -83,13 +87,15 @@ func (h *Handler) handleGetSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateSource(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+	
 	var req CreateSourceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	
-	source, err := h.service.CreateSource(&req)
+	source, err := h.service.CreateSource(&req, profileCtx.FamilyID, profileCtx.ProfileID)
 	if err != nil {
 		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "must be") {
 			writeError(w, http.StatusBadRequest, err.Error())

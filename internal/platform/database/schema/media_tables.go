@@ -28,6 +28,9 @@ func createMediaSourceTables(db *sql.DB) error {
 		name VARCHAR(100) NOT NULL UNIQUE,
 		color VARCHAR(20) NOT NULL,
 		category VARCHAR(50) NOT NULL,
+		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+		profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,
+		created_by VARCHAR(36) REFERENCES profile(id) NOT NULL,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
@@ -37,7 +40,12 @@ func createMediaSourceTables(db *sql.DB) error {
 
 	CREATE INDEX IF NOT EXISTS idx_media_source_name ON media_source(name);
 	CREATE INDEX IF NOT EXISTS idx_media_source_category ON media_source(category);
+	CREATE INDEX IF NOT EXISTS idx_media_source_family_id ON media_source(family_id);
+	CREATE INDEX IF NOT EXISTS idx_media_source_profile_id ON media_source(profile_id);
+	CREATE INDEX IF NOT EXISTS idx_media_source_created_by ON media_source(created_by);
 	CREATE INDEX IF NOT EXISTS idx_media_source_is_deleted ON media_source(is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_media_source_family_deleted ON media_source(family_id, is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_media_source_profile_deleted ON media_source(profile_id, is_deleted);
 	`
 	_, err := db.Exec(query)
 	return err
@@ -52,6 +60,7 @@ func createMediaClassificationTables(db *sql.DB) error {
 		color VARCHAR(20) NOT NULL,
 		image_url TEXT,
 		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
+		profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,
 		created_by VARCHAR(36) REFERENCES profile(id) NOT NULL,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -62,9 +71,11 @@ func createMediaClassificationTables(db *sql.DB) error {
 
 	CREATE INDEX IF NOT EXISTS idx_media_classification_name ON media_classification(name);
 	CREATE INDEX IF NOT EXISTS idx_media_classification_family_id ON media_classification(family_id);
+	CREATE INDEX IF NOT EXISTS idx_media_classification_profile_id ON media_classification(profile_id);
 	CREATE INDEX IF NOT EXISTS idx_media_classification_created_by ON media_classification(created_by);
 	CREATE INDEX IF NOT EXISTS idx_media_classification_is_deleted ON media_classification(is_deleted);
 	CREATE INDEX IF NOT EXISTS idx_media_classification_family_deleted ON media_classification(family_id, is_deleted);
+	CREATE INDEX IF NOT EXISTS idx_media_classification_profile_deleted ON media_classification(profile_id, is_deleted);
 	`
 	_, err := db.Exec(query)
 	return err

@@ -20,11 +20,11 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) CreateSource(source *entities.Source) error {
 	query := `
-		INSERT INTO media_source (id, name, color, category, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO media_source (id, name, color, category, family_id, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	
 	now := time.Now().UTC()
-	_, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, now, now)
+	_, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, source.FamilyID, source.CreatedBy, now, now)
 	return err
 }
 
@@ -115,6 +115,12 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 	
 	conditions = append(conditions, "is_deleted = false")
 	
+	if params.ProfileID != nil {
+		conditions = append(conditions, fmt.Sprintf("profile_id = $%d", argIndex))
+		args = append(args, *params.ProfileID)
+		argIndex++
+	}
+	
 	if params.Category != nil {
 		conditions = append(conditions, fmt.Sprintf("category = $%d", argIndex))
 		args = append(args, *params.Category)
@@ -127,7 +133,7 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM media_source WHERE %s", whereClause)
 	
 	mainQuery := fmt.Sprintf(`
-		SELECT id, name, color, category, created_at, updated_at, is_deleted, deleted_at, deleted_by
+		SELECT id, name, color, category, family_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source 
 		WHERE %s 
 		ORDER BY category, name`, whereClause)
@@ -162,8 +168,8 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 		
 		err := rows.Scan(
 			&source.ID, &source.Name, &source.Color, &source.Category,
-			&source.CreatedAt, &source.UpdatedAt, &source.IsDeleted,
-			&deletedAt, &deletedBy,
+			&source.FamilyID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
+			&source.IsDeleted, &deletedAt, &deletedBy,
 		)
 		if err != nil {
 			return nil, err

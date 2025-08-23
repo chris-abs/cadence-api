@@ -137,29 +137,29 @@ func (r *Repository) Delete(id models.ClassificationID, deletedBy models.Profile
 	return nil
 }
 
-func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int) ([]*entities.Classification, int, error) {
+func (r *Repository) GetAllByProfile(profileID models.ProfileID, limit, offset int) ([]*entities.Classification, int, error) {
 	countQuery := `
 		SELECT COUNT(*) 
 		FROM media_classification 
-		WHERE family_id = $1 AND is_deleted = false
+		WHERE profile_id = $1 AND is_deleted = false
 	`
 	
 	var total int
-	err := r.db.QueryRow(countQuery, familyID).Scan(&total)
+	err := r.db.QueryRow(countQuery, profileID).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error counting classifications: %v", err)
 	}
 	
 	query := `
-		SELECT id, name, description, color, image_url, family_id, created_by,
+		SELECT id, name, description, color, image_url, family_id, profile_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_classification 
-		WHERE family_id = $1 AND is_deleted = false
+		WHERE profile_id = $1 AND is_deleted = false
 		ORDER BY name ASC
 		LIMIT $2 OFFSET $3
 	`
 	
-	rows, err := r.db.Query(query, familyID, limit, offset)
+	rows, err := r.db.Query(query, profileID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error getting classifications: %v", err)
 	}
@@ -175,6 +175,7 @@ func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int)
 			&classification.Color,
 			&classification.ImageURL,
 			&classification.FamilyID,
+			&classification.ProfileID,
 			&classification.CreatedBy,
 			&classification.CreatedAt,
 			&classification.UpdatedAt,
@@ -185,6 +186,7 @@ func (r *Repository) GetAllByFamily(familyID models.FamilyID, limit, offset int)
 		if err != nil {
 			return nil, 0, fmt.Errorf("error scanning classification: %v", err)
 		}
+		
 		classifications = append(classifications, &classification)
 	}
 	

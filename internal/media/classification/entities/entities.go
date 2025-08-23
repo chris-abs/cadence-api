@@ -13,6 +13,7 @@ type Classification struct {
 	Color       string                  `json:"color"`
 	ImageURL    string                  `json:"imageUrl"`
 	FamilyID    models.FamilyID         `json:"familyId"`
+	ProfileID   models.ProfileID        `json:"profileId"`
 	CreatedBy   models.ProfileID        `json:"createdBy"`
 	CreatedAt   time.Time               `json:"createdAt"`
 	UpdatedAt   time.Time               `json:"updatedAt"`

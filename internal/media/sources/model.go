@@ -2,6 +2,7 @@ package sources
 
 import (
 	"github.com/chrisabs/cadence/internal/media/sources/entities"
+	"github.com/chrisabs/cadence/internal/models"
 )
 
 type CreateSourceRequest struct {
@@ -17,9 +18,10 @@ type UpdateSourceRequest struct {
 }
 
 type SourceSearchParams struct {
-	Category *string `json:"category,omitempty"`
-	Limit    *int    `json:"limit,omitempty"`
-	Offset   *int    `json:"offset,omitempty"`
+	ProfileID *models.ProfileID `json:"profileId,omitempty"`
+	Category  *string           `json:"category,omitempty"`
+	Limit     *int              `json:"limit,omitempty"`
+	Offset    *int              `json:"offset,omitempty"`
 }
 
 type SourceSearchResponse struct {

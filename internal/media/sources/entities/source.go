@@ -11,6 +11,8 @@ type Source struct {
 	Name      string          `json:"name"`
 	Color     string          `json:"color"`
 	Category  string          `json:"category"`
+	FamilyID  models.FamilyID `json:"familyId"`
+	CreatedBy models.ProfileID `json:"createdBy"`
 	CreatedAt time.Time       `json:"createdAt"`
 	UpdatedAt time.Time       `json:"updatedAt"`
 	IsDeleted bool            `json:"isDeleted,omitempty"`

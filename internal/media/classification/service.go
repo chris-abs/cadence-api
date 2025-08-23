@@ -96,7 +96,7 @@ func (s *Service) UpdateClassificationImage(classificationID models.Classificati
 	return existingClassification, nil
 }
 
-func (s *Service) GetAllClassifications(familyID models.FamilyID, params ClassificationSearchRequest) (*ClassificationSearchResponse, error) {
+func (s *Service) GetAllClassifications(profileID models.ProfileID, params ClassificationSearchRequest) (*ClassificationSearchResponse, error) {
 	limit := 50 
 	if params.Limit != nil {
 		limit = *params.Limit
@@ -107,7 +107,7 @@ func (s *Service) GetAllClassifications(familyID models.FamilyID, params Classif
 		offset = *params.Offset
 	}
 	
-	classifications, total, err := s.repo.GetAllByFamily(familyID, limit, offset)
+	classifications, total, err := s.repo.GetAllByProfile(profileID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("error getting classifications: %v", err)
 	}
