@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/chrisabs/cadence/internal/cloud"
 	"github.com/chrisabs/cadence/internal/media/material/entities"
 	"github.com/chrisabs/cadence/internal/middleware"
 	"github.com/chrisabs/cadence/internal/models"
@@ -34,6 +35,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
 	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
 	router.HandleFunc("/media/material/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
+	router.HandleFunc("/media/material/{id}/poster", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialPoster)).Methods("PATCH")
+	router.HandleFunc("/media/material/{id}/poster", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterialPoster)).Methods("DELETE")
 }
 
 func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +96,89 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
 
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			writeError(w, http.StatusBadRequest, "failed to parse multipart form")
+			return
+		}
+
+		materialDataStr := r.FormValue("materialData")
+		if materialDataStr == "" {
+			writeError(w, http.StatusBadRequest, "missing materialData field")
+			return
+		}
+
+		var req CreateMaterialRequest
+		if err := json.Unmarshal([]byte(materialDataStr), &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid material data format")
+			return
+		}
+
+		if file, header, err := r.FormFile("poster"); err == nil {
+			defer file.Close()
+
+			material, err := h.service.CreateMaterial(profileCtx.ProfileID, profileCtx.FamilyID, &req)
+			if err != nil {
+				if strings.Contains(err.Error(), "validation failed") {
+					writeError(w, http.StatusBadRequest, err.Error())
+					return
+				}
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			s3Handler, err := cloud.NewS3Handler()
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+				return
+			}
+
+			posterURL, err := s3Handler.UploadProfileMediaFile(header, profileCtx.FamilyID, profileCtx.ProfileID, "posters")
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to upload poster")
+				return
+			}
+
+			updateReq := &UpdateMaterialRequest{
+				Name:             material.Name,
+				Type:             material.Type,
+				Genre:            material.Genre,
+				ReleaseYear:      material.ReleaseYear,
+				Runtime:          material.Runtime,
+				PosterURL:        posterURL,
+				SourceIDs:        material.SourceIDs,
+				ClassificationID: material.ClassificationID,
+				WatchWith:        material.WatchWith,
+				Status:           material.Status,
+				Priority:         material.Priority,
+				Notes:            material.Notes,
+			}
+
+			updatedMaterial, err := h.service.UpdateMaterial(material.ID, profileCtx.FamilyID, profileCtx.ProfileID, updateReq)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to update material poster")
+				return
+			}
+
+			writeJSON(w, http.StatusCreated, updatedMaterial)
+			return
+		}
+
+		material, err := h.service.CreateMaterial(profileCtx.ProfileID, profileCtx.FamilyID, &req)
+		if err != nil {
+			if strings.Contains(err.Error(), "validation failed") {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusCreated, material)
+		return
+	}
+
 	var req CreateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -139,6 +225,65 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	contentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			writeError(w, http.StatusBadRequest, "failed to parse multipart form")
+			return
+		}
+
+		materialDataStr := r.FormValue("materialData")
+		if materialDataStr == "" {
+			writeError(w, http.StatusBadRequest, "missing materialData field")
+			return
+		}
+
+		var req UpdateMaterialRequest
+		if err := json.Unmarshal([]byte(materialDataStr), &req); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid material data format")
+			return
+		}
+
+		// Handle poster upload if present
+		if file, header, err := r.FormFile("poster"); err == nil {
+			defer file.Close()
+
+			// Upload poster to S3
+			s3Handler, err := cloud.NewS3Handler()
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+				return
+			}
+
+			posterURL, err := s3Handler.UploadProfileMediaFile(header, profileCtx.FamilyID, profileCtx.ProfileID, "posters")
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "failed to upload poster")
+				return
+			}
+
+			// Update the request with the new poster URL
+			req.PosterURL = posterURL
+		}
+
+		material, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
+		if err != nil {
+			if strings.Contains(err.Error(), "validation failed") {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "not owned") {
+				writeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		writeJSON(w, http.StatusOK, material)
+		return
+	}
+
+	// Handle JSON-only request (existing behavior)
 	var req UpdateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -212,6 +357,145 @@ func (h *Handler) handleUpdateMaterialStatus(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+
+	materialID, err := getIDFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	if !strings.HasPrefix(contentType, "multipart/form-data") {
+		writeError(w, http.StatusBadRequest, "poster update requires multipart form data")
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		writeError(w, http.StatusBadRequest, "failed to parse multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("poster")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "missing poster file")
+		return
+	}
+	defer file.Close()
+
+	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if existingMaterial.ProfileID != profileCtx.ProfileID {
+		writeError(w, http.StatusForbidden, "not authorized to update this material")
+		return
+	}
+
+	s3Handler, err := cloud.NewS3Handler()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+		return
+	}
+
+	posterURL, err := s3Handler.UploadProfileMediaFile(header, profileCtx.FamilyID, profileCtx.ProfileID, "posters")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to upload poster")
+		return
+	}
+
+	updateReq := &UpdateMaterialRequest{
+		Name:             existingMaterial.Name,
+		Type:             existingMaterial.Type,
+		Genre:            existingMaterial.Genre,
+		ReleaseYear:      existingMaterial.ReleaseYear,
+		Runtime:          existingMaterial.Runtime,
+		PosterURL:        posterURL,
+		SourceIDs:        existingMaterial.SourceIDs,
+		ClassificationID: existingMaterial.ClassificationID,
+		WatchWith:        existingMaterial.WatchWith,
+		Status:           existingMaterial.Status,
+		Priority:         existingMaterial.Priority,
+		Notes:            existingMaterial.Notes,
+	}
+
+	updatedMaterial, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, updateReq)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update material poster")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, updatedMaterial)
+}
+
+func (h *Handler) handleDeleteMaterialPoster(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+
+	materialID, err := getIDFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if existingMaterial.ProfileID != profileCtx.ProfileID {
+		writeError(w, http.StatusForbidden, "not authorized to delete this material's poster")
+		return
+	}
+
+	if existingMaterial.PosterURL != "" {
+		s3Handler, err := cloud.NewS3Handler()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to initialize storage")
+			return
+		}
+
+		if err := s3Handler.DeleteFileByURL(existingMaterial.PosterURL); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to delete poster")
+			return
+		}
+	}
+
+	updateReq := &UpdateMaterialRequest{
+		Name:             existingMaterial.Name,
+		Type:             existingMaterial.Type,
+		Genre:            existingMaterial.Genre,
+		ReleaseYear:      existingMaterial.ReleaseYear,
+		Runtime:          existingMaterial.Runtime,
+		PosterURL:        "", 
+		SourceIDs:        existingMaterial.SourceIDs,
+		ClassificationID: existingMaterial.ClassificationID,
+		WatchWith:        existingMaterial.WatchWith,
+		Status:           existingMaterial.Status,
+		Priority:         existingMaterial.Priority,
+		Notes:            existingMaterial.Notes,
+	}
+
+	updatedMaterial, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, updateReq)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete material poster")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, updatedMaterial)
 }
 
 func (h *Handler) handleGetStatusSummary(w http.ResponseWriter, r *http.Request) {
