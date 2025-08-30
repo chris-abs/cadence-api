@@ -216,3 +216,55 @@ func (r *Repository) GetMaterialCountBySource(sourceID models.SourceID) (int, er
 	err := r.db.QueryRow(query, sourceID).Scan(&count)
 	return count, err
 }
+
+func (r *Repository) GetSourcesByIDs(sourceIDs []models.SourceID) ([]entities.Source, error) {
+	if len(sourceIDs) == 0 {
+		return []entities.Source{}, nil
+	}
+
+	placeholders := make([]string, len(sourceIDs))
+	args := make([]interface{}, len(sourceIDs))
+	for i, id := range sourceIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, name, color, category, family_id, profile_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
+		FROM media_source 
+		WHERE id IN (%s) AND is_deleted = false
+		ORDER BY category, name`, strings.Join(placeholders, ","))
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error getting sources by IDs: %v", err)
+	}
+	defer rows.Close()
+
+	var sources []entities.Source
+	for rows.Next() {
+		var source entities.Source
+		var deletedAt sql.NullTime
+		var deletedBy sql.NullString
+
+		err := rows.Scan(
+			&source.ID, &source.Name, &source.Color, &source.Category,
+			&source.FamilyID, &source.ProfileID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
+			&source.IsDeleted, &deletedAt, &deletedBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if deletedAt.Valid {
+			source.DeletedAt = &deletedAt.Time
+		}
+		if deletedBy.Valid {
+			source.DeletedBy = (*models.ProfileID)(&deletedBy.String)
+		}
+
+		sources = append(sources, source)
+	}
+
+	return sources, nil
+}

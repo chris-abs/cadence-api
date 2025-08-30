@@ -73,6 +73,10 @@ func (s *Service) GetAllSources(params SourceSearchParams) (*SourceSearchRespons
 	return s.repo.GetAllSources(params)
 }
 
+func (s *Service) GetSourcesByIDs(sourceIDs []models.SourceID) ([]entities.Source, error) {
+	return s.repo.GetSourcesByIDs(sourceIDs)
+}
+
 func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.ProfileID) error {
 	count, err := s.repo.GetMaterialCountBySource(sourceID)
 	if err != nil {

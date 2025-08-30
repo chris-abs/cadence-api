@@ -8,15 +8,20 @@ import (
 	"time"
 
 	"github.com/chrisabs/cadence/internal/media/material/entities"
+	"github.com/chrisabs/cadence/internal/media/sources"
 	"github.com/chrisabs/cadence/internal/models"
 )
 
 type Repository struct {
 	db *sql.DB
+	sourceRepo *sources.Repository
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		db: db,
+		sourceRepo: sources.NewRepository(db),
+	}
 }
 
 func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID, req *CreateMaterialRequest) (*entities.Material, error) {
@@ -80,6 +85,13 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 		return nil, fmt.Errorf("error parsing source IDs: %v", err)
 	}
 
+	if len(material.SourceIDs) > 0 {
+		sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching sources: %v", err)
+		}
+		material.Sources = sources
+	}
 
 	return material, nil
 }
@@ -229,6 +241,13 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 			return nil, 0, fmt.Errorf("error parsing source IDs: %v", err)
 		}
 
+		if len(material.SourceIDs) > 0 {
+			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+			if err != nil {
+				return nil, 0, fmt.Errorf("error fetching sources: %v", err)
+			}
+			material.Sources = sources
+		}
 
 		materialList = append(materialList, material)
 	}

@@ -3,6 +3,7 @@ package entities
 import (
 	"time"
 
+	"github.com/chrisabs/cadence/internal/media/sources/entities"
 	"github.com/chrisabs/cadence/internal/models"
 )
 
@@ -15,6 +16,7 @@ type Material struct {
 	Runtime          int                      `json:"runtime"` 
 	PosterURL        string                   `json:"posterUrl"`
 	SourceIDs        []models.SourceID        `json:"sourceIds"`
+	Sources          []entities.Source        `json:"sources,omitempty"`
 	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
 	WatchWith        WatchWith                `json:"watchWith"`
 	Status           Status                   `json:"status"`
