@@ -66,6 +66,15 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 		req.SourceID = sourceID
 	}
 
+	if classificationIDStr := r.URL.Query().Get("classificationId"); classificationIDStr != "" {
+		classificationID := models.ClassificationID(classificationIDStr)
+		if !classificationID.IsValid() {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid classificationId format: '%s' - must be a valid UUID", classificationIDStr))
+			return
+		}
+		req.ClassificationID = &classificationID
+	}
+
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		var limit int
 		if _, err := fmt.Sscanf(limitStr, "%d", &limit); err != nil || limit < 0 {
