@@ -131,6 +131,12 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		argIndex++
 	}
 
+	if req.Runtime != "" {
+		conditions = append(conditions, fmt.Sprintf("m.runtime = $%d", argIndex))
+		args = append(args, req.Runtime)
+		argIndex++
+	}
+
 	if req.SourceID != "" {
 		conditions = append(conditions, fmt.Sprintf("m.source_ids ? $%d", argIndex))
 		args = append(args, string(req.SourceID))

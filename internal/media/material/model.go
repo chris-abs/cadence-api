@@ -44,6 +44,7 @@ type MaterialSearchRequest struct {
 	ProfileID        *models.ProfileID        `json:"profileId,omitempty"` 
 	Type             entities.MaterialType    `json:"type"`
 	Genre            string                   `json:"genre"`
+	Runtime          entities.Runtime         `json:"runtime"`
 	SourceID         models.SourceID          `json:"sourceId"`
 	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
 	WatchWith        entities.WatchWith       `json:"watchWith"`

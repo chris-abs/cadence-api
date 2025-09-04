@@ -46,6 +46,7 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 		Query:     strings.TrimSpace(r.URL.Query().Get("query")),
 		Type:      entities.MaterialType(r.URL.Query().Get("type")),
 		Genre:     r.URL.Query().Get("genre"),
+		Runtime:   entities.Runtime(r.URL.Query().Get("runtime")),
 		WatchWith: entities.WatchWith(r.URL.Query().Get("watchWith")),
 		Status:    entities.Status(r.URL.Query().Get("status")),
 		Priority:  entities.Priority(r.URL.Query().Get("priority")),
