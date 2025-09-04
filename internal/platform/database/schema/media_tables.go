@@ -89,7 +89,7 @@ func createMaterialTables(db *sql.DB) error {
 		type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'show')),
 		genre VARCHAR(50) NOT NULL,
 		release_year INTEGER,
-		runtime INTEGER NOT NULL DEFAULT 0,
+		runtime VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (runtime IN ('short', 'medium', 'long')),
 		poster_url TEXT,
 		source_ids JSONB NOT NULL DEFAULT '[]',
 		classification_id VARCHAR(36) REFERENCES media_classification(id),

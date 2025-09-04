@@ -152,8 +152,8 @@ func (s *Service) validateCreateMaterialRequest(req *CreateMaterialRequest) erro
 		return fmt.Errorf("invalid genre: %s", req.Genre)
 	}
 
-	if req.Runtime < 0 {
-		return fmt.Errorf("runtime cannot be negative")
+	if !s.isValidRuntime(req.Runtime) {
+		return fmt.Errorf("invalid runtime: %s", req.Runtime)
 	}
 
 	if req.ReleaseYear < 1800 || req.ReleaseYear > 2100 {
@@ -200,8 +200,8 @@ func (s *Service) validateUpdateMaterialRequest(req *UpdateMaterialRequest) erro
 		return fmt.Errorf("invalid genre: %s", req.Genre)
 	}
 
-	if req.Runtime < 0 {
-		return fmt.Errorf("runtime cannot be negative")
+	if !s.isValidRuntime(req.Runtime) {
+		return fmt.Errorf("invalid runtime: %s", req.Runtime)
 	}
 
 	if req.ReleaseYear < 1800 || req.ReleaseYear > 2100 {
@@ -262,4 +262,10 @@ func (s *Service) isValidPriority(p entities.Priority) bool {
 	return p == entities.PriorityLow ||
 		   p == entities.PriorityMedium ||
 		   p == entities.PriorityHigh
+}
+
+func (s *Service) isValidRuntime(r entities.Runtime) bool {
+	return r == entities.RuntimeShort ||
+		   r == entities.RuntimeMedium ||
+		   r == entities.RuntimeLong
 }

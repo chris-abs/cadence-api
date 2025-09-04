@@ -13,7 +13,7 @@ type Material struct {
 	Type             MaterialType             `json:"type"`
 	Genre            string                   `json:"genre"`
 	ReleaseYear      int                      `json:"releaseYear"`
-	Runtime          int                      `json:"runtime"` 
+	Runtime          Runtime                  `json:"runtime"` 
 	PosterURL        string                   `json:"posterUrl"`
 	SourceIDs        []models.SourceID        `json:"sourceIds"`
 	Sources          []entities.Source        `json:"sources,omitempty"`
@@ -59,6 +59,14 @@ const (
 	PriorityLow    Priority = "low"
 	PriorityMedium Priority = "medium"
 	PriorityHigh   Priority = "high"
+)
+
+type Runtime string
+
+const (
+	RuntimeShort  Runtime = "short"
+	RuntimeMedium Runtime = "medium"
+	RuntimeLong   Runtime = "long"
 )
 
 var (

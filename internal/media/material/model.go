@@ -10,7 +10,7 @@ type CreateMaterialRequest struct {
 	Type             entities.MaterialType         `json:"type"`
 	Genre            string                        `json:"genre"`
 	ReleaseYear      int                           `json:"releaseYear"`
-	Runtime          int                           `json:"runtime"`
+	Runtime          entities.Runtime              `json:"runtime"`
 	PosterURL        string                        `json:"posterUrl"`
 	SourceIDs        []models.SourceID             `json:"sourceIds"`
 	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
@@ -25,7 +25,7 @@ type UpdateMaterialRequest struct {
 	Type             entities.MaterialType         `json:"type"`
 	Genre            string                        `json:"genre"`
 	ReleaseYear      int                           `json:"releaseYear"`
-	Runtime          int                           `json:"runtime"`
+	Runtime          entities.Runtime              `json:"runtime"`
 	PosterURL        string                        `json:"posterUrl"`
 	SourceIDs        []models.SourceID             `json:"sourceIds"`
 	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
