@@ -114,7 +114,6 @@ func (s *Service) GetEnums() (*MaterialEnumsResponse, error) {
 			entities.MaterialTypeMovie,
 			entities.MaterialTypeShow,
 		},
-		Genres:     entities.ValidGenres,
 		WatchWith: []entities.WatchWith{
 			entities.WatchWithAlone,
 			entities.WatchWithPartner,
@@ -148,16 +147,8 @@ func (s *Service) validateCreateMaterialRequest(req *CreateMaterialRequest) erro
 		return fmt.Errorf("invalid type: %s", req.Type)
 	}
 
-	if req.Genre != "" && !s.isValidGenre(req.Genre) {
-		return fmt.Errorf("invalid genre: %s", req.Genre)
-	}
-
 	if !s.isValidRuntime(req.Runtime) {
 		return fmt.Errorf("invalid runtime: %s", req.Runtime)
-	}
-
-	if req.ReleaseYear < 1800 || req.ReleaseYear > 2100 {
-		return fmt.Errorf("release year must be between 1800 and 2100")
 	}
 
 	if len(req.SourceIDs) > 10 {
@@ -196,16 +187,8 @@ func (s *Service) validateUpdateMaterialRequest(req *UpdateMaterialRequest) erro
 		return fmt.Errorf("invalid type: %s", req.Type)
 	}
 
-	if req.Genre != "" && !s.isValidGenre(req.Genre) {
-		return fmt.Errorf("invalid genre: %s", req.Genre)
-	}
-
 	if !s.isValidRuntime(req.Runtime) {
 		return fmt.Errorf("invalid runtime: %s", req.Runtime)
-	}
-
-	if req.ReleaseYear < 1800 || req.ReleaseYear > 2100 {
-		return fmt.Errorf("release year must be between 1800 and 2100")
 	}
 
 	if len(req.SourceIDs) > 10 {
@@ -235,14 +218,6 @@ func (s *Service) isValidType(t entities.MaterialType) bool {
 	return t == entities.MaterialTypeMovie || t == entities.MaterialTypeShow
 }
 
-func (s *Service) isValidGenre(genre string) bool {
-	for _, validGenre := range entities.ValidGenres {
-		if genre == validGenre {
-			return true
-		}
-	}
-	return false
-}
 
 func (s *Service) isValidWatchWith(w entities.WatchWith) bool {
 	return w == entities.WatchWithAlone || 

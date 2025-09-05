@@ -45,10 +45,8 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 	req := &MaterialSearchRequest{
 		Query:     strings.TrimSpace(r.URL.Query().Get("query")),
 		Type:      entities.MaterialType(r.URL.Query().Get("type")),
-		Genre:     r.URL.Query().Get("genre"),
 		Runtime:   entities.Runtime(r.URL.Query().Get("runtime")),
 		WatchWith: entities.WatchWith(r.URL.Query().Get("watchWith")),
-		Status:    entities.Status(r.URL.Query().Get("status")),
 		Priority:  entities.Priority(r.URL.Query().Get("priority")),
 	}
 
@@ -153,8 +151,6 @@ func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 			updateReq := &UpdateMaterialRequest{
 				Name:             material.Name,
 				Type:             material.Type,
-				Genre:            material.Genre,
-				ReleaseYear:      material.ReleaseYear,
 				Runtime:          material.Runtime,
 				PosterURL:        posterURL,
 				SourceIDs:        material.SourceIDs,
@@ -426,8 +422,6 @@ func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Requ
 	updateReq := &UpdateMaterialRequest{
 		Name:             existingMaterial.Name,
 		Type:             existingMaterial.Type,
-		Genre:            existingMaterial.Genre,
-		ReleaseYear:      existingMaterial.ReleaseYear,
 		Runtime:          existingMaterial.Runtime,
 		PosterURL:        posterURL,
 		SourceIDs:        existingMaterial.SourceIDs,
@@ -487,8 +481,6 @@ func (h *Handler) handleDeleteMaterialPoster(w http.ResponseWriter, r *http.Requ
 	updateReq := &UpdateMaterialRequest{
 		Name:             existingMaterial.Name,
 		Type:             existingMaterial.Type,
-		Genre:            existingMaterial.Genre,
-		ReleaseYear:      existingMaterial.ReleaseYear,
 		Runtime:          existingMaterial.Runtime,
 		PosterURL:        "", 
 		SourceIDs:        existingMaterial.SourceIDs,

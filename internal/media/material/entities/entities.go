@@ -11,8 +11,6 @@ type Material struct {
 	ID               models.MaterialID        `json:"id"`
 	Name             string                   `json:"name"`
 	Type             MaterialType             `json:"type"`
-	Genre            string                   `json:"genre"`
-	ReleaseYear      int                      `json:"releaseYear"`
 	Runtime          Runtime                  `json:"runtime"` 
 	PosterURL        string                   `json:"posterUrl"`
 	SourceIDs        []models.SourceID        `json:"sourceIds"`
@@ -69,12 +67,4 @@ const (
 	RuntimeLong   Runtime = "long"
 )
 
-var (
-	ValidGenres = []string{
-		"Action", "Adventure", "Animation", "Biography", "Comedy", "Crime",
-		"Documentary", "Drama", "Family", "Fantasy", "History", "Horror",
-		"Music", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller",
-		"War", "Western",
-	}
-)
 

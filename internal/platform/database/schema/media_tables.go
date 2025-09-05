@@ -87,8 +87,6 @@ func createMaterialTables(db *sql.DB) error {
 		id VARCHAR(36) PRIMARY KEY,  
 		name VARCHAR(255) NOT NULL,
 		type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'show')),
-		genre VARCHAR(50) NOT NULL,
-		release_year INTEGER,
 		runtime VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (runtime IN ('short', 'medium', 'long')),
 		poster_url TEXT,
 		source_ids JSONB NOT NULL DEFAULT '[]',
@@ -109,7 +107,6 @@ func createMaterialTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_material_profile_id ON material(profile_id);
 	CREATE INDEX IF NOT EXISTS idx_material_family_id ON material(family_id);
 	CREATE INDEX IF NOT EXISTS idx_material_type ON material(type);
-	CREATE INDEX IF NOT EXISTS idx_material_genre ON material(genre);
 	CREATE INDEX IF NOT EXISTS idx_material_status ON material(status);
 	CREATE INDEX IF NOT EXISTS idx_material_priority ON material(priority);
 	CREATE INDEX IF NOT EXISTS idx_material_watch_with ON material(watch_with);

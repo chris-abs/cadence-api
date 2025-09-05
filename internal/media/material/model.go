@@ -8,8 +8,6 @@ import (
 type CreateMaterialRequest struct {
 	Name             string                        `json:"name"`
 	Type             entities.MaterialType         `json:"type"`
-	Genre            string                        `json:"genre"`
-	ReleaseYear      int                           `json:"releaseYear"`
 	Runtime          entities.Runtime              `json:"runtime"`
 	PosterURL        string                        `json:"posterUrl"`
 	SourceIDs        []models.SourceID             `json:"sourceIds"`
@@ -23,8 +21,6 @@ type CreateMaterialRequest struct {
 type UpdateMaterialRequest struct {
 	Name             string                        `json:"name"`
 	Type             entities.MaterialType         `json:"type"`
-	Genre            string                        `json:"genre"`
-	ReleaseYear      int                           `json:"releaseYear"`
 	Runtime          entities.Runtime              `json:"runtime"`
 	PosterURL        string                        `json:"posterUrl"`
 	SourceIDs        []models.SourceID             `json:"sourceIds"`
@@ -43,12 +39,10 @@ type MaterialSearchRequest struct {
 	Query            string                   `json:"query"`
 	ProfileID        *models.ProfileID        `json:"profileId,omitempty"` 
 	Type             entities.MaterialType    `json:"type"`
-	Genre            string                   `json:"genre"`
 	Runtime          entities.Runtime         `json:"runtime"`
 	SourceID         models.SourceID          `json:"sourceId"`
 	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
 	WatchWith        entities.WatchWith       `json:"watchWith"`
-	Status           entities.Status          `json:"status"`
 	Priority         entities.Priority        `json:"priority"`
 	Limit            int                      `json:"limit"`
 	Offset           int                      `json:"offset"`
@@ -64,7 +58,6 @@ type MaterialSearchResponse struct {
 
 type MaterialEnumsResponse struct {
 	Types      []entities.MaterialType `json:"types"`
-	Genres     []string                `json:"genres"`
 	WatchWith  []entities.WatchWith    `json:"watchWith"`
 	Statuses   []entities.Status       `json:"statuses"`
 	Priorities []entities.Priority     `json:"priorities"`
