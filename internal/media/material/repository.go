@@ -30,8 +30,12 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 	query := `
 		INSERT INTO material (
 			id, name, type, runtime, poster_url, source_ids, classification_id,
-			watch_with, status, priority, notes, profile_id, family_id, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			watch_with, status, priority, notes, review_score,
+			profile_id, family_id, created_at, updated_at,
+			is_deleted, deleted_at, deleted_by
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+		)
 		RETURNING created_at, updated_at`
 
 	sourceIDsJSON, err := json.Marshal(req.SourceIDs)
@@ -46,7 +50,9 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 		query,
 		materialID, req.Name, req.Type, req.Runtime, req.PosterURL,
 		sourceIDsJSON, req.ClassificationID, req.WatchWith, req.Status, req.Priority, req.Notes,
+		nil, 
 		profileID, familyID, now, now,
+		false, nil, nil, 
 	).Scan(&createdAt, &updatedAt)
 
 	if err != nil {
