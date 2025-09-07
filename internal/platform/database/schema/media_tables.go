@@ -95,6 +95,7 @@ func createMaterialTables(db *sql.DB) error {
 		status VARCHAR(30) NOT NULL CHECK (status IN ('to_watch', 'in_progress', 'watching', 'awaiting_release', 'watched')),
 		priority VARCHAR(20) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
 		notes TEXT NOT NULL DEFAULT '',
+		review_score DECIMAL(3,1) CHECK (review_score >= 0.0 AND review_score <= 10.0),
 		profile_id VARCHAR(36) REFERENCES profile(id) NOT NULL,  
 		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,  
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -111,6 +112,7 @@ func createMaterialTables(db *sql.DB) error {
 	CREATE INDEX IF NOT EXISTS idx_material_priority ON material(priority);
 	CREATE INDEX IF NOT EXISTS idx_material_watch_with ON material(watch_with);
 	CREATE INDEX IF NOT EXISTS idx_material_classification_id ON material(classification_id);
+	CREATE INDEX IF NOT EXISTS idx_material_review_score ON material(review_score);
 	CREATE INDEX IF NOT EXISTS idx_material_source_ids ON material USING gin (source_ids);
 	CREATE INDEX IF NOT EXISTS idx_material_name_pattern ON material USING gin (name gin_trgm_ops);
 	CREATE INDEX IF NOT EXISTS idx_material_name_fts ON material USING gin (to_tsvector('english', name || ' ' || COALESCE(notes, '')));

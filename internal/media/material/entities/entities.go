@@ -20,6 +20,7 @@ type Material struct {
 	Status           Status                   `json:"status"`
 	Priority         Priority                 `json:"priority"`
 	Notes            string                   `json:"notes"`
+	ReviewScore      *float64                 `json:"reviewScore,omitempty"`
 	ProfileID        models.ProfileID         `json:"profileId"`
 	FamilyID         models.FamilyID          `json:"familyId"`
 	CreatedAt        time.Time                `json:"createdAt"`

@@ -59,7 +59,7 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*entities.Material, error) {
 	query := `
 		SELECT m.id, m.name, m.type, m.runtime, m.poster_url,
-			   m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes,
+			   m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
 			   m.profile_id, m.family_id, m.created_at, m.updated_at
 		FROM material m
 		WHERE m.id = $1 AND m.family_id = $2 AND m.is_deleted = false`
@@ -70,7 +70,7 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 	err := r.db.QueryRow(query, id, familyID).Scan(
 		&material.ID, &material.Name, &material.Type,
 		&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
-		&material.Status, &material.Priority, &material.Notes, &material.ProfileID,
+		&material.Status, &material.Priority, &material.Notes, &material.ReviewScore, &material.ProfileID,
 		&material.FamilyID, &material.CreatedAt, &material.UpdatedAt,
 	)
 
@@ -183,7 +183,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		WITH ranked_media AS (
 			SELECT 
 				m.id, m.name, m.type, m.runtime, m.poster_url,
-				m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes,
+				m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
 				m.profile_id, m.family_id, m.created_at, m.updated_at,
 				(
 					CASE
@@ -224,7 +224,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		err := rows.Scan(
 			&material.ID, &material.Name, &material.Type,
 			&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
-			&material.Status, &material.Priority, &material.Notes, &material.ProfileID,
+			&material.Status, &material.Priority, &material.Notes, &material.ReviewScore, &material.ProfileID,
 			&material.FamilyID, &material.CreatedAt, &material.UpdatedAt, &rank,
 		)
 		if err != nil {
@@ -293,6 +293,29 @@ func (r *Repository) UpdateStatus(id models.MaterialID, familyID models.FamilyID
 	result, err := r.db.Exec(query, id, familyID, status, time.Now().UTC(), profileID)
 	if err != nil {
 		return fmt.Errorf("error updating media status: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking update result: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("media not found or not owned by profile")
+	}
+
+	return nil
+}
+
+func (r *Repository) UpdateReview(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, reviewScore float64) error {
+	query := `
+		UPDATE material
+		SET review_score = $3, updated_at = $4
+		WHERE id = $1 AND family_id = $2 AND profile_id = $5 AND is_deleted = false`
+
+	result, err := r.db.Exec(query, id, familyID, reviewScore, time.Now().UTC(), profileID)
+	if err != nil {
+		return fmt.Errorf("error updating media review: %v", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()

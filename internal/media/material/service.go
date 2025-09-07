@@ -94,6 +94,18 @@ func (s *Service) UpdateMaterialStatus(id models.MaterialID, familyID models.Fam
 	return s.repo.UpdateStatus(id, familyID, profileID, status)
 }
 
+func (s *Service) UpdateMaterialReview(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, reviewScore float64) error {
+	if id == "" {
+		return fmt.Errorf("invalid material ID")
+	}
+
+	if reviewScore < 0.0 || reviewScore > 10.0 {
+		return fmt.Errorf("review score must be between 0.0 and 10.0")
+	}
+
+	return s.repo.UpdateReview(id, familyID, profileID, reviewScore)
+}
+
 func (s *Service) DeleteMaterial(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	if id == "" {
 		return fmt.Errorf("invalid material ID")

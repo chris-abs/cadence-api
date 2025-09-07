@@ -35,6 +35,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMedia)).Methods("PUT")
 	router.HandleFunc("/media/material/{id}", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterial)).Methods("DELETE")
 	router.HandleFunc("/media/material/{id}/status", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialStatus)).Methods("PATCH")
+	router.HandleFunc("/media/material/{id}/review", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialReview)).Methods("PATCH")
 	router.HandleFunc("/media/material/{id}/poster", h.authMiddleware.ProfileAuthHandler(h.handleUpdateMaterialPoster)).Methods("PATCH")
 	router.HandleFunc("/media/material/{id}/poster", h.authMiddleware.ProfileAuthHandler(h.handleDeleteMaterialPoster)).Methods("DELETE")
 }
@@ -363,6 +364,38 @@ func (h *Handler) handleUpdateMaterialStatus(w http.ResponseWriter, r *http.Requ
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "updated"})
+}
+
+func (h *Handler) handleUpdateMaterialReview(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+
+	materialID, err := getIDFromRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var req UpdateMaterialReviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.ReviewScore < 0.0 || req.ReviewScore > 10.0 {
+		writeError(w, http.StatusBadRequest, "review score must be between 0.0 and 10.0")
+		return
+	}
+
+	if err := h.service.UpdateMaterialReview(materialID, profileCtx.FamilyID, profileCtx.ProfileID, req.ReviewScore); err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "not owned") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "review updated"})
 }
 
 func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Request) {

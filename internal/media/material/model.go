@@ -35,6 +35,10 @@ type UpdateMaterialStatusRequest struct {
 	Status entities.Status `json:"status"`
 }
 
+type UpdateMaterialReviewRequest struct {
+	ReviewScore float64 `json:"reviewScore"` // 0.0 to 10.0
+}
+
 type MaterialSearchRequest struct {
 	Query            string                   `json:"query"`
 	ProfileID        *models.ProfileID        `json:"profileId,omitempty"` 
