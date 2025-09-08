@@ -148,6 +148,8 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		conditions = append(conditions, fmt.Sprintf("m.classification_id = $%d", argIndex))
 		args = append(args, *req.ClassificationID)
 		argIndex++
+	} else {
+		conditions = append(conditions, "m.classification_id IS NULL")
 	}
 
 	if req.WatchWith != "" {
