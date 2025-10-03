@@ -102,10 +102,10 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 	return material, nil
 }
 
-func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest) ([]entities.Material, int, error) {
+func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest) (*MaterialSearchResponse, error) {
 	profileID := req.ProfileID
 	if profileID == nil {
-		return nil, 0, fmt.Errorf("profile ID is required")
+		return nil, fmt.Errorf("profile ID is required")
 	}
 
 	conditions := []string{"m.family_id = $1", "m.profile_id = $2", "m.is_deleted = false"}
@@ -130,7 +130,6 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		args = append(args, req.Type)
 		argIndex++
 	}
-
 
 	if req.Runtime != "" {
 		conditions = append(conditions, fmt.Sprintf("m.runtime = $%d", argIndex))
@@ -158,25 +157,19 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		argIndex++
 	}
 
-
 	if req.Priority != "" {
 		conditions = append(conditions, fmt.Sprintf("m.priority = $%d", argIndex))
 		args = append(args, req.Priority)
 		argIndex++
 	}
 
+	if req.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("m.status = $%d", argIndex))
+		args = append(args, req.Status)
+		argIndex++
+	}
+
 	whereClause := strings.Join(conditions, " AND ")
-
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM material m WHERE %s", whereClause)
-	var total int
-	err := r.db.QueryRow(countQuery, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if total == 0 {
-		return []entities.Material{}, 0, nil
-	}
 
 	limit := req.Limit
 	if limit <= 0 {
@@ -187,39 +180,23 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		offset = 0
 	}
 
+	orderBy := r.buildOrderByClause(req.SortBy)
+
 	query := fmt.Sprintf(`
-		WITH ranked_media AS (
-			SELECT 
-				m.id, m.name, m.type, m.runtime, m.poster_url,
-				m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
-				m.profile_id, m.family_id, m.created_at, m.updated_at,
-				(
-					CASE
-						WHEN m.status = 'to_watch' THEN 3
-						WHEN m.status = 'in_progress' THEN 4
-						WHEN m.status = 'watching' THEN 5
-						WHEN m.status = 'awaiting_release' THEN 2
-						WHEN m.status = 'watched' THEN 1
-						ELSE 0
-					END +
-					CASE
-						WHEN m.priority = 'high' THEN 2
-						WHEN m.priority = 'medium' THEN 1
-						ELSE 0
-					END
-				) as rank
-			FROM material m
-			WHERE %s
-		)
-		SELECT * FROM ranked_media
-		ORDER BY rank DESC, name
-		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+		SELECT 
+			m.id, m.name, m.type, m.runtime, m.poster_url,
+			m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
+			m.profile_id, m.family_id, m.created_at, m.updated_at
+		FROM material m
+		WHERE %s
+		%s
+		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
 
 	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("error executing media search: %v", err)
+		return nil, fmt.Errorf("error executing media search: %v", err)
 	}
 	defer rows.Close()
 
@@ -227,26 +204,25 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 	for rows.Next() {
 		var material entities.Material
 		var sourceIDsJSON []byte
-		var rank int
 
 		err := rows.Scan(
 			&material.ID, &material.Name, &material.Type,
 			&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
 			&material.Status, &material.Priority, &material.Notes, &material.ReviewScore, &material.ProfileID,
-			&material.FamilyID, &material.CreatedAt, &material.UpdatedAt, &rank,
+			&material.FamilyID, &material.CreatedAt, &material.UpdatedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("error scanning media result: %v", err)
+			return nil, fmt.Errorf("error scanning media result: %v", err)
 		}
 
 		if err := json.Unmarshal(sourceIDsJSON, &material.SourceIDs); err != nil {
-			return nil, 0, fmt.Errorf("error parsing source IDs: %v", err)
+			return nil, fmt.Errorf("error parsing source IDs: %v", err)
 		}
 
 		if len(material.SourceIDs) > 0 {
 			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
 			if err != nil {
-				return nil, 0, fmt.Errorf("error fetching sources: %v", err)
+				return nil, fmt.Errorf("error fetching sources: %v", err)
 			}
 			material.Sources = sources
 		}
@@ -254,7 +230,211 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		materialList = append(materialList, material)
 	}
 
-	return materialList, total, nil
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM material m WHERE %s", whereClause)
+	var total int
+	err = r.db.QueryRow(countQuery, args[:len(args)-2]...).Scan(&total)
+	if err != nil {
+		return nil, fmt.Errorf("error getting total count: %v", err)
+	}
+
+	hasMore := offset+len(materialList) < total
+
+	response := &MaterialSearchResponse{
+		Material: materialList,
+		Total:    total,
+		Limit:    limit,
+		Offset:   offset,
+		HasMore:  hasMore,
+		SortBy:   req.SortBy,
+	}
+
+	return response, nil
+}
+
+func (r *Repository) buildOrderByClause(sortBy string) string {
+	statusOrder := `ORDER BY 
+		CASE 
+			WHEN m.status = 'to_watch' THEN 1
+			WHEN m.status = 'in_progress' THEN 2
+			WHEN m.status = 'watching' THEN 3
+			WHEN m.status = 'awaiting_release' THEN 4
+			WHEN m.status = 'watched' THEN 5
+		END,`
+
+	var userSort string
+	switch sortBy {
+	case "alphabetical_asc":
+		userSort = "m.name ASC"
+	case "alphabetical_desc":
+		userSort = "m.name DESC"
+	case "recently_added":
+		userSort = "m.created_at DESC"
+	case "priority":
+		userSort = `CASE 
+			WHEN m.priority = 'high' THEN 1
+			WHEN m.priority = 'medium' THEN 2
+			WHEN m.priority = 'low' THEN 3
+			ELSE 4
+		END`
+	case "highest_rating":
+		userSort = "m.review_score DESC NULLS LAST"
+	default:
+		userSort = "m.review_score DESC NULLS LAST"
+	}
+
+	return statusOrder + " " + userSort + ", m.name ASC"
+}
+
+func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSearchRequest) (*MaterialSearchResponse, error) {
+	profileID := req.ProfileID
+	if profileID == nil {
+		return nil, fmt.Errorf("profile ID is required")
+	}
+
+	conditions := []string{"m.family_id = $1", "m.profile_id = $2", "m.is_deleted = false"}
+	args := []interface{}{familyID, *profileID}
+	argIndex := 3
+
+	if req.Query != "" {
+		conditions = append(conditions, fmt.Sprintf(`(
+			LOWER(m.name) = LOWER($%d) OR
+			m.name ILIKE $%d || '%%' OR
+			m.name ILIKE '%%' || $%d || '%%' OR
+			m.notes ILIKE '%%' || $%d || '%%' OR
+			to_tsvector('english', m.name || ' ' || COALESCE(m.notes, '')) @@ 
+			websearch_to_tsquery('english', $%d)
+		)`, argIndex, argIndex, argIndex, argIndex, argIndex))
+		args = append(args, req.Query)
+		argIndex++
+	}
+
+	if req.Type != "" {
+		conditions = append(conditions, fmt.Sprintf("m.type = $%d", argIndex))
+		args = append(args, req.Type)
+		argIndex++
+	}
+
+	if req.Runtime != "" {
+		conditions = append(conditions, fmt.Sprintf("m.runtime = $%d", argIndex))
+		args = append(args, req.Runtime)
+		argIndex++
+	}
+
+	if req.SourceID != "" {
+		conditions = append(conditions, fmt.Sprintf("m.source_ids ? $%d", argIndex))
+		args = append(args, string(req.SourceID))
+		argIndex++
+	}
+
+	if req.ClassificationID != nil {
+		conditions = append(conditions, fmt.Sprintf("m.classification_id = $%d", argIndex))
+		args = append(args, *req.ClassificationID)
+		argIndex++
+	} else {
+		conditions = append(conditions, "m.classification_id IS NULL")
+	}
+
+	if req.WatchWith != "" {
+		conditions = append(conditions, fmt.Sprintf("m.watch_with = $%d", argIndex))
+		args = append(args, req.WatchWith)
+		argIndex++
+	}
+
+	if req.Priority != "" {
+		conditions = append(conditions, fmt.Sprintf("m.priority = $%d", argIndex))
+		args = append(args, req.Priority)
+		argIndex++
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+
+	orderBy := r.buildOrderByClause(req.SortBy)
+
+	query := fmt.Sprintf(`
+		SELECT 
+			m.id, m.name, m.type, m.runtime, m.poster_url,
+			m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
+			m.profile_id, m.family_id, m.created_at, m.updated_at
+		FROM material m
+		WHERE %s
+		%s`, whereClause, orderBy)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing media search: %v", err)
+	}
+	defer rows.Close()
+
+	response := &MaterialSearchResponse{
+		Total:    0,
+		Limit:    limit,
+		Offset:   0,
+		HasMore:  false,
+		SortBy:   req.SortBy,
+	}
+
+	totalCount := 0
+	for rows.Next() {
+		var material entities.Material
+		var sourceIDsJSON []byte
+
+		err := rows.Scan(
+			&material.ID, &material.Name, &material.Type,
+			&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
+			&material.Status, &material.Priority, &material.Notes, &material.ReviewScore, &material.ProfileID,
+			&material.FamilyID, &material.CreatedAt, &material.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning media result: %v", err)
+		}
+
+		if err := json.Unmarshal(sourceIDsJSON, &material.SourceIDs); err != nil {
+			return nil, fmt.Errorf("error parsing source IDs: %v", err)
+		}
+
+		if len(material.SourceIDs) > 0 {
+			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching sources: %v", err)
+			}
+			material.Sources = sources
+		}
+
+		// Add to appropriate column based on status
+		switch material.Status {
+		case entities.StatusToWatch:
+			if len(response.Columns.ToWatch) < limit {
+				response.Columns.ToWatch = append(response.Columns.ToWatch, material)
+			}
+		case entities.StatusInProgress:
+			if len(response.Columns.InProgress) < limit {
+				response.Columns.InProgress = append(response.Columns.InProgress, material)
+			}
+		case entities.StatusWatching:
+			if len(response.Columns.Watching) < limit {
+				response.Columns.Watching = append(response.Columns.Watching, material)
+			}
+		case entities.StatusAwaitingRelease:
+			if len(response.Columns.AwaitingRelease) < limit {
+				response.Columns.AwaitingRelease = append(response.Columns.AwaitingRelease, material)
+			}
+		case entities.StatusWatched:
+			if len(response.Columns.Watched) < limit {
+				response.Columns.Watched = append(response.Columns.Watched, material)
+			}
+		}
+
+		totalCount++
+	}
+
+	response.Total = totalCount
+
+	return response, nil
 }
 
 func (r *Repository) Update(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMaterialRequest) (*entities.Material, error) {

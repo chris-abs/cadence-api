@@ -48,16 +48,28 @@ type MaterialSearchRequest struct {
 	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
 	WatchWith        entities.WatchWith       `json:"watchWith"`
 	Priority         entities.Priority        `json:"priority"`
+	SortBy           string                   `json:"sortBy"`
+	Status           entities.Status          `json:"status"`
 	Limit            int                      `json:"limit"`
 	Offset           int                      `json:"offset"`
 }
 
 type MaterialSearchResponse struct {
-	Material   []entities.Material `json:"material"`
+	Material []entities.Material `json:"material,omitempty"`
+	
+	Columns struct {
+		ToWatch        []entities.Material `json:"to_watch"`
+		InProgress     []entities.Material `json:"in_progress"`
+		Watching       []entities.Material `json:"watching"`
+		AwaitingRelease []entities.Material `json:"awaiting_release"`
+		Watched        []entities.Material `json:"watched"`
+	} `json:"columns,omitempty"`
+	
 	Total   int                    `json:"total"`
 	Limit   int                    `json:"limit"`
 	Offset  int                    `json:"offset"`
 	HasMore bool                   `json:"hasMore"`
+	SortBy  string                 `json:"sortBy"`
 }
 
 type MaterialEnumsResponse struct {

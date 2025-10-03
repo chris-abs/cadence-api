@@ -44,30 +44,15 @@ func (s *Service) SearchMaterial(familyID models.FamilyID, currentProfileID mode
 		req.ProfileID = &currentProfileID
 	}
 
-	material, total, err := s.repo.Search(familyID, req)
-	if err != nil {
-		return nil, fmt.Errorf("error searching media: %v", err)
+	if req.SortBy == "" {
+		req.SortBy = "highest_rating"
 	}
 
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 50
+	if req.Status != "" {
+		return s.repo.Search(familyID, req)
+	} else {
+		return s.repo.SearchAllColumns(familyID, req)
 	}
-
-	offset := req.Offset
-	if offset < 0 {
-		offset = 0
-	}
-
-	hasMore := offset+len(material) < total
-
-	return &MaterialSearchResponse{
-		Material:   material,
-		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
-		HasMore: hasMore,
-	}, nil
 }
 
 func (s *Service) UpdateMaterial(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, req *UpdateMaterialRequest) (*entities.Material, error) {

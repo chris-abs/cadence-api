@@ -49,6 +49,8 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 		Runtime:   entities.Runtime(r.URL.Query().Get("runtime")),
 		WatchWith: entities.WatchWith(r.URL.Query().Get("watchWith")),
 		Priority:  entities.Priority(r.URL.Query().Get("priority")),
+		SortBy:    r.URL.Query().Get("sortBy"),
+		Status:    entities.Status(r.URL.Query().Get("status")),
 	}
 
 	if profileIDStr := r.URL.Query().Get("profileId"); profileIDStr != "" {
