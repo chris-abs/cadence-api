@@ -46,6 +46,7 @@ type MaterialSearchRequest struct {
 	Runtime          entities.Runtime         `json:"runtime"`
 	SourceID         models.SourceID          `json:"sourceId"`
 	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
+	IncludeClassified bool                    `json:"includeClassified,omitempty"` 
 	WatchWith        entities.WatchWith       `json:"watchWith"`
 	Priority         entities.Priority        `json:"priority"`
 	SortBy           string                   `json:"sortBy"`

@@ -147,7 +147,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		conditions = append(conditions, fmt.Sprintf("m.classification_id = $%d", argIndex))
 		args = append(args, *req.ClassificationID)
 		argIndex++
-	} else {
+	} else if !req.IncludeClassified {
 		conditions = append(conditions, "m.classification_id IS NULL")
 	}
 
@@ -330,7 +330,7 @@ func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSea
 		conditions = append(conditions, fmt.Sprintf("m.classification_id = $%d", argIndex))
 		args = append(args, *req.ClassificationID)
 		argIndex++
-	} else {
+	} else if !req.IncludeClassified {
 		conditions = append(conditions, "m.classification_id IS NULL")
 	}
 

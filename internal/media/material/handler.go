@@ -77,6 +77,10 @@ func (h *Handler) handleGetMedia(w http.ResponseWriter, r *http.Request) {
 		req.ClassificationID = &classificationID
 	}
 
+	if includeClassifiedStr := r.URL.Query().Get("includeClassified"); includeClassifiedStr != "" {
+		req.IncludeClassified = includeClassifiedStr == "true"
+	}
+
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		var limit int
 		if _, err := fmt.Sscanf(limitStr, "%d", &limit); err != nil || limit < 0 {
