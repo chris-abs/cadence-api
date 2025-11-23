@@ -28,6 +28,10 @@ func (s *Service) CreateMaterial(profileID models.ProfileID, familyID models.Fam
 		req.Priority = entities.PriorityMedium
 	}
 
+	if req.Runtime == "" {
+		req.Runtime = entities.RuntimeMedium
+	}
+
 	return s.repo.Create(profileID, familyID, req)
 }
 
@@ -144,7 +148,7 @@ func (s *Service) validateCreateMaterialRequest(req *CreateMaterialRequest) erro
 		return fmt.Errorf("invalid type: %s", req.Type)
 	}
 
-	if !s.isValidRuntime(req.Runtime) {
+	if req.Runtime != "" && !s.isValidRuntime(req.Runtime) {
 		return fmt.Errorf("invalid runtime: %s", req.Runtime)
 	}
 
