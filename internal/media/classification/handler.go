@@ -134,6 +134,12 @@ func (h *Handler) handleUploadClassificationImage(w http.ResponseWriter, r *http
 		return
 	}
 	
+	existingClassification, err := h.service.GetClassificationByID(id, profileCtx.ProfileID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		writeError(w, http.StatusBadRequest, "failed to parse form")
 		return
@@ -160,8 +166,13 @@ func (h *Handler) handleUploadClassificationImage(w http.ResponseWriter, r *http
 	
 	classification, err := h.service.UpdateClassificationImage(id, profileCtx.ProfileID, imageURL)
 	if err != nil {
+		_ = s3Handler.DeleteFileByURL(imageURL)
 		writeError(w, http.StatusInternalServerError, "failed to update classification image")
 		return
+	}
+	
+	if existingClassification.ImageURL != "" {
+		_ = s3Handler.DeleteFileByURL(existingClassification.ImageURL)
 	}
 	
 	writeJSON(w, http.StatusOK, classification)

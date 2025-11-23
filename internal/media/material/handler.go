@@ -170,6 +170,7 @@ func (h *Handler) handleCreateMedia(w http.ResponseWriter, r *http.Request) {
 
 			updatedMaterial, err := h.service.UpdateMaterial(material.ID, profileCtx.FamilyID, profileCtx.ProfileID, updateReq)
 			if err != nil {
+				_ = s3Handler.DeleteFileByURL(posterURL)
 				writeError(w, http.StatusInternalServerError, "failed to update material poster")
 				return
 			}
@@ -257,11 +258,20 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Handle poster upload if present
 		if file, header, err := r.FormFile("poster"); err == nil {
 			defer file.Close()
 
-			// Upload poster to S3
+			// Get existing material to retrieve old poster URL
+			existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.ProfileID)
+			if err != nil {
+				if strings.Contains(err.Error(), "not found") {
+					writeError(w, http.StatusNotFound, err.Error())
+					return
+				}
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
 			s3Handler, err := cloud.NewS3Handler()
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, "failed to initialize storage")
@@ -274,8 +284,29 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Update the request with the new poster URL
 			req.PosterURL = posterURL
+
+			material, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
+			if err != nil {
+				_ = s3Handler.DeleteFileByURL(posterURL)
+				if strings.Contains(err.Error(), "validation failed") {
+					writeError(w, http.StatusBadRequest, err.Error())
+					return
+				}
+				if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "not owned") {
+					writeError(w, http.StatusNotFound, err.Error())
+					return
+				}
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			if existingMaterial.PosterURL != "" {
+				_ = s3Handler.DeleteFileByURL(existingMaterial.PosterURL)
+			}
+
+			writeJSON(w, http.StatusOK, material)
+			return
 		}
 
 		material, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, &req)
@@ -296,7 +327,6 @@ func (h *Handler) handleUpdateMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Handle JSON-only request (existing behavior)
 	var req UpdateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -453,13 +483,6 @@ func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if existingMaterial.PosterURL != "" {
-		if err := s3Handler.DeleteFileByURL(existingMaterial.PosterURL); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to delete old poster")
-			return
-		}
-	}
-
 	updateReq := &UpdateMaterialRequest{
 		Name:             existingMaterial.Name,
 		Type:             existingMaterial.Type,
@@ -475,8 +498,13 @@ func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Requ
 
 	updatedMaterial, err := h.service.UpdateMaterial(materialID, profileCtx.FamilyID, profileCtx.ProfileID, updateReq)
 	if err != nil {
+		_ = s3Handler.DeleteFileByURL(posterURL)
 		writeError(w, http.StatusInternalServerError, "failed to update material poster")
 		return
+	}
+
+	if existingMaterial.PosterURL != "" {
+		_ = s3Handler.DeleteFileByURL(existingMaterial.PosterURL)
 	}
 
 	writeJSON(w, http.StatusOK, updatedMaterial)
