@@ -105,6 +105,9 @@ func (h *S3Handler) DeleteFileByURL(url string) error {
     }
     
     key := strings.Split(url, ".amazonaws.com/")[1]
+    if key == "" {
+        return fmt.Errorf("invalid S3 URL format: empty key extracted from URL")
+    }
     
     _, err := h.client.DeleteObject(context.Background(), &s3.DeleteObjectInput{
         Bucket: &h.bucket,
