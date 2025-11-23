@@ -45,11 +45,11 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateTagDescription,
             // },
-            {
-                ID:      "006_family_support",
-                Enabled: true,
-                Run:     MigrateFamilySupport,
-            },
+            // {
+            //     ID:      "006_family_support",
+            //     Enabled: true,
+            //     Run:     MigrateFamilySupport,
+            // },
             // {
             //     ID:      "007_soft_delete",
             //     Enabled: true,
@@ -85,6 +85,11 @@ func NewManager(db *sql.DB) *Manager {
             //     Enabled: true,
             //     Run:     MigrateCalendarIndexes,
             // },
+            {
+                ID:      "015_media_source_name_constraint",
+                Enabled: true,
+                Run:     MigrateMediaSourceNameConstraint,
+            },
         },
     }
 }

@@ -25,7 +25,7 @@ func createMediaSourceTables(db *sql.DB) error {
 	query := `
 	CREATE TABLE IF NOT EXISTS media_source (
 		id VARCHAR(36) PRIMARY KEY,  
-		name VARCHAR(100) NOT NULL UNIQUE,
+		name VARCHAR(100) NOT NULL,
 		color VARCHAR(20) NOT NULL,
 		category VARCHAR(50) NOT NULL,
 		family_id VARCHAR(36) REFERENCES family_account(id) NOT NULL,
@@ -35,7 +35,8 @@ func createMediaSourceTables(db *sql.DB) error {
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
-		deleted_by VARCHAR(36) REFERENCES profile(id)  
+		deleted_by VARCHAR(36) REFERENCES profile(id),
+		UNIQUE (family_id, name)
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_media_source_name ON media_source(name);
