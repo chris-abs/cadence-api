@@ -355,6 +355,7 @@ func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSea
 
 	orderBy := r.buildOrderByClause(req.SortBy)
 
+	sqlLimit := limit * 5
 	query := fmt.Sprintf(`
 		SELECT 
 			m.id, m.name, m.type, m.runtime, m.poster_url,
@@ -362,7 +363,10 @@ func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSea
 			m.profile_id, m.family_id, m.created_at, m.updated_at
 		FROM material m
 		WHERE %s
-		%s`, whereClause, orderBy)
+		%s
+		LIMIT $%d`, whereClause, orderBy, argIndex)
+
+	args = append(args, sqlLimit)
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
@@ -429,6 +433,14 @@ func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSea
 		}
 
 		totalCount++
+
+		if len(response.Columns.ToWatch) >= limit &&
+			len(response.Columns.InProgress) >= limit &&
+			len(response.Columns.Watching) >= limit &&
+			len(response.Columns.AwaitingRelease) >= limit &&
+			len(response.Columns.Watched) >= limit {
+			break
+		}
 	}
 
 	response.Total = totalCount
