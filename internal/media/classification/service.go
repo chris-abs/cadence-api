@@ -167,8 +167,8 @@ func (s *Service) validateUpdateClassificationRequest(req *UpdateClassificationR
 		return fmt.Errorf("name must be 100 characters or less")
 	}
 	
-	if req.Description != nil && len(*req.Description) > 100 {
-		return fmt.Errorf("description must be 100 characters or less")
+	if req.Description != nil && len(*req.Description) > 500 {
+		return fmt.Errorf("description must be 500 characters or less")
 	}
 	
 	return nil
