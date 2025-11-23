@@ -453,6 +453,13 @@ func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if existingMaterial.PosterURL != "" {
+		if err := s3Handler.DeleteFileByURL(existingMaterial.PosterURL); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to delete old poster")
+			return
+		}
+	}
+
 	updateReq := &UpdateMaterialRequest{
 		Name:             existingMaterial.Name,
 		Type:             existingMaterial.Type,
