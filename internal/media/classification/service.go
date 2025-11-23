@@ -43,8 +43,8 @@ func (s *Service) CreateClassification(req *CreateClassificationRequest, familyI
 	return classification, nil
 }
 
-func (s *Service) GetClassificationByID(classificationID models.ClassificationID) (*entities.Classification, error) {
-	classification, err := s.repo.GetByID(classificationID)
+func (s *Service) GetClassificationByID(classificationID models.ClassificationID, profileID models.ProfileID) (*entities.Classification, error) {
+	classification, err := s.repo.GetByID(classificationID, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,12 @@ func (s *Service) GetClassificationByID(classificationID models.ClassificationID
 	return classification, nil
 }
 
-func (s *Service) UpdateClassification(classificationID models.ClassificationID, req *UpdateClassificationRequest) (*entities.Classification, error) {
+func (s *Service) UpdateClassification(classificationID models.ClassificationID, profileID models.ProfileID, req *UpdateClassificationRequest) (*entities.Classification, error) {
 	if err := s.validateUpdateClassificationRequest(req); err != nil {
 		return nil, err
 	}
 	
-	existingClassification, err := s.repo.GetByID(classificationID)
+	existingClassification, err := s.repo.GetByID(classificationID, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,15 +74,15 @@ func (s *Service) UpdateClassification(classificationID models.ClassificationID,
 	
 	existingClassification.UpdatedAt = time.Now().UTC()
 	
-	if err := s.repo.Update(existingClassification); err != nil {
+	if err := s.repo.Update(existingClassification, profileID); err != nil {
 		return nil, fmt.Errorf("error updating classification: %v", err)
 	}
 	
 	return existingClassification, nil
 }
 
-func (s *Service) UpdateClassificationImage(classificationID models.ClassificationID, imageURL string) (*entities.Classification, error) {
-	existingClassification, err := s.repo.GetByID(classificationID)
+func (s *Service) UpdateClassificationImage(classificationID models.ClassificationID, profileID models.ProfileID, imageURL string) (*entities.Classification, error) {
+	existingClassification, err := s.repo.GetByID(classificationID, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (s *Service) UpdateClassificationImage(classificationID models.Classificati
 	existingClassification.ImageURL = imageURL
 	existingClassification.UpdatedAt = time.Now().UTC()
 	
-	if err := s.repo.Update(existingClassification); err != nil {
+	if err := s.repo.Update(existingClassification, profileID); err != nil {
 		return nil, fmt.Errorf("error updating classification image: %v", err)
 	}
 	
@@ -129,8 +129,14 @@ func (s *Service) GetAllClassifications(profileID models.ProfileID, params Class
 	}, nil
 }
 
-func (s *Service) DeleteClassification(classificationID models.ClassificationID, deletedBy models.ProfileID) error {
-	count, err := s.repo.GetMaterialCountByClassification(classificationID)
+func (s *Service) DeleteClassification(classificationID models.ClassificationID, profileID models.ProfileID, deletedBy models.ProfileID) error {
+	// Verify classification exists and belongs to the profile
+	_, err := s.repo.GetByID(classificationID, profileID)
+	if err != nil {
+		return err
+	}
+	
+	count, err := s.repo.GetMaterialCountByClassification(classificationID, profileID)
 	if err != nil {
 		return fmt.Errorf("error checking classification usage: %v", err)
 	}
@@ -139,7 +145,7 @@ func (s *Service) DeleteClassification(classificationID models.ClassificationID,
 		return fmt.Errorf("cannot delete classification: it is being used by %d material items", count)
 	}
 	
-	return s.repo.Delete(classificationID, deletedBy)
+	return s.repo.Delete(classificationID, profileID, deletedBy)
 }
 
 func (s *Service) validateCreateClassificationRequest(req *CreateClassificationRequest) error {

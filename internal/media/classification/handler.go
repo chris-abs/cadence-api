@@ -70,7 +70,6 @@ func (h *Handler) handleGetAllClassifications(w http.ResponseWriter, r *http.Req
 	}
 	
 	params := ClassificationSearchRequest{
-		FamilyID: profileCtx.FamilyID,
 		Limit:    limit,
 		Offset:   offset,
 	}
@@ -93,14 +92,9 @@ func (h *Handler) handleGetClassification(w http.ResponseWriter, r *http.Request
 		return
 	}
 	
-	classification, err := h.service.GetClassificationByID(id)
+	classification, err := h.service.GetClassificationByID(id, profileCtx.ProfileID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
-	
-	if classification.FamilyID != profileCtx.FamilyID {
-		writeError(w, http.StatusForbidden, "access denied")
 		return
 	}
 	
@@ -116,24 +110,13 @@ func (h *Handler) handleUpdateClassification(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	existingClassification, err := h.service.GetClassificationByID(id)
-	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
-		return
-	}
-	
-	if existingClassification.FamilyID != profileCtx.FamilyID {
-		writeError(w, http.StatusForbidden, "access denied")
-		return
-	}
-	
 	var req UpdateClassificationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	
-	classification, err := h.service.UpdateClassification(id, &req)
+	classification, err := h.service.UpdateClassification(id, profileCtx.ProfileID, &req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -175,7 +158,7 @@ func (h *Handler) handleUploadClassificationImage(w http.ResponseWriter, r *http
 		return
 	}
 	
-	classification, err := h.service.UpdateClassificationImage(id, imageURL)
+	classification, err := h.service.UpdateClassificationImage(id, profileCtx.ProfileID, imageURL)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update classification image")
 		return
@@ -193,7 +176,7 @@ func (h *Handler) handleDeleteClassification(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	
-	if err := h.service.DeleteClassification(id, profileCtx.ProfileID); err != nil {
+	if err := h.service.DeleteClassification(id, profileCtx.ProfileID, profileCtx.ProfileID); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

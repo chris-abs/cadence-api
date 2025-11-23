@@ -53,16 +53,16 @@ func (r *Repository) Create(classification *entities.Classification) error {
 	return nil
 }
 
-func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classification, error) {
+func (r *Repository) GetByID(id models.ClassificationID, profileID models.ProfileID) (*entities.Classification, error) {
 	query := `
 		SELECT id, name, description, color, image_url, family_id, profile_id, created_by,
 		       created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_classification 
-		WHERE id = $1 AND is_deleted = false
+		WHERE id = $1 AND profile_id = $2 AND is_deleted = false
 	`
 	
 	var classification entities.Classification
-	err := r.db.QueryRow(query, id).Scan(
+	err := r.db.QueryRow(query, id, profileID).Scan(
 		&classification.ID,
 		&classification.Name,
 		&classification.Description,
@@ -88,11 +88,11 @@ func (r *Repository) GetByID(id models.ClassificationID) (*entities.Classificati
 	return &classification, nil
 }
 
-func (r *Repository) Update(classification *entities.Classification) error {
+func (r *Repository) Update(classification *entities.Classification, profileID models.ProfileID) error {
 	query := `
 		UPDATE media_classification 
 		SET name = $2, description = $3, color = $4, image_url = $5, updated_at = $6
-		WHERE id = $1 AND is_deleted = false
+		WHERE id = $1 AND profile_id = $7 AND is_deleted = false
 		RETURNING updated_at
 	`
 	
@@ -105,6 +105,7 @@ func (r *Repository) Update(classification *entities.Classification) error {
 		classification.Color,
 		classification.ImageURL,
 		classification.UpdatedAt,
+		profileID,
 	).Scan(&updatedAt)
 	
 	if err != nil {
@@ -119,16 +120,16 @@ func (r *Repository) Update(classification *entities.Classification) error {
 	return nil
 }
 
-func (r *Repository) Delete(id models.ClassificationID, deletedBy models.ProfileID) error {
+func (r *Repository) Delete(id models.ClassificationID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE media_classification 
 		SET is_deleted = true, deleted_at = $2, deleted_by = $3
-		WHERE id = $1 AND is_deleted = false
+		WHERE id = $1 AND profile_id = $4 AND is_deleted = false
 		RETURNING id
 	`
 	
 	var deletedID models.ClassificationID
-	err := r.db.QueryRow(query, id, time.Now().UTC(), deletedBy).Scan(&deletedID)
+	err := r.db.QueryRow(query, id, time.Now().UTC(), deletedBy, profileID).Scan(&deletedID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("classification not found or already deleted")
@@ -199,15 +200,15 @@ func (r *Repository) GetAllByProfile(profileID models.ProfileID, limit, offset i
 	return classifications, total, nil
 }
 
-func (r *Repository) GetMaterialCountByClassification(classificationID models.ClassificationID) (int, error) {
+func (r *Repository) GetMaterialCountByClassification(classificationID models.ClassificationID, profileID models.ProfileID) (int, error) {
 	query := `
 		SELECT COUNT(*) 
 		FROM material 
-		WHERE classification_id = $1 AND is_deleted = false
+		WHERE classification_id = $1 AND profile_id = $2 AND is_deleted = false
 	`
 	
 	var count int
-	err := r.db.QueryRow(query, classificationID).Scan(&count)
+	err := r.db.QueryRow(query, classificationID, profileID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("error counting material by classification: %v", err)
 	}

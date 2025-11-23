@@ -220,7 +220,7 @@ func (h *Handler) handleGetMediaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	material, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
+	material, err := h.service.GetMaterialByID(materialID, profileCtx.ProfileID)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -431,18 +431,13 @@ func (h *Handler) handleUpdateMaterialPoster(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
+	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.ProfileID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if existingMaterial.ProfileID != profileCtx.ProfileID {
-		writeError(w, http.StatusForbidden, "not authorized to update this material")
 		return
 	}
 
@@ -489,18 +484,13 @@ func (h *Handler) handleDeleteMaterialPoster(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.FamilyID)
+	existingMaterial, err := h.service.GetMaterialByID(materialID, profileCtx.ProfileID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if existingMaterial.ProfileID != profileCtx.ProfileID {
-		writeError(w, http.StatusForbidden, "not authorized to delete this material's poster")
 		return
 	}
 

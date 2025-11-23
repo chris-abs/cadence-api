@@ -31,12 +31,12 @@ func (s *Service) CreateMaterial(profileID models.ProfileID, familyID models.Fam
 	return s.repo.Create(profileID, familyID, req)
 }
 
-func (s *Service) GetMaterialByID(id models.MaterialID, familyID models.FamilyID) (*entities.Material, error) {
+func (s *Service) GetMaterialByID(id models.MaterialID, profileID models.ProfileID) (*entities.Material, error) {
 	if id == "" {
 		return nil, fmt.Errorf("invalid material ID")
 	}
 
-	return s.repo.GetByID(id, familyID)
+	return s.repo.GetByID(id, profileID)
 }
 
 func (s *Service) SearchMaterial(familyID models.FamilyID, currentProfileID models.ProfileID, req *MaterialSearchRequest) (*MaterialSearchResponse, error) {

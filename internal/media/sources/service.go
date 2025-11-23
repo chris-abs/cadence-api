@@ -38,16 +38,16 @@ func (s *Service) CreateSource(req *CreateSourceRequest, familyID models.FamilyI
 	return source, nil
 }
 
-func (s *Service) GetSourceByID(sourceID models.SourceID) (*entities.Source, error) {
-	return s.repo.GetSourceByID(sourceID)
+func (s *Service) GetSourceByID(sourceID models.SourceID, profileID models.ProfileID) (*entities.Source, error) {
+	return s.repo.GetSourceByID(sourceID, profileID)
 }
 
-func (s *Service) UpdateSource(sourceID models.SourceID, req *UpdateSourceRequest) (*entities.Source, error) {
+func (s *Service) UpdateSource(sourceID models.SourceID, profileID models.ProfileID, req *UpdateSourceRequest) (*entities.Source, error) {
 	if err := s.validateUpdateSourceRequest(req); err != nil {
 		return nil, err
 	}
 	
-	existingSource, err := s.repo.GetSourceByID(sourceID)
+	existingSource, err := s.repo.GetSourceByID(sourceID, profileID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (s *Service) UpdateSource(sourceID models.SourceID, req *UpdateSourceReques
 		existingSource.Category = *req.Category
 	}
 	
-	if err := s.repo.UpdateSource(existingSource); err != nil {
+	if err := s.repo.UpdateSource(existingSource, profileID); err != nil {
 		return nil, fmt.Errorf("error updating source: %v", err)
 	}
 	
@@ -73,12 +73,17 @@ func (s *Service) GetAllSources(params SourceSearchParams) (*SourceSearchRespons
 	return s.repo.GetAllSources(params)
 }
 
-func (s *Service) GetSourcesByIDs(sourceIDs []models.SourceID) ([]entities.Source, error) {
-	return s.repo.GetSourcesByIDs(sourceIDs)
+func (s *Service) GetSourcesByIDs(sourceIDs []models.SourceID, profileID models.ProfileID) ([]entities.Source, error) {
+	return s.repo.GetSourcesByIDs(sourceIDs, profileID)
 }
 
-func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.ProfileID) error {
-	count, err := s.repo.GetMaterialCountBySource(sourceID)
+func (s *Service) DeleteSource(sourceID models.SourceID, profileID models.ProfileID, deletedBy models.ProfileID) error {
+	_, err := s.repo.GetSourceByID(sourceID, profileID)
+	if err != nil {
+		return err
+	}
+	
+	count, err := s.repo.GetMaterialCountBySource(sourceID, profileID)
 	if err != nil {
 		return fmt.Errorf("error checking source usage: %v", err)
 	}
@@ -87,7 +92,7 @@ func (s *Service) DeleteSource(sourceID models.SourceID, deletedBy models.Profil
 		return fmt.Errorf("cannot delete source: it is being used by %d material items", count)
 	}
 	
-	return s.repo.DeleteSource(sourceID, deletedBy)
+	return s.repo.DeleteSource(sourceID, profileID, deletedBy)
 }
 
 func (s *Service) validateCreateSourceRequest(req *CreateSourceRequest) error {

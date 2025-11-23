@@ -28,17 +28,17 @@ func (r *Repository) CreateSource(source *entities.Source) error {
 	return err
 }
 
-func (r *Repository) GetSourceByID(sourceID models.SourceID) (*entities.Source, error) {
+func (r *Repository) GetSourceByID(sourceID models.SourceID, profileID models.ProfileID) (*entities.Source, error) {
 	query := `
 		SELECT id, name, color, category, family_id, profile_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source
-		WHERE id = $1 AND is_deleted = false`
+		WHERE id = $1 AND profile_id = $2 AND is_deleted = false`
 	
 	var source entities.Source
 	var deletedAt sql.NullTime
 	var deletedBy sql.NullString
 	
-	err := r.db.QueryRow(query, sourceID).Scan(
+	err := r.db.QueryRow(query, sourceID, profileID).Scan(
 		&source.ID, &source.Name, &source.Color, &source.Category,
 		&source.FamilyID, &source.ProfileID, &source.CreatedBy, &source.CreatedAt, &source.UpdatedAt,
 		&source.IsDeleted, &deletedAt, &deletedBy,
@@ -60,14 +60,14 @@ func (r *Repository) GetSourceByID(sourceID models.SourceID) (*entities.Source, 
 	return &source, nil
 }
 
-func (r *Repository) UpdateSource(source *entities.Source) error {
+func (r *Repository) UpdateSource(source *entities.Source, profileID models.ProfileID) error {
 	query := `
 		UPDATE media_source 
 		SET name = $2, color = $3, category = $4, updated_at = $5
-		WHERE id = $1 AND is_deleted = false`
+		WHERE id = $1 AND profile_id = $6 AND is_deleted = false`
 	
 	now := time.Now().UTC()
-	result, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, now)
+	result, err := r.db.Exec(query, source.ID, source.Name, source.Color, source.Category, now, profileID)
 	if err != nil {
 		return err
 	}
@@ -84,14 +84,14 @@ func (r *Repository) UpdateSource(source *entities.Source) error {
 	return nil
 }
 
-func (r *Repository) DeleteSource(sourceID models.SourceID, deletedBy models.ProfileID) error {
+func (r *Repository) DeleteSource(sourceID models.SourceID, profileID models.ProfileID, deletedBy models.ProfileID) error {
 	query := `
 		UPDATE media_source 
 		SET is_deleted = true, deleted_at = $2, deleted_by = $3
-		WHERE id = $1 AND is_deleted = false`
+		WHERE id = $1 AND profile_id = $4 AND is_deleted = false`
 	
 	now := time.Now().UTC()
-	result, err := r.db.Exec(query, sourceID, now, deletedBy)
+	result, err := r.db.Exec(query, sourceID, now, deletedBy, profileID)
 	if err != nil {
 		return err
 	}
@@ -206,34 +206,35 @@ func (r *Repository) GetAllSources(params SourceSearchParams) (*SourceSearchResp
 	}, nil
 }
 
-func (r *Repository) GetMaterialCountBySource(sourceID models.SourceID) (int, error) {
+func (r *Repository) GetMaterialCountBySource(sourceID models.SourceID, profileID models.ProfileID) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM material
-		WHERE $1 = ANY(source_ids) AND is_deleted = false`
+		WHERE $1 = ANY(source_ids) AND profile_id = $2 AND is_deleted = false`
 	
 	var count int
-	err := r.db.QueryRow(query, sourceID).Scan(&count)
+	err := r.db.QueryRow(query, sourceID, profileID).Scan(&count)
 	return count, err
 }
 
-func (r *Repository) GetSourcesByIDs(sourceIDs []models.SourceID) ([]entities.Source, error) {
+func (r *Repository) GetSourcesByIDs(sourceIDs []models.SourceID, profileID models.ProfileID) ([]entities.Source, error) {
 	if len(sourceIDs) == 0 {
 		return []entities.Source{}, nil
 	}
 
 	placeholders := make([]string, len(sourceIDs))
-	args := make([]interface{}, len(sourceIDs))
+	args := make([]interface{}, len(sourceIDs)+1)
 	for i, id := range sourceIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
 	}
+	args[len(sourceIDs)] = profileID
 
 	query := fmt.Sprintf(`
 		SELECT id, name, color, category, family_id, profile_id, created_by, created_at, updated_at, is_deleted, deleted_at, deleted_by
 		FROM media_source 
-		WHERE id IN (%s) AND is_deleted = false
-		ORDER BY category, name`, strings.Join(placeholders, ","))
+		WHERE id IN (%s) AND profile_id = $%d AND is_deleted = false
+		ORDER BY category, name`, strings.Join(placeholders, ","), len(sourceIDs)+1)
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {

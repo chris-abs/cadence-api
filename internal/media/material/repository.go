@@ -59,21 +59,21 @@ func (r *Repository) Create(profileID models.ProfileID, familyID models.FamilyID
 		return nil, fmt.Errorf("error creating media: %v", err)
 	}
 
-	return r.GetByID(materialID, familyID)
+	return r.GetByID(materialID, profileID)
 }
 
-func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*entities.Material, error) {
+func (r *Repository) GetByID(id models.MaterialID, profileID models.ProfileID) (*entities.Material, error) {
 	query := `
 		SELECT m.id, m.name, m.type, m.runtime, m.poster_url,
 			   m.source_ids, m.classification_id, m.watch_with, m.status, m.priority, m.notes, m.review_score,
 			   m.profile_id, m.family_id, m.created_at, m.updated_at
 		FROM material m
-		WHERE m.id = $1 AND m.family_id = $2 AND m.is_deleted = false`
-
+		WHERE m.id = $1 AND m.profile_id = $2 AND m.is_deleted = false`
+	
 	material := new(entities.Material)
 	var sourceIDsJSON []byte
-
-	err := r.db.QueryRow(query, id, familyID).Scan(
+	
+	err := r.db.QueryRow(query, id, profileID).Scan(
 		&material.ID, &material.Name, &material.Type,
 		&material.Runtime, &material.PosterURL, &sourceIDsJSON, &material.ClassificationID, &material.WatchWith,
 		&material.Status, &material.Priority, &material.Notes, &material.ReviewScore, &material.ProfileID,
@@ -92,7 +92,7 @@ func (r *Repository) GetByID(id models.MaterialID, familyID models.FamilyID) (*e
 	}
 
 	if len(material.SourceIDs) > 0 {
-		sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+		sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs, material.ProfileID)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching sources: %v", err)
 		}
@@ -220,7 +220,7 @@ func (r *Repository) Search(familyID models.FamilyID, req *MaterialSearchRequest
 		}
 
 		if len(material.SourceIDs) > 0 {
-			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs, material.ProfileID)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching sources: %v", err)
 			}
@@ -398,14 +398,13 @@ func (r *Repository) SearchAllColumns(familyID models.FamilyID, req *MaterialSea
 		}
 
 		if len(material.SourceIDs) > 0 {
-			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs)
+			sources, err := r.sourceRepo.GetSourcesByIDs(material.SourceIDs, material.ProfileID)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching sources: %v", err)
 			}
 			material.Sources = sources
 		}
 
-		// Add to appropriate column based on status
 		switch material.Status {
 		case entities.StatusToWatch:
 			if len(response.Columns.ToWatch) < limit {
@@ -469,7 +468,7 @@ func (r *Repository) Update(id models.MaterialID, familyID models.FamilyID, prof
 		return nil, fmt.Errorf("media not found or not owned by profile")
 	}
 
-	return r.GetByID(id, familyID)
+	return r.GetByID(id, profileID)
 }
 
 func (r *Repository) UpdateStatus(id models.MaterialID, familyID models.FamilyID, profileID models.ProfileID, status entities.Status) error {

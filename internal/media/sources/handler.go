@@ -65,6 +65,8 @@ func (h *Handler) handleGetSources(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetSource(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+	
 	vars := mux.Vars(r)
 	sourceID := models.SourceID(vars["id"])
 	
@@ -73,7 +75,7 @@ func (h *Handler) handleGetSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	source, err := h.service.GetSourceByID(sourceID)
+	source, err := h.service.GetSourceByID(sourceID, profileCtx.ProfileID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, err.Error())
@@ -109,6 +111,8 @@ func (h *Handler) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
+	profileCtx := r.Context().Value("profile").(*models.ProfileContext)
+	
 	vars := mux.Vars(r)
 	sourceID := models.SourceID(vars["id"])
 	
@@ -123,7 +127,7 @@ func (h *Handler) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	source, err := h.service.UpdateSource(sourceID, &req)
+	source, err := h.service.UpdateSource(sourceID, profileCtx.ProfileID, &req)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, err.Error())
@@ -151,7 +155,7 @@ func (h *Handler) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := h.service.DeleteSource(sourceID, profileCtx.ProfileID); err != nil {
+	if err := h.service.DeleteSource(sourceID, profileCtx.ProfileID, profileCtx.ProfileID); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			writeError(w, http.StatusNotFound, err.Error())
 			return

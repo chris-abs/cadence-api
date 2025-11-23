@@ -36,7 +36,7 @@ func createMediaSourceTables(db *sql.DB) error {
 		is_deleted BOOLEAN NOT NULL DEFAULT false,
 		deleted_at TIMESTAMP WITH TIME ZONE,
 		deleted_by VARCHAR(36) REFERENCES profile(id),
-		UNIQUE (family_id, name)
+		UNIQUE (profile_id, name)
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_media_source_name ON media_source(name);

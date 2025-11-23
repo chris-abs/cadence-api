@@ -2,7 +2,6 @@ package classification
 
 import (
 	"github.com/chrisabs/cadence/internal/media/classification/entities"
-	"github.com/chrisabs/cadence/internal/models"
 )
 
 type CreateClassificationRequest struct {
@@ -18,7 +17,6 @@ type UpdateClassificationRequest struct {
 }
 
 type ClassificationSearchRequest struct {
-	FamilyID models.FamilyID `json:"familyId"`
 	Limit    *int            `json:"limit,omitempty"`
 	Offset   *int            `json:"offset,omitempty"`
 }
