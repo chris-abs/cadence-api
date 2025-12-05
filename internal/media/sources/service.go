@@ -1,0 +1,132 @@
+package sources
+
+import (
+	"fmt"
+
+	"github.com/chrisabs/cadence/internal/media/sources/entities"
+	"github.com/chrisabs/cadence/internal/models"
+	"github.com/google/uuid"
+)
+
+type Service struct {
+	repo *Repository
+}
+
+func NewService(repo *Repository) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) CreateSource(req *CreateSourceRequest, familyID models.FamilyID, profileID models.ProfileID) (*entities.Source, error) {
+	if err := s.validateCreateSourceRequest(req); err != nil {
+		return nil, err
+	}
+	
+	source := &entities.Source{
+		ID:       models.SourceID(uuid.New().String()),
+		Name:     req.Name,
+		Color:    req.Color,
+		Category: req.Category,
+		FamilyID: familyID,
+		ProfileID: profileID,
+		CreatedBy: profileID,
+	}
+	
+	if err := s.repo.CreateSource(source); err != nil {
+		return nil, fmt.Errorf("error creating source: %v", err)
+	}
+	
+	return source, nil
+}
+
+func (s *Service) GetSourceByID(sourceID models.SourceID, profileID models.ProfileID) (*entities.Source, error) {
+	return s.repo.GetSourceByID(sourceID, profileID)
+}
+
+func (s *Service) UpdateSource(sourceID models.SourceID, profileID models.ProfileID, req *UpdateSourceRequest) (*entities.Source, error) {
+	if err := s.validateUpdateSourceRequest(req); err != nil {
+		return nil, err
+	}
+	
+	existingSource, err := s.repo.GetSourceByID(sourceID, profileID)
+	if err != nil {
+		return nil, err
+	}
+	
+	if req.Name != nil {
+		existingSource.Name = *req.Name
+	}
+	if req.Color != nil {
+		existingSource.Color = *req.Color
+	}
+	if req.Category != nil {
+		existingSource.Category = *req.Category
+	}
+	
+	if err := s.repo.UpdateSource(existingSource, profileID); err != nil {
+		return nil, fmt.Errorf("error updating source: %v", err)
+	}
+	
+	return existingSource, nil
+}
+
+func (s *Service) GetAllSources(params SourceSearchParams) (*SourceSearchResponse, error) {
+	return s.repo.GetAllSources(params)
+}
+
+func (s *Service) GetSourcesByIDs(sourceIDs []models.SourceID, profileID models.ProfileID) ([]entities.Source, error) {
+	return s.repo.GetSourcesByIDs(sourceIDs, profileID)
+}
+
+func (s *Service) DeleteSource(sourceID models.SourceID, profileID models.ProfileID, deletedBy models.ProfileID) error {
+	_, err := s.repo.GetSourceByID(sourceID, profileID)
+	if err != nil {
+		return err
+	}
+	
+	count, err := s.repo.GetMaterialCountBySource(sourceID, profileID)
+	if err != nil {
+		return fmt.Errorf("error checking source usage: %v", err)
+	}
+	
+	if count > 0 {
+		return fmt.Errorf("cannot delete source: it is being used by %d material items", count)
+	}
+	
+	return s.repo.DeleteSource(sourceID, profileID, deletedBy)
+}
+
+func (s *Service) validateCreateSourceRequest(req *CreateSourceRequest) error {
+	if req.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	
+	if len(req.Name) > 100 {
+		return fmt.Errorf("name must be 100 characters or less")
+	}
+	
+	if req.Color == "" {
+		return fmt.Errorf("color is required")
+	}
+	
+	if req.Category == "" {
+		return fmt.Errorf("category is required")
+	}
+	
+	if len(req.Category) > 50 {
+		return fmt.Errorf("category must be 50 characters or less")
+	}
+	
+	return nil
+}
+
+func (s *Service) validateUpdateSourceRequest(req *UpdateSourceRequest) error {
+	if req.Name != nil && len(*req.Name) > 100 {
+		return fmt.Errorf("name must be 100 characters or less")
+	}
+	
+	if req.Category != nil && len(*req.Category) > 50 {
+		return fmt.Errorf("category must be 50 characters or less")
+	}
+	
+	return nil
+}

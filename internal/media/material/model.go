@@ -1,0 +1,90 @@
+package material
+
+import (
+	"github.com/chrisabs/cadence/internal/media/material/entities"
+	"github.com/chrisabs/cadence/internal/models"
+)
+
+type CreateMaterialRequest struct {
+	Name             string                        `json:"name"`
+	Type             entities.MaterialType         `json:"type"`
+	Runtime          entities.Runtime              `json:"runtime"`
+	PosterURL        string                        `json:"posterUrl"`
+	SourceIDs        []models.SourceID             `json:"sourceIds"`
+	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
+	WatchWith        entities.WatchWith            `json:"watchWith"`
+	Status           entities.Status               `json:"status"`
+	Priority         entities.Priority             `json:"priority"`
+	Notes            string                        `json:"notes"`
+}
+
+type UpdateMaterialRequest struct {
+	Name             string                        `json:"name"`
+	Type             entities.MaterialType         `json:"type"`
+	Runtime          entities.Runtime              `json:"runtime"`
+	PosterURL        string                        `json:"posterUrl"`
+	SourceIDs        []models.SourceID             `json:"sourceIds"`
+	ClassificationID *models.ClassificationID      `json:"classificationId,omitempty"`
+	WatchWith        entities.WatchWith            `json:"watchWith"`
+	Status           entities.Status               `json:"status"`
+	Priority         entities.Priority             `json:"priority"`
+	Notes            string                        `json:"notes"`
+}
+
+type UpdateMaterialStatusRequest struct {
+	Status entities.Status `json:"status"`
+}
+
+type UpdateMaterialReviewRequest struct {
+	ReviewScore float64 `json:"reviewScore"` // 0.0 to 10.0
+}
+
+type MaterialSearchRequest struct {
+	Query            string                   `json:"query"`
+	ProfileID        *models.ProfileID        `json:"profileId,omitempty"` 
+	Type             entities.MaterialType    `json:"type"`
+	Runtime          entities.Runtime         `json:"runtime"`
+	SourceID         models.SourceID          `json:"sourceId"`
+	ClassificationID *models.ClassificationID `json:"classificationId,omitempty"`
+	IncludeClassified bool                    `json:"includeClassified,omitempty"` 
+	WatchWith        entities.WatchWith       `json:"watchWith"`
+	Priority         entities.Priority        `json:"priority"`
+	SortBy           string                   `json:"sortBy"`
+	Status           entities.Status          `json:"status"`
+	Limit            int                      `json:"limit"`
+	Offset           int                      `json:"offset"`
+}
+
+type MaterialSearchResponse struct {
+	Material []entities.Material `json:"material,omitempty"`
+	
+	Columns struct {
+		ToWatch        []entities.Material `json:"to_watch"`
+		InProgress     []entities.Material `json:"in_progress"`
+		Watching       []entities.Material `json:"watching"`
+		AwaitingRelease []entities.Material `json:"awaiting_release"`
+		Watched        []entities.Material `json:"watched"`
+	} `json:"columns,omitempty"`
+	
+	Total   int                    `json:"total"`
+	Limit   int                    `json:"limit"`
+	Offset  int                    `json:"offset"`
+	HasMore bool                   `json:"hasMore"`
+	SortBy  string                 `json:"sortBy"`
+}
+
+type MaterialEnumsResponse struct {
+	Types      []entities.MaterialType `json:"types"`
+	WatchWith  []entities.WatchWith    `json:"watchWith"`
+	Statuses   []entities.Status       `json:"statuses"`
+	Priorities []entities.Priority     `json:"priorities"`
+}
+
+type MaterialStatusSummaryResponse struct {
+	ToWatch         int `json:"toWatch"`
+	InProgress      int `json:"inProgress"`
+	Watching        int `json:"watching"`
+	AwaitingRelease int `json:"awaitingRelease"`
+	Watched         int `json:"watched"`
+	Total           int `json:"total"`
+}

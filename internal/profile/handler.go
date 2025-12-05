@@ -74,27 +74,24 @@ func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
         if file, header, err := r.FormFile("image"); err == nil {
             defer file.Close()
             
-            // First create the profile to get the ID
             profile, err := h.service.CreateProfile(familyCtx.FamilyID, &req)
             if err != nil {
                 writeError(w, http.StatusInternalServerError, err.Error())
                 return
             }
             
-            // Now upload the image with the profile ID in the key
             s3Handler, err := cloud.NewS3Handler()
             if err != nil {
                 writeError(w, http.StatusInternalServerError, "failed to initialize storage")
                 return
             }
             
-            imageURL, err := s3Handler.UploadFile(header, familyCtx.FamilyID, fmt.Sprintf("profiles/%s", profile.ID))
+            imageURL, err := s3Handler.UploadProfileAvatar(header, familyCtx.FamilyID, profile.ID)
             if err != nil {
                 writeError(w, http.StatusInternalServerError, "failed to upload image")
                 return
             }
             
-            // Update the profile with the image URL
             profile.ImageURL = imageURL
             updateReq := &UpdateProfileRequest{
                 ID:       profile.ID,
@@ -110,7 +107,6 @@ func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
             return
         }
         
-        // No image, create profile normally
         profile, err := h.service.CreateProfile(familyCtx.FamilyID, &req)
         if err != nil {
             writeError(w, http.StatusInternalServerError, err.Error())
@@ -121,7 +117,6 @@ func (h *Handler) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Handle non-multipart requests (no image)
     var req CreateProfileRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
